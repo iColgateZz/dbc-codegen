@@ -4,7 +4,7 @@
 
 ### CLI tool
 
-Get test text from CLI.
+Parse example DBC file.
 
 ```bash
 cargo run -- test
