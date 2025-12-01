@@ -3,6 +3,14 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
+#[derive(Debug, PartialEq)]
+struct MessageObject {
+    message_id: u16,
+    name: String,
+    length: u8,
+    transmitter_node: String
+}
+
 pub fn parse(file_path: &str) -> io::Result<()> {
     let file = File::open(file_path)?;
     let reader = BufReader::new(file);
@@ -16,8 +24,16 @@ pub fn parse(file_path: &str) -> io::Result<()> {
         let parts: Vec<&str> = line.split_whitespace().collect();
 
         match parts[0] {
-            "BO_" => println!("Found Message Object"),
-            _ => continue
+            "BO_" => {
+                let message_object = MessageObject {
+                    message_id: parts[1].parse::<u16>().unwrap(),
+                    name: parts[2].replace(":", "").to_string(),
+                    length: parts[3].parse::<u8>().unwrap(),
+                    transmitter_node: parts[4].to_string()
+                };
+                println!("{:?}", message_object)
+            }
+            _ => continue,
         }
     }
 
