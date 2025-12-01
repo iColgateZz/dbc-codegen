@@ -1,4 +1,5 @@
 use std::env;
+mod dbc_file_parser;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -11,7 +12,7 @@ fn main() {
     let command = &args[1];
     match command.as_str() {
         "test" => {
-            println!("This is test for CLI application");
+            _ = dbc_file_parser::parse("resources/example.dbc");
         }
         _ => {
             eprintln!("Unknown command: {command}");
