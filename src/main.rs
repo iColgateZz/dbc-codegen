@@ -1,14 +1,10 @@
-mod parser;
-
+use can_dbc::Dbc;
+use dbc_codegen::parse_dbc_file;
 use std::{
     env,
     fs::File,
     io::{BufWriter, Write},
 };
-
-use parser::parse_dbc_file;
-
-use can_dbc::Dbc;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
