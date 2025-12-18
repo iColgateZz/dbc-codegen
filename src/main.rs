@@ -1,10 +1,14 @@
+mod parser;
+
 use std::{
     env,
-    fs::{self, File},
+    fs::File,
     io::{BufWriter, Write},
 };
 
-use can_dbc::{Dbc, DbcError};
+use parser::parse_dbc_file;
+
+use can_dbc::Dbc;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -31,11 +35,6 @@ fn main() {
             println!("Usage: 'cli_app test   --- prints a test text");
         }
     }
-}
-
-fn parse_dbc_file(file_path: &str) -> Result<Dbc, DbcError> {
-    let data = fs::read_to_string(file_path).expect("Unable to read input file");
-    return Dbc::try_from(data.as_str());
 }
 
 fn generate_code(dbc: Dbc) -> std::io::Result<()> {
