@@ -1,8 +1,22 @@
-pub type Identifier = String;
-pub type MessageId = u32;
-pub type SignalName = String;
-pub type NodeName = String;
-pub type EnvVarName = String;
+#[derive(Debug, Clone)]
+pub struct Identifier(pub String);
+
+#[derive(Debug, Clone)]
+pub struct Symbol(pub Identifier);
 
 #[derive(Debug, Clone)]
 pub struct Version(pub String);
+
+#[derive(Debug, Clone)]
+pub struct NodeName(pub String);
+
+#[derive(Debug, Clone)]
+pub struct Node {
+    pub name: NodeName,
+}
+
+#[derive(Debug, Clone)]
+pub enum Transmitter {
+    Node(NodeName),
+    VectorXXX,
+}
