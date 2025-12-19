@@ -1,3 +1,5 @@
+use can_dbc::Version as parsedVersion;
+
 #[derive(Debug, Clone)]
 pub struct Identifier(pub String);
 
@@ -6,6 +8,12 @@ pub struct Symbol(pub Identifier);
 
 #[derive(Debug, Clone)]
 pub struct Version(pub String);
+
+impl From<parsedVersion> for Version {
+    fn from(value: parsedVersion) -> Self {
+        Version(value.0)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct NodeName(pub String);
