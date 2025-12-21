@@ -1,4 +1,5 @@
 use can_dbc::{Dbc, DbcError};
+use dbc_codegen::DbcFile;
 use std::{
     env,
     fs::{self, File},
@@ -14,10 +15,15 @@ fn main() {
     }
 
     let command = &args[1];
-    let filepath = "resources/example.dbc";
+    let filepaths = vec![
+        "resources/example.dbc",
+        "resources/BMW-PHEV-HV-Battery.dbc",
+        "resources/Kangoo.dbc",
+        "resources/VW-GTE-HV-Battery.dbc",
+    ];
 
     match command.as_str() {
-        "test" => match parse_dbc_file(filepath) {
+        "test" => match parse_dbc_file(filepaths[0]) {
             Ok(dbc) => {
                 if let Err(e) = generate_code(dbc) {
                     eprintln!("Error generating code: {e}");
@@ -25,9 +31,20 @@ fn main() {
             }
             Err(e) => eprintln!("{:?}", e),
         },
+        "test-ir" => {
+            let index: usize = args[2].parse().expect("");
+            let filepath = filepaths[index];
+            match parse_dbc_file(filepath) {
+                Ok(dbc) => {
+                    let ir = DbcFile::from(dbc);
+                    println!("{:#?}", ir);
+                }
+                Err(e) => eprint!("{:?}", e),
+            }
+        }
         _ => {
             eprintln!("Unknown command: {command}");
-            println!("Available commands: [ test ]");
+            println!("Available commands: [ test, test-ir ]");
         }
     }
 }
