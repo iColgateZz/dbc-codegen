@@ -1,26 +1,8 @@
 use can_dbc::Node as ParsedNode;
-use can_dbc::Symbol as ParsedSymbol;
 use can_dbc::Transmitter as ParsedTransmitter;
-use can_dbc::Version as ParsedVersion;
 
 #[derive(Debug, Clone)]
 pub struct Identifier(pub String);
-
-#[derive(Debug, Clone)]
-pub struct Symbol(pub Identifier);
-impl From<ParsedSymbol> for Symbol {
-    fn from(value: ParsedSymbol) -> Self {
-        Symbol(Identifier(value.0))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Version(pub String);
-impl From<ParsedVersion> for Version {
-    fn from(value: ParsedVersion) -> Self {
-        Version(value.0)
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct NodeName(pub String);

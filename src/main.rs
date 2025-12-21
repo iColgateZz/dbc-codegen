@@ -1,8 +1,7 @@
-use can_dbc::Dbc;
-use dbc_codegen::parse_dbc_file;
+use can_dbc::{Dbc, DbcError};
 use std::{
     env,
-    fs::File,
+    fs::{self, File},
     io::{BufWriter, Write},
 };
 
@@ -10,7 +9,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        println!("Usage: 'cli_app test   --- prints a test text");
+        println!("Usage: cargo run <command>");
         return;
     }
 
@@ -28,9 +27,14 @@ fn main() {
         },
         _ => {
             eprintln!("Unknown command: {command}");
-            println!("Usage: 'cli_app test   --- prints a test text");
+            println!("Available commands: [ test ]");
         }
     }
+}
+
+pub fn parse_dbc_file(file_path: &str) -> std::result::Result<Dbc, DbcError> {
+    let data = fs::read_to_string(file_path).expect("Unable to read input file");
+    Dbc::try_from(data.as_str())
 }
 
 fn generate_code(dbc: Dbc) -> std::io::Result<()> {
