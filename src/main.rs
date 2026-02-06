@@ -31,7 +31,7 @@ fn main() {
             if let Err(e) = write_parsed_dbc(dbc) {
                 eprintln!("Error generating code: {e}");
             }
-        },
+        }
         "test-ir" => {
             if args.len() < 3 {
                 println!("Add index as well!");
@@ -43,13 +43,14 @@ fn main() {
             let dbc = parse_dbc_file(filepath);
             let ir = DbcFile::from(dbc);
             println!("{:#?}", ir);
-        },
+        }
         "gen" => {
             let dbc = DbcFile::from(parse_dbc_file(&args[2]));
             let generator = codegen::rust::RustGen::new();
             let code = generator.generate(&dbc.messages);
-            println!("{code:#?}");
-        },
+            let mut out = File::create("src/test.rs").unwrap();
+            write!(out, "{}", code).unwrap();
+        }
         _ => {
             eprintln!("Unknown command: {command}");
             print_usage();

@@ -16,4 +16,9 @@ trait Generator {
         buf.push_str(text);
         buf.push('\n');
     }
+
+    fn write_newline(&mut self) {
+        let buf = self.buf_mut();
+        buf.push('\n');
+    }
 }
