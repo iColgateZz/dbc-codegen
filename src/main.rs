@@ -1,4 +1,4 @@
-use can_dbc::{Dbc, DbcError};
+use can_dbc::Dbc;
 use dbc_codegen::DbcFile;
 use std::{
     env,
@@ -25,14 +25,12 @@ fn main() {
     let command = &args[1];
 
     match command.as_str() {
-        "test" => match parse_dbc_file(FILEPATHS[0]) {
-            Ok(dbc) => {
-                if let Err(e) = generate_code(dbc) {
-                    eprintln!("Error generating code: {e}");
-                }
+        "test" => {
+            let dbc = parse_dbc_file(FILEPATHS[0]);
+            if let Err(e) = generate_code(dbc) {
+                eprintln!("Error generating code: {e}");
             }
-            Err(e) => eprintln!("{:?}", e),
-        },
+        }
         "test-ir" => {
             if args.len() < 3 {
                 println!("Add index as well!");
@@ -41,13 +39,9 @@ fn main() {
             }
             let index: usize = args[2].parse().expect("Index must be number!");
             let filepath = FILEPATHS[index];
-            match parse_dbc_file(filepath) {
-                Ok(dbc) => {
-                    let ir = DbcFile::from(dbc);
-                    println!("{:#?}", ir);
-                }
-                Err(e) => eprint!("{:?}", e),
-            }
+            let dbc = parse_dbc_file(filepath);
+            let ir = DbcFile::from(dbc);
+            println!("{:#?}", ir);
         }
         _ => {
             eprintln!("Unknown command: {command}");
@@ -62,9 +56,9 @@ fn print_usage() {
     println!("  cargo run test-ir <index 0..{MAX_INDEX}>");
 }
 
-pub fn parse_dbc_file(file_path: &str) -> std::result::Result<Dbc, DbcError> {
+pub fn parse_dbc_file(file_path: &str) -> Dbc {
     let data = fs::read_to_string(file_path).expect("Unable to read input file");
-    Dbc::try_from(data.as_str())
+    Dbc::try_from(data.as_str()).unwrap()
 }
 
 fn generate_code(dbc: Dbc) -> std::io::Result<()> {
