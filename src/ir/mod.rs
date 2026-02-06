@@ -1,10 +1,10 @@
 pub mod dbc;
 pub use dbc::*;
 
-mod common;
-mod helpers;
-mod message;
-mod signal;
+pub mod common;
+pub mod helpers;
+pub mod message;
+pub mod signal;
 
 use common::*;
 use helpers::*;
