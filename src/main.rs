@@ -27,7 +27,7 @@ fn main() {
     match command.as_str() {
         "test" => {
             let dbc = parse_dbc_file(FILEPATHS[0]);
-            if let Err(e) = generate_code(dbc) {
+            if let Err(e) = write_parsed_dbc(dbc) {
                 eprintln!("Error generating code: {e}");
             }
         }
@@ -61,12 +61,12 @@ pub fn parse_dbc_file(file_path: &str) -> ParsedDbc {
     ParsedDbc::try_from(data.as_str()).unwrap()
 }
 
-fn generate_code(dbc: ParsedDbc) -> std::io::Result<()> {
-    let output_file = File::create("test.rs")?;
+fn write_parsed_dbc(dbc: ParsedDbc) -> std::io::Result<()> {
+    let output_file = File::create("test.txt")?;
     let mut writer = BufWriter::new(output_file);
 
     writeln!(writer, "// Generated test file")?;
-    writeln!(writer, "//{:?}", dbc.messages)?;
+    writeln!(writer, "{:#?}", dbc.messages)?;
 
     Ok(())
 }
