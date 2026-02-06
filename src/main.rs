@@ -1,4 +1,4 @@
-use can_dbc::Dbc;
+use can_dbc::Dbc as ParsedDbc;
 use dbc_codegen::DbcFile;
 use std::{
     env,
@@ -56,12 +56,12 @@ fn print_usage() {
     println!("  cargo run test-ir <index 0..{MAX_INDEX}>");
 }
 
-pub fn parse_dbc_file(file_path: &str) -> Dbc {
+pub fn parse_dbc_file(file_path: &str) -> ParsedDbc {
     let data = fs::read_to_string(file_path).expect("Unable to read input file");
-    Dbc::try_from(data.as_str()).unwrap()
+    ParsedDbc::try_from(data.as_str()).unwrap()
 }
 
-fn generate_code(dbc: Dbc) -> std::io::Result<()> {
+fn generate_code(dbc: ParsedDbc) -> std::io::Result<()> {
     let output_file = File::create("test.rs")?;
     let mut writer = BufWriter::new(output_file);
 
