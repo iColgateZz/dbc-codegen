@@ -38,14 +38,14 @@ fn main() {
                 print_usage();
                 return;
             }
-            let index: usize = args[2].parse().expect("Index must be number!");
-            let filepath = FILEPATHS[index];
-            let dbc = parse_dbc_file(filepath);
+            let index = get_index(&args[2]);
+            let dbc = parse_dbc_file(FILEPATHS[index]);
             let ir = DbcFile::from(dbc);
             println!("{:#?}", ir);
         }
         "gen" => {
-            let dbc = DbcFile::from(parse_dbc_file(&args[2]));
+            let index = get_index(&args[2]);
+            let dbc = DbcFile::from(parse_dbc_file(FILEPATHS[index]));
             let generator = codegen::rust::RustGen::new();
             let code = generator.generate(&dbc.messages);
             let mut out = File::create("src/test.rs").unwrap();
@@ -56,6 +56,10 @@ fn main() {
             print_usage();
         }
     }
+}
+
+fn get_index(arg: &str) -> usize {
+    arg.parse().expect("Index must be number!")
 }
 
 fn print_usage() {
