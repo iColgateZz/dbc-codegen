@@ -26,25 +26,20 @@ fn main() {
     let command = &args[1];
 
     match command.as_str() {
-        "test" => {
+        "parse" => {
             let dbc = parse_dbc_file(FILEPATHS[0]);
             if let Err(e) = write_parsed_dbc(dbc) {
-                eprintln!("Error generating code: {e}");
+                eprintln!("Error parsing dbc: {e}");
             }
         }
-        "test-ir" => {
-            if args.len() < 3 {
-                println!("Add index as well!");
-                print_usage();
-                return;
-            }
-            let index = get_index(&args[2]);
+        "ir" => {
+            let index = get_index(&args, 2).expect("Could not get index!");
             let dbc = parse_dbc_file(FILEPATHS[index]);
             let ir = DbcFile::from(dbc);
             println!("{:#?}", ir);
         }
         "gen" => {
-            let index = get_index(&args[2]);
+            let index = get_index(&args, 2).expect("Could not get index!");
             let dbc = DbcFile::from(parse_dbc_file(FILEPATHS[index]));
             let generator = codegen::rust::RustGen::new();
             let code = generator.generate(&dbc.messages);
@@ -58,8 +53,14 @@ fn main() {
     }
 }
 
-fn get_index(arg: &str) -> usize {
-    arg.parse().expect("Index must be number!")
+fn get_index(args: &[String], position: usize) -> Option<usize> {
+    if args.len() < 3 {
+        println!("Add index as well!");
+        print_usage();
+        return None;
+    }
+
+    args[position].parse().ok()
 }
 
 fn print_usage() {
