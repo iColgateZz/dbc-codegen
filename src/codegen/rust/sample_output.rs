@@ -1,3 +1,35 @@
+use embedded_can::{ExtendedId, Frame, Id, StandardId};
+
+#[derive(Debug, Clone)]
+pub enum CanError {
+    Err1,
+    Err2,
+    // ...
+}
+
+#[derive(Debug, Clone)]
+pub enum Msg {
+    EngineData(EngineData),
+    OtherData(OtherData),
+}
+
+impl Msg {
+    fn try_from(frame: &impl Frame) -> Result<Self, CanError> {
+        let id = match frame.id() {
+            Id::Standard(sid) => sid.as_raw() as u32,
+            Id::Extended(eid) => eid.as_raw(),
+        };
+
+        let result = match id {
+            EngineData::ID => Msg::EngineData(EngineData::try_from_frame(frame)?),
+            OtherData::ID => Msg::OtherData(OtherData::try_from_frame(frame)?),
+            _ => return Err(CanError::Err1),
+        };
+
+        Ok(result)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct EngineData {
     pub rpm: f32,
@@ -5,21 +37,25 @@ pub struct EngineData {
 }
 
 impl EngineData {
-    pub const ID: u32 = 100;
-    pub const LEN: usize = 8;
+    const ID: u32 = 100;
+    const LEN: usize = 8;
 
-    pub fn deserialize(data: &[u8; 8]) -> Self {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        let data = frame.data();
+
         let raw_rpm = u16::from_le_bytes([data[0], data[1]]);
         let raw_speed = u16::from_le_bytes([data[2], data[3]]);
 
-        Self {
-            rpm: raw_rpm as f32 * 0.125,
-            speed: raw_speed as f32 * 0.01,
-        }
+        Ok(
+            Self {
+                rpm: raw_rpm as f32 * 0.125,
+                speed: raw_speed as f32 * 0.01,
+            }
+        )
     }
 
-    pub fn serialize(&self) -> [u8; 8] {
-        let mut data = [0u8; 8];
+    fn encode(&self) -> (Id, [u8; Self::LEN]) {
+        let mut data = [0u8; Self::LEN];
 
         let raw_rpm = (self.rpm / 0.125) as u16;
         let raw_speed = (self.speed / 0.01) as u16;
@@ -32,6 +68,41 @@ impl EngineData {
         data[2] = speed_bytes[0];
         data[3] = speed_bytes[1];
 
-        data
+        let id = Id::Extended(ExtendedId::new(Self::ID).unwrap());
+
+        (id, data)
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct OtherData {
+    pub something: f32,
+}
+
+impl OtherData {
+    const ID: u32 = 101;
+    const LEN: usize = 8;
+
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        // some logic
+        Ok(
+            Self {
+                something: 5.0
+            }
+        )
+    }
+
+    // other things ...
+    fn encode(&self) -> (Id, [u8; Self::LEN]) {
+        let data = [0u8; Self::LEN];
+
+        //some data manipulations
+
+        let id = Id::Standard(StandardId::new(Self::ID as u16).unwrap());
+
+        (id, data)
+    }
+}
+
+
+
