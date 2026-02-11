@@ -7,6 +7,11 @@ pub enum CanError {
     // ...
 }
 
+pub trait CanMessage<const LEN: usize>: Sized {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;
+    fn encode(&self) -> (Id, [u8; LEN]);
+}
+
 #[derive(Debug, Clone)]
 pub enum Msg {
     EngineData(EngineData),
@@ -39,23 +44,23 @@ pub struct EngineData {
 impl EngineData {
     const ID: u32 = 100;
     const LEN: usize = 8;
+}
 
+impl CanMessage<{ EngineData::LEN }> for EngineData {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
 
         let raw_rpm = u16::from_le_bytes([data[0], data[1]]);
         let raw_speed = u16::from_le_bytes([data[2], data[3]]);
 
-        Ok(
-            Self {
-                rpm: raw_rpm as f32 * 0.125,
-                speed: raw_speed as f32 * 0.01,
-            }
-        )
+        Ok(Self {
+            rpm: raw_rpm as f32 * 0.125,
+            speed: raw_speed as f32 * 0.01,
+        })
     }
 
-    fn encode(&self) -> (Id, [u8; Self::LEN]) {
-        let mut data = [0u8; Self::LEN];
+    fn encode(&self) -> (Id, [u8; EngineData::LEN]) {
+        let mut data = [0u8; EngineData::LEN];
 
         let raw_rpm = (self.rpm / 0.125) as u16;
         let raw_speed = (self.speed / 0.01) as u16;
@@ -69,7 +74,6 @@ impl EngineData {
         data[3] = speed_bytes[1];
 
         let id = Id::Extended(ExtendedId::new(Self::ID).unwrap());
-
         (id, data)
     }
 }
@@ -82,7 +86,9 @@ pub struct OtherData {
 impl OtherData {
     const ID: u32 = 101;
     const LEN: usize = 8;
+}
 
+impl CanMessage<{ OtherData::LEN }> for OtherData {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         // some logic
         Ok(
@@ -103,6 +109,3 @@ impl OtherData {
         (id, data)
     }
 }
-
-
-

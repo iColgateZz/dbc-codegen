@@ -1,5 +1,8 @@
 use crate::ir::message::MessageId;
 use crate::{codegen::Generator, ir::message::Message};
+
+pub mod sample_output;
+
 pub struct RustGen {
     buf: String,
 }
