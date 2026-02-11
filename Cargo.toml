@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 can-dbc = "8.0.0"
+embedded-can = "0.4"
