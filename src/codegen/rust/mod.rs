@@ -2,6 +2,7 @@ use crate::ir::message::MessageId;
 use crate::{codegen::Generator, ir::message::Message};
 
 pub mod sample_output;
+// pub mod test;
 
 pub struct RustGen {
     buf: String,
@@ -33,13 +34,17 @@ impl RustGen {
 
         for msg in messages {
             self.message(msg, 0);
+            self.write_newline();
         }
 
         self.buf
     }
 
     fn xuse(&mut self, indent: usize) {
-        self.write_line(indent, "use embedded_can::{ExtendedId, Frame, Id, StandardId};");
+        self.write_line(
+            indent,
+            "use embedded_can::{ExtendedId, Frame, Id, StandardId};",
+        );
     }
 
     fn error_enum(&mut self, indent: usize) {
@@ -52,7 +57,10 @@ impl RustGen {
 
     fn msg_trait(&mut self, indent: usize) {
         self.write_line(indent, "pub trait CanMessage<const LEN: usize>: Sized {");
-        self.write_line(indent + 4, "fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;");
+        self.write_line(
+            indent + 4,
+            "fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;",
+        );
         self.write_line(indent + 4, "fn encode(&self) -> (Id, [u8; LEN]);");
         self.write_line(indent, "}");
     }
@@ -79,7 +87,10 @@ impl RustGen {
     fn msg_impl(&mut self, messages: &[Message], indent: usize) {
         self.write_line(indent, "impl Msg {");
 
-        self.write_line(indent + 4, "fn try_from(frame: &impl Frame) -> Result<Self, CanError> {");
+        self.write_line(
+            indent + 4,
+            "fn try_from(frame: &impl Frame) -> Result<Self, CanError> {",
+        );
 
         self.write_line(indent + 8, "let id = match frame.id() {");
         self.write_line(indent + 12, "Id::Standard(sid) => sid.as_raw() as u32,");
@@ -89,7 +100,7 @@ impl RustGen {
 
         self.write_line(indent + 8, "let result = match id {");
         for msg in messages {
-            let s = format!("{0}::ID => Msg::{0}({0}::try_from(frame)?),", msg.name.0);
+            let s = format!("{0}::ID => Msg::{0}({0}::try_from_frame(frame)?)", msg.name.0);
             self.write_line(indent + 12, &format!("{s},"));
         }
         self.write_line(indent + 12, "_ => return Err(CanError::Err1),");
@@ -114,6 +125,9 @@ impl RustGen {
 
         // impl Name { ... }
         self.ximpl(msg, indent);
+        self.write_newline();
+
+        self.impl_can_msg(msg, indent);
     }
 
     fn derive(&mut self, indent: usize) {
@@ -141,39 +155,48 @@ impl RustGen {
         self.id(msg, indent);
 
         // const LEN
-        self.size(msg, indent);
-        self.write_newline();
-
-        self.deserialize(msg, indent + 4);
-        self.write_newline();
-
-        self.serialize(msg, indent + 4);
+        self.len(msg, indent);
 
         // close impl block
         self.write_line(indent, "}");
     }
 
     fn id(&mut self, msg: &Message, indent: usize) {
-        let id_line = match msg.id {
-            MessageId::Standard(id) => &format!("pub const ID: u16 = {};", id),
-            MessageId::Extended(id) => &format!("pub const ID: u32 = {};", id),
+        let id = match msg.id {
+            MessageId::Standard(id) => id as u32,
+            MessageId::Extended(id) => id,
         };
 
-        self.write_line(indent + 4, id_line);
+        self.write_line(indent + 4, &format!("pub const ID: u32 = {};", id));
     }
 
-    fn size(&mut self, msg: &Message, indent: usize) {
+    fn len(&mut self, msg: &Message, indent: usize) {
         self.write_line(indent + 4, &format!("pub const LEN: usize = {};", msg.size));
     }
 
-    fn deserialize(&mut self, msg: &Message, indent: usize) {
+    fn impl_can_msg(&mut self, msg: &Message, indent: usize) {
         self.write_line(
             indent,
-            &format!("pub fn deserialize(data: &[u8; {}]) -> Self {{", msg.size),
+            &format!("impl CanMessage<{{ {0}::LEN }}> for {0} {{", msg.name.0),
         );
+        self.try_from_frame(msg, indent + 4);
+        self.write_newline();
+
+        self.encode(msg, indent + 4);
+
+        // close impl block
+        self.write_line(indent, "}");
+    }
+
+    fn try_from_frame(&mut self, msg: &Message, indent: usize) {
+        self.write_line(
+            indent,
+            "fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {",
+        );
+        self.write_line(indent + 4, "let data = frame.data();");
+        self.write_newline();
 
         let mut byte = 0usize;
-
         for sig in &msg.signals {
             let raw = format!("raw_{}", sig.name.0.0);
             self.write_line(
@@ -187,10 +210,9 @@ impl RustGen {
             );
             byte += 2;
         }
-
         self.write_newline();
-        self.write_line(indent + 4, "Self {");
 
+        self.write_line(indent + 4, "Ok(Self {");
         for sig in &msg.signals {
             let name = &sig.name.0.0;
             let raw = format!("raw_{}", name);
@@ -199,21 +221,24 @@ impl RustGen {
                 &format!("{}: {} as f32 * {},", name, raw, sig.factor),
             );
         }
-
-        self.write_line(indent + 4, "}");
+        // close Ok block
+        self.write_line(indent + 4, "})");
+        // close try_from_frame block
         self.write_line(indent, "}");
     }
 
-    fn serialize(&mut self, msg: &Message, indent: usize) {
+    fn encode(&mut self, msg: &Message, indent: usize) {
         self.write_line(
             indent,
-            &format!("pub fn serialize(&self) -> [u8; {}] {{", msg.size),
+            &format!("fn encode(&self) -> (Id, [u8; {}::LEN]) {{", msg.name.0),
         );
-        self.write_line(indent + 4, &format!("let mut data = [0u8; {}];", msg.size));
+        self.write_line(
+            indent + 4,
+            &format!("let mut data = [0u8; {}::LEN];", msg.name.0),
+        );
         self.write_newline();
 
         let mut byte = 0usize;
-
         for sig in &msg.signals {
             let name = &sig.name.0.0;
             let raw = format!("raw_{}", name);
@@ -237,7 +262,14 @@ impl RustGen {
             byte += 2;
         }
 
-        self.write_line(indent + 4, "data");
+        let id = match msg.id {
+            MessageId::Standard(_) => "Id::Standard(StandardId::new(Self::ID as u16).unwrap())",
+            MessageId::Extended(_) => "Id::Extended(ExtendedId::new(Self::ID).unwrap())",
+        };
+        self.write_line(indent + 4, &format!("let id = {id};"));
+        self.write_line(indent + 4, "(id, data)");
+
+        // close encode block
         self.write_line(indent, "}");
     }
 }
