@@ -43,7 +43,7 @@ fn main() {
             let dbc = DbcFile::from(parse_dbc_file(FILEPATHS[index]));
             let generator = codegen::rust::RustGen::new();
             let code = generator.generate(&dbc.messages);
-            let mut out = File::create("src/test.rs").unwrap();
+            let mut out = File::create("src/codegen/rust/test.rs").unwrap();
             write!(out, "{}", code).unwrap();
         }
         _ => {
