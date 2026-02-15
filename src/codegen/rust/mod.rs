@@ -19,11 +19,89 @@ impl RustGen {
     }
 
     pub fn generate(mut self, messages: &[Message]) -> String {
+        self.xuse(0);
+        self.write_newline();
+
+        self.error_enum(0);
+        self.write_newline();
+
+        self.msg_trait(0);
+        self.write_newline();
+
+        self.msg(messages, 0);
+        self.write_newline();
+
         for msg in messages {
             self.message(msg, 0);
         }
 
         self.buf
+    }
+
+    fn xuse(&mut self, indent: usize) {
+        self.write_line(indent, "use embedded_can::{ExtendedId, Frame, Id, StandardId};");
+    }
+
+    fn error_enum(&mut self, indent: usize) {
+        self.derive(indent);
+        self.write_line(indent, "pub enum CanError {");
+        self.write_line(indent + 4, "Err1,");
+        self.write_line(indent + 4, "Err2,");
+        self.write_line(indent, "}");
+    }
+
+    fn msg_trait(&mut self, indent: usize) {
+        self.write_line(indent, "pub trait CanMessage<const LEN: usize>: Sized {");
+        self.write_line(indent + 4, "fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;");
+        self.write_line(indent + 4, "fn encode(&self) -> (Id, [u8; LEN]);");
+        self.write_line(indent, "}");
+    }
+
+    fn msg(&mut self, messages: &[Message], indent: usize) {
+        self.msg_enum(messages, indent);
+        self.write_newline();
+
+        self.msg_impl(messages, indent);
+    }
+
+    fn msg_enum(&mut self, messages: &[Message], indent: usize) {
+        self.derive(indent);
+        self.write_line(indent, "pub enum Msg {");
+
+        for msg in messages {
+            let s = format!("{}({})", msg.name.0, msg.name.0);
+            self.write_line(indent + 4, &format!("{s},"));
+        }
+
+        self.write_line(indent, "}");
+    }
+
+    fn msg_impl(&mut self, messages: &[Message], indent: usize) {
+        self.write_line(indent, "impl Msg {");
+
+        self.write_line(indent + 4, "fn try_from(frame: &impl Frame) -> Result<Self, CanError> {");
+
+        self.write_line(indent + 8, "let id = match frame.id() {");
+        self.write_line(indent + 12, "Id::Standard(sid) => sid.as_raw() as u32,");
+        self.write_line(indent + 12, "Id::Extended(eid) => eid.as_raw(),");
+        self.write_line(indent + 8, "};");
+        self.write_newline();
+
+        self.write_line(indent + 8, "let result = match id {");
+        for msg in messages {
+            let s = format!("{0}::ID => Msg::{0}({0}::try_from(frame)?),", msg.name.0);
+            self.write_line(indent + 12, &format!("{s},"));
+        }
+        self.write_line(indent + 12, "_ => return Err(CanError::Err1),");
+        self.write_line(indent + 8, "};");
+        self.write_newline();
+
+        self.write_line(indent + 8, "Ok(result)");
+
+        // close try_from block
+        self.write_line(indent + 4, "}");
+        // close impl block
+        self.write_line(indent, "}");
     }
 
     fn message(&mut self, msg: &Message, indent: usize) {
