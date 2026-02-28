@@ -43,7 +43,7 @@ impl RustGen {
             self.message(msg, 0);
             self.write_newline();
         }
-        
+
         self.xuse();
 
         self.buf
@@ -110,7 +110,10 @@ impl RustGen {
 
         self.write_line(indent + 8, "let result = match id {");
         for msg in messages {
-            let s = format!("{0}::ID => Msg::{0}({0}::try_from_frame(frame)?)", msg.name.0);
+            let s = format!(
+                "{0}::ID => Msg::{0}({0}::try_from_frame(frame)?)",
+                msg.name.0
+            );
             self.write_line(indent + 12, &format!("{s},"));
         }
         self.write_line(indent + 12, "_ => return Err(CanError::Err1),");
@@ -255,7 +258,12 @@ impl RustGen {
 
             self.write_line(
                 indent + 4,
-                &format!("let {} = (self.{} / {}) as u16;", raw, name, format_float(sig.factor)),
+                &format!(
+                    "let {} = (self.{} / {}) as u16;",
+                    raw,
+                    name,
+                    format_float(sig.factor)
+                ),
             );
 
             self.write_line(
