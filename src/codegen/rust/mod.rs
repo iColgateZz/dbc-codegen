@@ -1,5 +1,6 @@
 use crate::ir::message::MessageId;
 use crate::{codegen::Generator, ir::message::Message};
+use std::collections::HashSet;
 
 pub mod helpers;
 pub use helpers::format_float;
@@ -9,6 +10,7 @@ pub mod sample_output;
 
 pub struct RustGen {
     buf: String,
+    used_can_types: HashSet<&'static str>,
 }
 
 impl Generator for RustGen {
@@ -19,11 +21,13 @@ impl Generator for RustGen {
 
 impl RustGen {
     pub fn new() -> RustGen {
-        RustGen { buf: String::new() }
+        RustGen {
+            buf: String::new(),
+            used_can_types: HashSet::new(),
+        }
     }
 
     pub fn generate(mut self, messages: &[Message]) -> String {
-        self.xuse(0);
         self.write_newline();
 
         self.error_enum(0);
@@ -39,15 +43,18 @@ impl RustGen {
             self.message(msg, 0);
             self.write_newline();
         }
+        
+        self.xuse();
 
         self.buf
     }
 
-    fn xuse(&mut self, indent: usize) {
-        self.write_line(
-            indent,
-            "use embedded_can::{ExtendedId, Frame, Id, StandardId};",
-        );
+    fn xuse(&mut self) {
+        let mut types: Vec<&str> = vec!["Frame", "Id"];
+        types.extend(&self.used_can_types);
+        types.sort();
+        let use_stmt = format!("use embedded_can::{{{}}};", types.join(", "));
+        self.prepend_line(&use_stmt);
     }
 
     fn error_enum(&mut self, indent: usize) {
@@ -266,8 +273,14 @@ impl RustGen {
         }
 
         let id = match msg.id {
-            MessageId::Standard(_) => "Id::Standard(StandardId::new(Self::ID as u16).unwrap())",
-            MessageId::Extended(_) => "Id::Extended(ExtendedId::new(Self::ID).unwrap())",
+            MessageId::Standard(_) => {
+                self.used_can_types.insert("StandardId");
+                "Id::Standard(StandardId::new(Self::ID as u16).unwrap())"
+            }
+            MessageId::Extended(_) => {
+                self.used_can_types.insert("ExtendedId");
+                "Id::Extended(ExtendedId::new(Self::ID).unwrap())"
+            }
         };
         self.write_line(indent + 4, &format!("let id = {id};"));
         self.write_line(indent + 4, "(id, data)");

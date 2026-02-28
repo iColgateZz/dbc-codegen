@@ -3,6 +3,12 @@ pub mod rust;
 trait Generator {
     fn buf_mut(&mut self) -> &mut String;
 
+    fn prepend_line(&mut self, text: &str) {
+        let buf = self.buf_mut();
+        buf.insert(0, '\n');
+        buf.insert_str(0, text);
+    }
+    
     fn write_indent(&mut self, indent: usize) {
         let buf = self.buf_mut();
         for _ in 0..indent {
