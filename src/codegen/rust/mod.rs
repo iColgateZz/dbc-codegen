@@ -1,6 +1,9 @@
 use crate::ir::message::MessageId;
 use crate::{codegen::Generator, ir::message::Message};
 
+pub mod helpers;
+pub use helpers::format_float;
+
 pub mod sample_output;
 // pub mod test;
 
@@ -218,7 +221,7 @@ impl RustGen {
             let raw = format!("raw_{}", name);
             self.write_line(
                 indent + 8,
-                &format!("{}: {} as f32 * {},", name, raw, sig.factor),
+                &format!("{}: {} as f64 * {},", name, raw, format_float(sig.factor)),
             );
         }
         // close Ok block
@@ -245,7 +248,7 @@ impl RustGen {
 
             self.write_line(
                 indent + 4,
-                &format!("let {} = (self.{} / {}) as u16;", raw, name, sig.factor),
+                &format!("let {} = (self.{} / {}) as u16;", raw, name, format_float(sig.factor)),
             );
 
             self.write_line(
