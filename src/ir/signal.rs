@@ -7,6 +7,7 @@ use can_dbc::ValueType as ParsedValueType;
 #[derive(Debug, Clone)]
 pub struct Signal {
     pub name: SignalName,
+    pub orignial_name: Identifier,
     pub multiplexer: MultiplexIndicator,
     pub start_bit: u64,
     pub size: u64,
@@ -22,7 +23,8 @@ pub struct Signal {
 impl From<ParsedSignal> for Signal {
     fn from(value: ParsedSignal) -> Self {
         Signal {
-            name: SignalName::from(value.name),
+            name: SignalName::from(value.name.to_lowercase()),
+            orignial_name: Identifier(value.name),
             multiplexer: MultiplexIndicator::from(value.multiplexer_indicator),
             start_bit: value.start_bit,
             size: value.size,
