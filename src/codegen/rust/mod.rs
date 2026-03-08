@@ -153,13 +153,27 @@ impl RustGen {
     }
 
     fn signal_value_enum(&mut self, signal: &Signal, indent: usize) {
-        self.write_line(indent, "#[derive(Debug, Clone, PartialEq)]");
+        let signal_name = &signal.name.0.0.to_upper_camelcase();
 
-        self.write_line(indent, &format!("pub enum {} {{", &signal.name.0.0.to_upper_camelcase()));
+        self.write_line(indent, "#[derive(Debug, Clone, PartialEq)]");
+        self.write_line(indent, &format!("pub enum {} {{", &signal_name));
         for value_desc in &signal.value_descriptions {
             self.write_line(indent + 4, &format!("{},", &value_desc.description));
         }
         self.write_line(indent + 4, "_Other(u8),");
+        self.write_line(indent, "}");
+
+        self.write_newline();
+
+        self.write_line(indent, &format!("impl From<u8> for {} {{", &signal_name));
+        self.write_line(indent + 4, "fn from(val: u8) -> Self {");
+        self.write_line(indent + 8, "match val {");
+        for value_desc in &signal.value_descriptions {
+            self.write_line(indent + 12, &format!("{} => Self::{},", &value_desc.value, &value_desc.description));
+        }
+        self.write_line(indent + 12, "_ => Self::_Other(val),");
+        self.write_line(indent + 8, "}");
+        self.write_line(indent + 4, "}");
         self.write_line(indent, "}");
     }
 
