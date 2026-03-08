@@ -1,4 +1,6 @@
+use crate::ir::helpers::ToUpperCamelCase;
 use crate::ir::message::MessageId;
+use crate::ir::signal::Signal;
 use crate::{codegen::Generator, ir::message::Message};
 use std::collections::HashSet;
 
@@ -129,6 +131,13 @@ impl RustGen {
     }
 
     fn message(&mut self, msg: &Message, indent: usize) {
+        for signal in &msg.signals {
+            if !signal.value_descriptions.is_empty() {
+                self.signal_value_enum(signal, indent);
+            }
+        }
+        self.write_newline();
+
         // #[derive(...)]
         self.derive(indent);
 
@@ -141,6 +150,17 @@ impl RustGen {
         self.write_newline();
 
         self.impl_can_msg(msg, indent);
+    }
+
+    fn signal_value_enum(&mut self, signal: &Signal, indent: usize) {
+        self.write_line(indent, "#[derive(Debug, Clone, PartialEq)]");
+
+        self.write_line(indent, &format!("pub enum {} {{", &signal.name.0.0.to_upper_camelcase()));
+        for value_desc in &signal.value_descriptions {
+            self.write_line(indent + 4, &format!("{},", &value_desc.description));
+        }
+        self.write_line(indent + 4, "_Other(u8),");
+        self.write_line(indent, "}");
     }
 
     fn derive(&mut self, indent: usize) {
