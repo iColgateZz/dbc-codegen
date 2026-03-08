@@ -19,6 +19,7 @@ pub struct Signal {
     pub max: f64,
     pub unit: String,
     pub receivers: Vec<Receiver>,
+    pub value_descriptions: Vec<ValueDescription>,
 }
 impl From<ParsedSignal> for Signal {
     fn from(value: ParsedSignal) -> Self {
@@ -36,6 +37,7 @@ impl From<ParsedSignal> for Signal {
             max: value.max,
             unit: value.unit,
             receivers: map_into(value.receivers),
+            value_descriptions: vec![]
         }
     }
 }
@@ -110,4 +112,10 @@ impl From<String> for Receiver {
             _ => Receiver::Node(NodeName(value)),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ValueDescription {
+    pub value: i64,
+    pub description: String,
 }

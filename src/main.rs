@@ -35,12 +35,12 @@ fn main() {
         "ir" => {
             let index = get_index(&args, 2).expect("Could not get index!");
             let dbc = parse_dbc_file(FILEPATHS[index]);
-            let ir = DbcFile::from(dbc);
+            let ir = DbcFile::from_dbc(dbc);
             println!("{:#?}", ir);
         }
         "gen" => {
             let index = get_index(&args, 2).expect("Could not get index!");
-            let dbc = DbcFile::from(parse_dbc_file(FILEPATHS[index]));
+            let dbc = DbcFile::from_dbc(parse_dbc_file(FILEPATHS[index]));
             let generator = codegen::rust::RustGen::new();
             let code = generator.generate(&dbc.messages);
             let mut out = File::create("src/codegen/rust/test.rs").unwrap();

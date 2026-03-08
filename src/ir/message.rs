@@ -26,7 +26,7 @@ impl From<ParsedMessage> for Message {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MessageId {
     Standard(u16),
     Extended(u32),
