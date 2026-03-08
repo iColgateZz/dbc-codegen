@@ -36,12 +36,11 @@ impl Msg {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-#[repr(u8)]
 pub enum EngineMode {
-    Off   = 0,
-    Idle  = 1,
-    Drive = 2,
-    Sport = 3,
+    Off,
+    Idle,
+    Drive,
+    Sport,
     _Other(u8),
 }
 
