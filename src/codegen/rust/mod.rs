@@ -3,6 +3,8 @@ use quote::{format_ident, quote, ToTokens};
 use syn::File;
 
 use crate::ir::message::{Message, MessageId};
+use crate::ir::signal::{Signal};
+use crate::ir::helpers::ToUpperCamelCase;
 
 pub struct RustGen;
 
@@ -113,6 +115,8 @@ impl ToTokens for MessageDef<'_> {
         let msg = self.msg;
         let name = format_ident!("{}", msg.name.0);
 
+        let value_enums = msg.signals.iter().map(|s| SignalValueEnum { signal: s });
+
         let fields = msg.signals.iter().map(|sig| {
             let field = format_ident!("{}", sig.name.0.0);
             quote! { pub #field: f64 }
@@ -185,6 +189,8 @@ impl ToTokens for MessageDef<'_> {
         };
 
         tokens.extend(quote! {
+            #( #value_enums )*
+
             #[derive(Debug, Clone)]
             pub struct #name {
                 #( #fields, )*
@@ -198,5 +204,34 @@ impl ToTokens for MessageDef<'_> {
                 #encode
             }
         });
+    }
+}
+
+struct SignalValueEnum<'a> {
+    signal: &'a Signal,
+}
+
+impl ToTokens for SignalValueEnum<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let signal = self.signal;
+
+        if signal.value_descriptions.is_empty() {
+            return;
+        }
+
+        let enum_name = format_ident!("{}", signal.name.0.0.to_upper_camelcase());
+
+        let variants = signal.value_descriptions.iter().map(|desc| {
+            let name = format_ident!("{}", desc.description);
+            quote! { #name }
+        });
+
+        quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub enum #enum_name {
+                #( #variants, )*
+                _Other(u8),
+            }
+        }.to_tokens(tokens);
     }
 }
