@@ -15,7 +15,6 @@ impl RustGen {
         let error_enum = ErrorEnum;
         let msg_trait = MsgTrait;
         let msg_enum = MsgEnum { messages };
-        let msg_impl = MsgEnumImpl { messages };
         let message_defs: Vec<_> = messages.iter().map(|m| MessageDef { msg: m }).collect();
 
         let tokens = quote! {
@@ -26,8 +25,6 @@ impl RustGen {
             #msg_trait
 
             #msg_enum
-
-            #msg_impl
 
             #( #message_defs )*
         };
@@ -81,15 +78,7 @@ impl ToTokens for MsgEnum<'_> {
                 #( #variants, )*
             }
         });
-    }
-}
 
-struct MsgEnumImpl<'a> {
-    messages: &'a [Message],
-}
-
-impl ToTokens for MsgEnumImpl<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
         let arms = self.messages.iter().map(|msg| {
             let name = format_ident!("{}", msg.name.0);
             quote! { #name::ID => Msg::#name(#name::try_from_frame(frame)?) }
