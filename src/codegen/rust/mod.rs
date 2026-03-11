@@ -1,8 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::parse2;
 
 use crate::ir::message::{Message, MessageId};
+
+// mod test;
+// mod sample_output;
 
 pub struct RustGen;
 
@@ -16,8 +18,7 @@ impl RustGen {
         let msg_enum = Self::msg_enum(messages);
         let msg_impl = Self::msg_impl(messages);
 
-        let message_defs: Vec<_> =
-            messages.iter().map(Self::message).collect();
+        let message_defs: Vec<_> = messages.iter().map(Self::message).collect();
 
         let tokens = quote! {
             #imports
@@ -33,8 +34,7 @@ impl RustGen {
             #( #message_defs )*
         };
 
-        let file = parse2(tokens).unwrap();
-
+        let file = syn::parse2(tokens).unwrap();
         prettyplease::unparse(&file)
     }
 
@@ -141,7 +141,7 @@ impl RustGen {
             MessageId::Extended(id) => id,
         };
 
-        let len = msg.size;
+        let len = msg.size as usize;
 
         quote! {
             impl #name {
@@ -152,8 +152,6 @@ impl RustGen {
     }
 
     fn try_from_frame(msg: &Message) -> TokenStream {
-        let name = format_ident!("{}", msg.name.0);
-
         let mut byte = 0usize;
 
         let reads = msg.signals.iter().map(|sig| {
@@ -194,7 +192,6 @@ impl RustGen {
 
     fn encode(msg: &Message) -> TokenStream {
         let name = format_ident!("{}", msg.name.0);
-        let len = msg.size;
 
         let id_expr = match msg.id {
             MessageId::Standard(_) => {
@@ -211,7 +208,7 @@ impl RustGen {
 
         quote! {
             fn encode(&self) -> (Id, [u8; #name::LEN]) {
-                let mut data = [0u8; #len];
+                let mut data = [0u8; #name::LEN];
 
                 // encode signals here
 
