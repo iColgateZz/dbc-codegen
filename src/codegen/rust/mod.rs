@@ -40,13 +40,13 @@ struct ErrorEnum;
 
 impl ToTokens for ErrorEnum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(quote! {
+        quote! {
             #[derive(Debug, Clone)]
             pub enum CanError {
                 Err1,
                 Err2,
             }
-        });
+        }.to_tokens(tokens);
     }
 }
 
@@ -54,12 +54,12 @@ struct MsgTrait;
 
 impl ToTokens for MsgTrait {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(quote! {
+        quote! {
             pub trait CanMessage<const LEN: usize>: Sized {
                 fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;
                 fn encode(&self) -> (Id, [u8; LEN]);
             }
-        });
+        }.to_tokens(tokens);
     }
 }
 
@@ -74,19 +74,19 @@ impl ToTokens for MsgEnum<'_> {
             quote! { #name(#name) }
         });
 
-        tokens.extend(quote! {
+        quote! {
             #[derive(Debug, Clone)]
             pub enum Msg {
                 #( #variants, )*
             }
-        });
+        }.to_tokens(tokens);
 
         let arms = self.messages.iter().map(|msg| {
             let name = format_ident!("{}", msg.name.0);
             quote! { #name::ID => Msg::#name(#name::try_from_frame(frame)?) }
         });
 
-        tokens.extend(quote! {
+        quote! {
             impl Msg {
                 fn try_from(frame: &impl Frame) -> Result<Self, CanError> {
                     let id = match frame.id() {
@@ -102,7 +102,7 @@ impl ToTokens for MsgEnum<'_> {
                     Ok(result)
                 }
             }
-        });
+        }.to_tokens(tokens);
     }
 }
 
@@ -188,7 +188,7 @@ impl ToTokens for MessageDef<'_> {
             }
         };
 
-        tokens.extend(quote! {
+        quote! {
             #( #value_enums )*
 
             #[derive(Debug, Clone)]
@@ -203,7 +203,7 @@ impl ToTokens for MessageDef<'_> {
 
                 #encode
             }
-        });
+        }.to_tokens(tokens);
     }
 }
 
