@@ -33,8 +33,6 @@ impl RustGen {
         };
 
         let file: File = syn::parse2(tokens).unwrap();
-        println!("{}", file.attrs.len());
-        println!("{}", file.items.len());
         prettyplease::unparse(&file)
     }
 }
