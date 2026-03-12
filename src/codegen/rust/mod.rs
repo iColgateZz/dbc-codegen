@@ -4,7 +4,6 @@ use syn::File;
 
 use crate::ir::message::{Message, MessageId};
 use crate::ir::signal::{Signal};
-use crate::ir::helpers::ToUpperCamelCase;
 
 pub struct RustGen;
 
@@ -118,7 +117,7 @@ impl ToTokens for MessageDef<'_> {
         let value_enums = msg.signals.iter().map(|s| SignalValueEnum { signal: s });
 
         let fields = msg.signals.iter().map(|sig| {
-            let field = format_ident!("{}", sig.name.0.0);
+            let field = format_ident!("{}", sig.name.0);
             quote! { pub #field: f64 }
         });
 
@@ -138,7 +137,7 @@ impl ToTokens for MessageDef<'_> {
         let try_from = {
             let mut byte = 0usize;
             let reads = msg.signals.iter().map(|sig| {
-                let raw = format_ident!("raw_{}", sig.name.0.0);
+                let raw = format_ident!("raw_{}", sig.name.0);
                 let b0 = byte;
                 let b1 = byte + 1;
                 byte += 2;
@@ -146,8 +145,8 @@ impl ToTokens for MessageDef<'_> {
             });
 
             let fields = msg.signals.iter().map(|sig| {
-                let field = format_ident!("{}", sig.name.0.0);
-                let raw = format_ident!("raw_{}", sig.name.0.0);
+                let field = format_ident!("{}", sig.name.0);
+                let raw = format_ident!("raw_{}", sig.name.0);
                 let factor = sig.factor;
                 quote! { #field: #raw as f64 * #factor }
             });
@@ -215,24 +214,24 @@ impl ToTokens for SignalValueEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let signal = self.signal;
 
-        if signal.value_descriptions.is_empty() {
+        let Some(enum_def) = &signal.signal_value_enum else {
             return;
-        }
+        };
 
         let enum_name = format_ident!("{}", signal.name.0);
 
-        let variants = signal.value_descriptions.iter().map(|vd| {
+        let variants = enum_def.variants.iter().map(|vd| {
             let name = format_ident!("{}", vd.description);
             quote! { #name }
         });
 
-        let from_arms = signal.value_descriptions.iter().map(|vd| {
+        let from_arms = enum_def.variants.iter().map(|vd| {
             let name = format_ident!("{}", vd.description);
             let value = vd.value;
             quote! { #value => Self::#name }
         });
 
-        let into_arms = signal.value_descriptions.iter().map(|vd| {
+        let into_arms = enum_def.variants.iter().map(|vd| {
             let name = format_ident!("{}", vd.description);
             let value = vd.value;
             quote! { #enum_name::#name => #value }
