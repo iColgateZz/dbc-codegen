@@ -2,6 +2,7 @@ use can_dbc::Dbc as ParsedDbc;
 use std::fs;
 
 use crate::codegen;
+use crate::middle_end::nodes::SanitizeMessageNames;
 use crate::{DbcFile, middle_end::{nodes::{AttachSignalValueEnums, SanitizeSignalEnumVariantNames}, pipeline::transform_pipeline::TransformationPipeline}};
 
 //TODO: this definetely has to have some flags
@@ -15,6 +16,7 @@ impl App {
 
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
+            .add(SanitizeMessageNames)
             .add(SanitizeSignalEnumVariantNames)
             .add(AttachSignalValueEnums)
             .run(&mut dbc);

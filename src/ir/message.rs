@@ -17,8 +17,7 @@ impl From<ParsedMessage> for Message {
     fn from(value: ParsedMessage) -> Self {
         Message {
             id: MessageId::from(value.id),
-            //TODO: sanitize this using .to_upper_camelcase()
-            name: Identifier(value.name.clone()),
+            name: Identifier("".to_string()),
             original_name: Identifier(value.name),
             size: value.size,
             transmitter: Transmitter::from(value.transmitter),
