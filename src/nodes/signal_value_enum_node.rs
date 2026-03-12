@@ -2,9 +2,9 @@ use crate::nodes::transformation_node::TransformationNode;
 
 /// Attach a SignalValueEnum to a Signal if there is one
 /// matching the message ID and signal name
-pub struct SignalValueEnumAttacher;
+pub struct AttachSignalValueEnums;
 
-impl TransformationNode for SignalValueEnumAttacher {
+impl TransformationNode for AttachSignalValueEnums {
     fn transform(&self, file: &mut crate::DbcFile) {
         //TODO: use hashmap for better performance
         for msg in &mut file.messages {
