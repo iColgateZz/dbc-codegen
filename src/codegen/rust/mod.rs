@@ -219,7 +219,7 @@ impl ToTokens for SignalValueEnum<'_> {
             return;
         }
 
-        let enum_name = format_ident!("{}", signal.name.0.0.to_upper_camelcase());
+        let enum_name = format_ident!("{}", signal.name.0);
 
         let variants = signal.value_descriptions.iter().map(|vd| {
             let name = format_ident!("{}", vd.description);
