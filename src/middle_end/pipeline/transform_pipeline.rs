@@ -1,4 +1,4 @@
-use crate::middle_end::nodes::transformation_node::TransformationNode;
+use crate::middle_end::nodes::transformation::TransformationNode;
 
 pub struct TransformationPipeline {
     nodes: Vec<Box<dyn TransformationNode>>,

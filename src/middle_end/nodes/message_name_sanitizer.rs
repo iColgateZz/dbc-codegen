@@ -1,5 +1,5 @@
 use super::helpers::ToUpperCamelCase;
-use super::transformation_node::TransformationNode;
+use super::transformation::TransformationNode;
 
 /// Sanitize the names of Message structs.
 pub struct SanitizeMessageNames;

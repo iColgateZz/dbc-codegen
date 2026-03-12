@@ -1,5 +1,5 @@
 use super::helpers::ToUpperCamelCase;
-use super::transformation_node::TransformationNode;
+use super::transformation::TransformationNode;
 
 /// Sanitize the names of SignalValueEnum variants.
 /// Remove the name of the signal and convert to
