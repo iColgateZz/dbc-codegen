@@ -41,7 +41,7 @@ fn main() {
         "gen" => {
             let index = get_index(&args, 2).expect("Could not get index!");
             let code = App::convert(FILEPATHS[index]);
-            let mut out = File::create("src/codegen/rust/test_data/test.rs").unwrap();
+            let mut out = File::create("data/test.rs").unwrap();
             write!(out, "{}", code).unwrap();
         }
         _ => {
