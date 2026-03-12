@@ -1,4 +1,4 @@
-use crate::ir::{Identifier, NodeName, map_into, ValueDescription};
+use crate::ir::{Identifier, NodeName, map_into, SignalValueEnum};
 use can_dbc::ByteOrder as ParsedByteOrder;
 use can_dbc::MultiplexIndicator as ParsedMultiplexIndicator;
 use can_dbc::Signal as ParsedSignal;
@@ -19,7 +19,7 @@ pub struct Signal {
     pub max: f64,
     pub unit: String,
     pub receivers: Vec<Receiver>,
-    pub value_descriptions: Vec<ValueDescription>,
+    pub signal_value_enum: Option<SignalValueEnum>,
 }
 impl From<ParsedSignal> for Signal {
     fn from(value: ParsedSignal) -> Self {
@@ -37,7 +37,7 @@ impl From<ParsedSignal> for Signal {
             max: value.max,
             unit: value.unit,
             receivers: map_into(value.receivers),
-            value_descriptions: vec![],
+            signal_value_enum: None,
         }
     }
 }
