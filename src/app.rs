@@ -6,10 +6,10 @@ use crate::{DbcFile, middle_end::{nodes::{AttachSignalValueEnums, SanitizeSignal
 
 //TODO: this definetely has to have some flags
 //      At least to chose between rust and c++
-struct App;
+pub struct App;
 
 impl App {
-    fn convert(input_path: &str) -> String {
+    pub fn convert(input_path: &str) -> String {
         let data = fs::read_to_string(input_path).expect("Unable to read input file");
         let mut dbc = DbcFile::from_dbc(ParsedDbc::try_from(data.as_str()).unwrap());
 
