@@ -1,5 +1,5 @@
 use can_dbc::Dbc as ParsedDbc;
-use dbc_codegen::{DbcFile, app, codegen};
+use dbc_codegen::{DbcFile, app::App};
 use std::{
     env,
     fs::{self, File},
