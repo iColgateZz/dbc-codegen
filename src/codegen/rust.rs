@@ -170,8 +170,9 @@ impl ToTokens for MessageDef<'_> {
                 let raw = format_ident!("raw_{}", sig.name.lower());
                 let factor = sig.factor;
 
-                let value = if let Some(sve) = sig.signal_value_enum.as_ref() {
+                let value = if let Some(sve_idx) = sig.signal_value_enum.as_ref() {
                     let enum_name = format_ident!("{}", sig.name.upper_camel());
+                    let sve = &self.file.signal_value_enums[sve_idx.0];
                     let rust_type = format_ident!("{}", sve.repr_type.as_rust_type());
                     quote! { #enum_name::from(#raw as #rust_type) }
                 } else {
