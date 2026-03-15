@@ -71,7 +71,7 @@ struct MsgEnum<'a> {
 impl ToTokens for MsgEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let variants = self.messages.iter().map(|msg| {
-            let name = format_ident!("{}", msg.name.0);
+            let name = format_ident!("{}", msg.name.upper_camel());
             quote! { #name(#name) }
         });
 
@@ -84,7 +84,7 @@ impl ToTokens for MsgEnum<'_> {
         .to_tokens(tokens);
 
         let arms = self.messages.iter().map(|msg| {
-            let name = format_ident!("{}", msg.name.0);
+            let name = format_ident!("{}", msg.name.upper_camel());
             quote! { #name::ID => Msg::#name(#name::try_from_frame(frame)?) }
         });
 
@@ -116,7 +116,7 @@ struct MessageDef<'a> {
 impl ToTokens for MessageDef<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let msg = self.msg;
-        let name = format_ident!("{}", msg.name.0);
+        let name = format_ident!("{}", msg.name.upper_camel());
 
         let value_enums = msg.signals.iter().map(|s| SignalValueEnum { signal: s });
 
