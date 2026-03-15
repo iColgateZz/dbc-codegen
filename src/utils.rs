@@ -1,3 +1,5 @@
+use proc_macro2::Literal;
+
 pub trait ToUpperCamelCase {
     fn to_upper_camelcase(&self) -> String;
 }
@@ -46,6 +48,19 @@ impl ReprType {
             Self::I16 => "i16",
             Self::I32 => "i32",
             Self::I64 => "i64",
+        }
+    }
+    
+    pub fn literal(&self, value: i64) -> proc_macro2::Literal {
+        match self {
+            Self::U8  => Literal::u8_suffixed(value as u8),
+            Self::U16 => Literal::u16_suffixed(value as u16),
+            Self::U32 => Literal::u32_suffixed(value as u32),
+            Self::U64 => Literal::u64_suffixed(value as u64),
+            Self::I8  => Literal::i8_suffixed(value as i8),
+            Self::I16 => Literal::i16_suffixed(value as i16),
+            Self::I32 => Literal::i32_suffixed(value as i32),
+            Self::I64 => Literal::i64_suffixed(value),
         }
     }
 }
