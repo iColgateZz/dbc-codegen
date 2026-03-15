@@ -2,11 +2,10 @@ use can_dbc::Dbc as ParsedDbc;
 use std::fs;
 
 use crate::codegen;
-use crate::middle_end::nodes::{SanitizeMessageNames};
 use crate::{
     DbcFile,
     middle_end::{
-        nodes::{AttachSignalValueEnums, SanitizeSignalEnumVariantNames},
+        nodes::{AttachSignalValueEnums, SanitizeMessageNames, SanitizeSignalEnumVariantNames},
         pipeline::transform_pipeline::TransformationPipeline,
     },
 };
