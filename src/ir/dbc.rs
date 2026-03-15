@@ -11,6 +11,9 @@ pub struct DbcFile {
     pub signal_value_enums: Vec<SignalValueEnum>,
     //TODO: store signal_extended_value_type_list from can_dbc
     //      for signal type inference
+
+    //TODO: consider how to use can_dbc::value_tables. Basically,
+    //      these are global enums for signal values
 }
 
 impl From<ParsedDbc> for DbcFile {
