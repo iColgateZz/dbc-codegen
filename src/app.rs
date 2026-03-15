@@ -26,6 +26,6 @@ impl App {
             .add(AttachSignalValueEnums)
             .run(&mut dbc);
 
-        codegen::rust::RustGen::generate(&dbc.messages)
+        codegen::rust::RustGen::generate(&dbc)
     }
 }

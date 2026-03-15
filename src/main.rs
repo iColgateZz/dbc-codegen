@@ -57,7 +57,7 @@ fn main() {
 
         Command::Ir { input, output } => {
             let dbc = parse_dbc_file(&input);
-            let ir = DbcFile::from_dbc(dbc);
+            let ir = DbcFile::from(dbc);
             if let Err(e) = write_ir(ir, &output) {
                 eprintln!("Error writing IR: {e}");
             }

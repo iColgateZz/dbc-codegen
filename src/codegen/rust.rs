@@ -2,21 +2,23 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::File;
 
+use crate::DbcFile;
 use crate::ir::message::{Message, MessageId};
 use crate::ir::signal::Signal;
 
 pub struct RustGen;
 
 impl RustGen {
-    pub fn generate(messages: &[Message]) -> String {
+    pub fn generate(file: &DbcFile) -> String {
         let imports = quote! {
             use embedded_can::{Frame, Id, StandardId, ExtendedId};
         };
 
+        let messages = &file.messages;
         let error_enum = ErrorEnum;
         let msg_trait = MsgTrait;
         let msg_enum = MsgEnum { messages };
-        let message_defs: Vec<_> = messages.iter().map(|m| MessageDef { msg: m }).collect();
+        let message_defs: Vec<_> = messages.iter().map(|m| MessageDef { msg: m, file }).collect();
 
         let tokens = quote! {
             #imports
@@ -112,6 +114,7 @@ impl ToTokens for MsgEnum<'_> {
 
 struct MessageDef<'a> {
     msg: &'a Message,
+    file: &'a DbcFile,
 }
 
 impl ToTokens for MessageDef<'_> {
@@ -119,9 +122,11 @@ impl ToTokens for MessageDef<'_> {
         let msg = self.msg;
         let name = format_ident!("{}", msg.name.upper_camel());
 
-        let value_enums = msg.signals.iter().map(|s| SignalValueEnum { signal: s });
+        let signals: Vec<&Signal> = msg.signal_idxs.iter().map(|idx| &self.file.signals[idx.0]).collect();
 
-        let fields = msg.signals.iter().map(|sig| {
+        let value_enums = signals.iter().map(|s| SignalValueEnum { signal: s, file: self.file });
+
+        let fields = signals.iter().map(|sig| {
             let field = format_ident!("{}", sig.name.lower());
             let rust_type = sig
                 .signal_value_enum
@@ -146,7 +151,7 @@ impl ToTokens for MessageDef<'_> {
 
         let try_from = {
             let mut byte = 0usize;
-            let reads = msg.signals.iter().map(|sig| {
+            let reads = signals.iter().map(|sig| {
                 let raw = format_ident!("raw_{}", sig.name.lower());
                 let byte_count = sig.size.div_ceil(8) as usize;
                 let indices: Vec<usize> = (byte..byte + byte_count).collect();
@@ -160,7 +165,7 @@ impl ToTokens for MessageDef<'_> {
                 }
             });
 
-            let fields = msg.signals.iter().map(|sig| {
+            let fields = signals.iter().map(|sig| {
                 let field = format_ident!("{}", sig.name.lower());
                 let raw = format_ident!("raw_{}", sig.name.lower());
                 let factor = sig.factor;
@@ -237,32 +242,38 @@ impl ToTokens for MessageDef<'_> {
 
 struct SignalValueEnum<'a> {
     signal: &'a Signal,
+    file: &'a DbcFile,
 }
 
 impl ToTokens for SignalValueEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let signal = self.signal;
 
-        let Some(enum_def) = &signal.signal_value_enum else {
+        let Some(enum_idx) = &signal.signal_value_enum else {
             return;
         };
+
+        let enum_def = &self.file.signal_value_enums[enum_idx.0];
 
         let enum_name = format_ident!("{}", signal.name.upper_camel());
         let repr_type = enum_def.repr_type;
         let rust_type = format_ident!("{}", repr_type.as_rust_type());
 
-        let variants = enum_def.variants.iter().map(|vd| {
+        let variants = enum_def.variants.iter().map(|vd_idx| {
+            let vd = &self.file.value_descriptions[vd_idx.0];
             let name = format_ident!("{}", vd.description);
             quote! { #name }
         });
 
-        let from_arms = enum_def.variants.iter().map(|vd| {
+        let from_arms = enum_def.variants.iter().map(|vd_idx| {
+            let vd = &self.file.value_descriptions[vd_idx.0];
             let name = format_ident!("{}", vd.description);
             let value = repr_type.literal(vd.value);
             quote! { #value => Self::#name }
         });
 
-        let into_arms = enum_def.variants.iter().map(|vd| {
+        let into_arms = enum_def.variants.iter().map(|vd_idx| {
+            let vd = &self.file.value_descriptions[vd_idx.0];
             let name = format_ident!("{}", vd.description);
             let value = repr_type.literal(vd.value);
             quote! { #enum_name::#name => #value }
