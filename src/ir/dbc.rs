@@ -14,6 +14,11 @@ pub struct DbcFile {
 
     //TODO: consider how to use can_dbc::value_tables. Basically,
     //      these are global enums for signal values
+
+    //TODO: can_dbc::comments and attribute_* stuff may be
+    //      used as metadata in generated code
+
+    
 }
 
 impl From<ParsedDbc> for DbcFile {
