@@ -5,7 +5,7 @@ use crate::codegen;
 use crate::{
     DbcFile,
     middle_end::{
-        nodes::{AttachSignalValueEnums, SanitizeMessageNames, SanitizeSignalEnumVariantNames},
+        nodes::{AttachSignalValueEnums, SanitizeSignalEnumVariantNames},
         pipeline::transform_pipeline::TransformationPipeline,
     },
 };
@@ -21,7 +21,6 @@ impl App {
 
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
-            .add(SanitizeMessageNames)
             .add(SanitizeSignalEnumVariantNames)
             .add(AttachSignalValueEnums)
             .run(&mut dbc);
