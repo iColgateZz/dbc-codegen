@@ -3,6 +3,7 @@ use can_dbc::SignalExtendedValueType as ParsedExtendedValueType;
 
 use crate::ir::{identifier::Identifier, message::MessageId};
 
+#[derive(Debug)]
 pub enum ExtendedValueType {
     Integer,
     Float32,
@@ -19,6 +20,7 @@ impl From<ParsedExtendedValueType> for ExtendedValueType {
     }
 }
 
+#[derive(Debug)]
 pub struct SignalExtendedValueType {
     pub message_id: MessageId,
     pub signal_name: Identifier,

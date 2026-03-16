@@ -1,4 +1,4 @@
-use crate::ir::{Message, Node, Signal, SignalIdx, SignalValueEnum, helpers::map_into};
+use crate::ir::{Message, Node, Signal, SignalIdx, SignalValueEnum, helpers::map_into, SignalExtendedValueType};
 use can_dbc::Dbc as ParsedDbc;
 use can_dbc::Message as ParsedMessage;
 use can_dbc::ValueDescription as ParsedValueDescription;
@@ -9,8 +9,7 @@ pub struct DbcFile {
     pub messages: Vec<Message>,
     pub signals: Vec<Signal>,
     pub signal_value_enums: Vec<SignalValueEnum>,
-    //TODO: store signal_extended_value_type_list from can_dbc
-    //      for signal type inference
+    pub signal_extended_value_types: Vec<SignalExtendedValueType>,
 
     //TODO: consider how to use can_dbc::value_tables. Basically,
     //      these are global enums for signal values
@@ -57,6 +56,11 @@ impl From<ParsedDbc> for DbcFile {
             
             let ParsedMessage { id, name, size, transmitter, .. } = msg;
             file.messages.push(Message::from_parsed(id, name, size, transmitter, signal_ids));
+        }
+
+        for ext_val_type in value.signal_extended_value_type_list {
+            let value_type = SignalExtendedValueType::from(ext_val_type);
+            file.signal_extended_value_types.push(value_type);
         }
 
         file
