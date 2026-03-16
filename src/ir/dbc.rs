@@ -27,6 +27,7 @@ pub struct DbcFile {
 
 impl From<ParsedDbc> for DbcFile {
     fn from(value: ParsedDbc) -> Self {
+        //TODO: Add IRBuilder class for this logic
         let mut file = DbcFile::default();
 
         file.nodes = map_into(value.nodes);
