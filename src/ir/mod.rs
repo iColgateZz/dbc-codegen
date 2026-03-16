@@ -8,6 +8,7 @@ pub mod node;
 pub mod signal;
 pub mod value_description;
 pub mod signal_value_enum;
+pub mod signal_extended_value_type;
 
 use helpers::*;
 use identifier::*;
@@ -16,3 +17,4 @@ use node::*;
 use signal::*;
 use value_description::*;
 use signal_value_enum::*;
+use signal_extended_value_type::*;
