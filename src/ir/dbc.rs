@@ -57,6 +57,7 @@ impl From<ParsedDbc> for DbcFile {
 
 
         for msg in value.messages {
+            //TODO: filter non-relevant messages here
             let mut signal_ids = vec![];
             let ParsedMessage { id, name, size, transmitter, signals, .. } = msg;
 
