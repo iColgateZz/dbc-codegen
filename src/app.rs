@@ -2,7 +2,7 @@ use can_dbc::Dbc as ParsedDbc;
 use std::fs;
 
 use crate::codegen;
-use crate::middle_end::nodes::FilterRelevantMessages;
+use crate::middle_end::nodes::{AttachSignalExtendedValueTypes, FilterRelevantMessages};
 use crate::{
     DbcFile,
     middle_end::{
@@ -23,6 +23,7 @@ impl App {
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
             .add(FilterRelevantMessages)
+            .add(AttachSignalExtendedValueTypes)
             .add(SanitizeSignalEnumVariantNames)
             .add(InferSignalValueEnumType)
             .add(AttachSignalValueEnums)
