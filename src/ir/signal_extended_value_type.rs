@@ -1,8 +1,6 @@
 use can_dbc::SignalExtendedValueTypeList;
 use can_dbc::SignalExtendedValueType as ParsedExtendedValueType;
 
-use crate::ir::{identifier::Identifier, message::MessageId};
-
 #[derive(Debug, Clone)]
 pub enum ExtendedValueType {
     Integer,
@@ -22,16 +20,12 @@ impl From<ParsedExtendedValueType> for ExtendedValueType {
 
 #[derive(Debug, Clone)]
 pub struct SignalExtendedValueType {
-    pub message_id: MessageId,
-    pub signal_name: Identifier,
     pub extended_value_type: ExtendedValueType,
 }
 
 impl From<SignalExtendedValueTypeList> for SignalExtendedValueType {
     fn from(value: SignalExtendedValueTypeList) -> Self {
         Self {
-            message_id: value.message_id.into(),
-            signal_name: Identifier(value.signal_name),
             extended_value_type: value.signal_extended_value_type.into()
         }
     }

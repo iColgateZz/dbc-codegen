@@ -1,5 +1,5 @@
 use crate::ir::identifier::Identifier;
-use crate::ir::{SignalValueEnumIdx, map_into, ExtendedValueType};
+use crate::ir::{SignalValueEnum, map_into, ExtendedValueType};
 use can_dbc::ByteOrder as ParsedByteOrder;
 use can_dbc::MultiplexIndicator as ParsedMultiplexIndicator;
 use can_dbc::Signal as ParsedSignal;
@@ -22,7 +22,7 @@ pub struct Signal {
     pub max: f64,
     pub unit: String,
     pub receivers: Vec<Receiver>,
-    pub signal_value_enum: Option<SignalValueEnumIdx>,
+    pub signal_value_enum: Option<SignalValueEnum>,
     pub extended_type: ExtendedValueType,
 }
 impl From<ParsedSignal> for Signal {

@@ -1,15 +1,15 @@
-use crate::ir::{Message, Node, Signal, SignalIdx, SignalValueEnum, helpers::map_into, SignalExtendedValueType};
-use can_dbc::Dbc as ParsedDbc;
+use crate::ir::signal_extended_value_type::ExtendedValueType;
+use crate::ir::{Message, Node, Signal, SignalIdx, SignalValueEnum, helpers::map_into};
+use can_dbc::{Dbc as ParsedDbc, SignalExtendedValueTypeList};
 use can_dbc::Message as ParsedMessage;
 use can_dbc::ValueDescription as ParsedValueDescription;
+use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 pub struct DbcFile {
     pub nodes: Vec<Node>,
     pub messages: Vec<Message>,
     pub signals: Vec<Signal>,
-    pub signal_value_enums: Vec<SignalValueEnum>,
-    pub signal_extended_value_types: Vec<SignalExtendedValueType>,
 
     //TODO: consider how to use can_dbc::value_tables. Basically,
     //      these are global enums for signal values
@@ -31,36 +31,53 @@ impl From<ParsedDbc> for DbcFile {
 
         file.nodes = map_into(value.nodes);
 
+        type SignalKey = (can_dbc::MessageId, String);
+        let mut value_enum_map: HashMap<SignalKey, SignalValueEnum> = HashMap::new();
+
         for value_enum in value.value_descriptions {
-            match value_enum {
-                ParsedValueDescription::Signal { 
-                    message_id, 
-                    name, 
-                    value_descriptions 
-                } => {
-                    let sve = SignalValueEnum::from_parsed(message_id, name, value_descriptions);
-                    file.signal_value_enums.push(sve);
-                },
-                _ => (),
-            };
+            if let ParsedValueDescription::Signal {
+                message_id,
+                name,
+                value_descriptions,
+            } = value_enum
+            {
+                let sve = SignalValueEnum::from_parsed( value_descriptions);
+                value_enum_map.insert((message_id, name), sve);
+            }
+        }
+
+        let mut extended_type_map: HashMap<SignalKey, ExtendedValueType> = HashMap::new();
+
+        for ext in value.signal_extended_value_type_list {
+            let ir_ext_type = ExtendedValueType::from(ext.signal_extended_value_type);
+
+            let SignalExtendedValueTypeList { message_id, signal_name, ..} = ext;
+            extended_type_map.insert((message_id, signal_name),ir_ext_type);
         }
 
 
         for msg in value.messages {
             let mut signal_ids = vec![];
-            for sig in msg.signals {
+            let ParsedMessage { id, name, size, transmitter, signals, .. } = msg;
+
+            for sig in signals {
+                let key = (id, sig.name.clone());
+                let mut signal = Signal::from(sig);
+
+                if let Some(enum_val) = value_enum_map.remove(&key) {
+                    signal.signal_value_enum = Some(enum_val);
+                }
+
+                if let Some(ext) = extended_type_map.remove(&key) {
+                    signal.extended_type = ext;
+                }
+
                 let id = file.signals.len();
-                file.signals.push(Signal::from(sig));
+                file.signals.push(signal);
                 signal_ids.push(SignalIdx(id));
             }
-            
-            let ParsedMessage { id, name, size, transmitter, .. } = msg;
-            file.messages.push(Message::from_parsed(id, name, size, transmitter, signal_ids));
-        }
 
-        for ext_val_type in value.signal_extended_value_type_list {
-            let value_type = SignalExtendedValueType::from(ext_val_type);
-            file.signal_extended_value_types.push(value_type);
+            file.messages.push(Message::from_parsed(id, name, size, transmitter, signal_ids));
         }
 
         file
