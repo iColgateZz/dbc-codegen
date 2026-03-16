@@ -2,11 +2,10 @@ use can_dbc::Dbc as ParsedDbc;
 use std::fs;
 
 use crate::codegen;
-use crate::middle_end::nodes::{AttachSignalExtendedValueTypes, FilterRelevantMessages};
 use crate::{
     DbcFile,
     middle_end::{
-        nodes::{AttachSignalValueEnums, InferSignalValueEnumType, SanitizeSignalEnumVariantNames},
+        nodes::{FilterRelevantMessages, InferSignalValueEnumType, SanitizeSignalEnumVariantNames},
         pipeline::transform_pipeline::TransformationPipeline,
     },
 };
@@ -23,10 +22,8 @@ impl App {
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
             .add(FilterRelevantMessages)
-            .add(AttachSignalExtendedValueTypes)
             .add(SanitizeSignalEnumVariantNames)
             .add(InferSignalValueEnumType)
-            .add(AttachSignalValueEnums)
             .run(&mut dbc);
 
         codegen::rust::RustGen::generate(&dbc)
