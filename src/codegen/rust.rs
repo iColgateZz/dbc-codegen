@@ -124,7 +124,7 @@ impl ToTokens for MessageDef<'_> {
 
         let signals: Vec<&Signal> = msg.signal_idxs.iter().map(|idx| &self.file.signals[idx.0]).collect();
 
-        let value_enums = signals.iter().map(|s| SignalValueEnum { signal: s, file: self.file });
+        let value_enums = signals.iter().map(|s| SignalValueEnum { signal: s });
 
         let fields = signals.iter().map(|sig| {
             let field = format_ident!("{}", sig.name.lower());
@@ -170,9 +170,8 @@ impl ToTokens for MessageDef<'_> {
                 let raw = format_ident!("raw_{}", sig.name.lower());
                 let factor = sig.factor;
 
-                let value = if let Some(sve_idx) = sig.signal_value_enum.as_ref() {
+                let value = if let Some(sve) = &sig.signal_value_enum {
                     let enum_name = format_ident!("{}", sig.name.upper_camel());
-                    let sve = &self.file.signal_value_enums[sve_idx.0];
                     let rust_type = format_ident!("{}", sve.repr_type.as_rust_type());
                     quote! { #enum_name::from(#raw as #rust_type) }
                 } else {
@@ -243,18 +242,15 @@ impl ToTokens for MessageDef<'_> {
 
 struct SignalValueEnum<'a> {
     signal: &'a Signal,
-    file: &'a DbcFile,
 }
 
 impl ToTokens for SignalValueEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let signal = self.signal;
 
-        let Some(enum_idx) = &signal.signal_value_enum else {
+        let Some(enum_def) = &signal.signal_value_enum else {
             return;
         };
-
-        let enum_def = &self.file.signal_value_enums[enum_idx.0];
 
         let enum_name = format_ident!("{}", signal.name.upper_camel());
         let repr_type = enum_def.repr_type;
