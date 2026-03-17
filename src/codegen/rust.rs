@@ -207,14 +207,50 @@ impl ToTokens for MessageDef<'_> {
                 }
             };
 
+            let writes = signals.iter().map(|sig| {
+                let field = format_ident!("{}", sig.name.lower());
+                let byte_count = sig.size.div_ceil(8) as usize;
+                let start_byte = sig.start_bit as usize / 8;
+                let indices: Vec<usize> = (start_byte..start_byte + byte_count).collect();
+                let slot_indices: Vec<usize> = (0..byte_count).collect();
+
+                let raw_value = if let Some(sve) = &sig.signal_value_enum {
+                    let rust_type = format_ident!("{}", sve.repr_type.as_rust_type());
+                    quote! { #rust_type::from(self.#field) }
+                } else {
+                    let factor = sig.factor;
+                    match byte_count {
+                        1 => quote! { (self.#field / #factor) as u8 },
+                        2 => quote! { (self.#field / #factor) as u16 },
+                        4 => quote! { (self.#field / #factor) as u32 },
+                        _ => panic!("unsupported signal size: {} bits", sig.size),
+                    }
+                };
+
+                match byte_count {
+                    1 => {
+                        let idx = indices[0];
+                        quote! { data[#idx] = #raw_value; }
+                    }
+                    2 => quote! {
+                        let bytes = (#raw_value).to_le_bytes();
+                        #( data[#indices] = bytes[#slot_indices]; )*
+                    },
+                    4 => quote! {
+                        let bytes = (#raw_value).to_le_bytes();
+                        #( data[#indices] = bytes[#slot_indices]; )*
+                    },
+                    _ => panic!("unsupported signal size: {} bits", sig.size),
+                }
+            });
+
             quote! {
                 fn encode(&self) -> (Id, [u8; #name::LEN]) {
                     let mut data = [0u8; #name::LEN];
 
-                    // encode signals here
+                    #( #writes )*
 
                     let id = #id_expr;
-
                     (id, data)
                 }
             }
