@@ -150,6 +150,9 @@ impl ToTokens for MessageDef<'_> {
         };
 
         let try_from = {
+            // TODO: take into account the multiplexing, otherwise
+            //       conflicting reads happen (signals are in different
+            //       mux groups - they share same bit positions)
             let reads = signals.iter().map(|sig| {
                 let raw = format_ident!("raw_{}", sig.name.lower());
                 let byte_count = sig.size.div_ceil(8) as usize;
@@ -206,6 +209,9 @@ impl ToTokens for MessageDef<'_> {
                 }
             };
 
+            // TODO: take into account the multiplexing, otherwise
+            //       data overwriting happens (signals are in different
+            //       mux groups - they share same bit positions)
             let writes = signals.iter().map(|sig| {
                 let field = format_ident!("{}", sig.name.lower());
                 let byte_count = sig.size.div_ceil(8) as usize;
