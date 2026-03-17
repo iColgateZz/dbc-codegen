@@ -86,6 +86,7 @@ impl CanMessage<{ DriverHeartbeat::LEN }> for DriverHeartbeat {
     }
     fn encode(&self) -> (Id, [u8; DriverHeartbeat::LEN]) {
         let mut data = [0u8; DriverHeartbeat::LEN];
+        data[0usize] = u8::from(self.driver_heartbeat_cmd);
         let id = Id::Standard(StandardId::new(Self::ID as u16).unwrap());
         (id, data)
     }
@@ -144,6 +145,10 @@ impl CanMessage<{ IoDebug::LEN }> for IoDebug {
     }
     fn encode(&self) -> (Id, [u8; IoDebug::LEN]) {
         let mut data = [0u8; IoDebug::LEN];
+        data[0usize] = (self.io_debug_test_unsigned / 1f64) as u8;
+        data[1usize] = u8::from(self.io_debug_test_enum);
+        data[2usize] = (self.io_debug_test_signed / 1f64) as u8;
+        data[3usize] = (self.io_debug_test_float / 0.5f64) as u8;
         let id = Id::Standard(StandardId::new(Self::ID as u16).unwrap());
         (id, data)
     }
@@ -164,7 +169,7 @@ impl CanMessage<{ MotorCmd::LEN }> for MotorCmd {
             return Err(CanError::InvalidPayloadSize);
         }
         let raw_motor_cmd_steer = data[0usize];
-        let raw_motor_cmd_drive = data[1usize];
+        let raw_motor_cmd_drive = data[0usize];
         Ok(Self {
             motor_cmd_steer: raw_motor_cmd_steer as f64 * 1f64,
             motor_cmd_drive: raw_motor_cmd_drive as f64 * 1f64,
@@ -172,6 +177,8 @@ impl CanMessage<{ MotorCmd::LEN }> for MotorCmd {
     }
     fn encode(&self) -> (Id, [u8; MotorCmd::LEN]) {
         let mut data = [0u8; MotorCmd::LEN];
+        data[0usize] = (self.motor_cmd_steer / 1f64) as u8;
+        data[0usize] = (self.motor_cmd_drive / 1f64) as u8;
         let id = Id::Standard(StandardId::new(Self::ID as u16).unwrap());
         (id, data)
     }
@@ -203,6 +210,10 @@ impl CanMessage<{ MotorStatus::LEN }> for MotorStatus {
     }
     fn encode(&self) -> (Id, [u8; MotorStatus::LEN]) {
         let mut data = [0u8; MotorStatus::LEN];
+        data[0usize] = (self.motor_status_wheel_error / 1f64) as u8;
+        let bytes = ((self.motor_status_speed_kph / 0.001f64) as u16).to_le_bytes();
+        data[1usize] = bytes[0usize];
+        data[2usize] = bytes[1usize];
         let id = Id::Standard(StandardId::new(Self::ID as u16).unwrap());
         (id, data)
     }
@@ -232,28 +243,28 @@ impl CanMessage<{ SensorSonars::LEN }> for SensorSonars {
         }
         let raw_sensor_sonars_mux = data[0usize];
         let raw_sensor_sonars_err_count = u16::from_le_bytes([
+            data[0usize],
             data[1usize],
-            data[2usize],
         ]);
-        let raw_sensor_sonars_left = u16::from_le_bytes([data[3usize], data[4usize]]);
-        let raw_sensor_sonars_middle = u16::from_le_bytes([data[5usize], data[6usize]]);
-        let raw_sensor_sonars_right = u16::from_le_bytes([data[7usize], data[8usize]]);
-        let raw_sensor_sonars_rear = u16::from_le_bytes([data[9usize], data[10usize]]);
+        let raw_sensor_sonars_left = u16::from_le_bytes([data[2usize], data[3usize]]);
+        let raw_sensor_sonars_middle = u16::from_le_bytes([data[3usize], data[4usize]]);
+        let raw_sensor_sonars_right = u16::from_le_bytes([data[5usize], data[6usize]]);
+        let raw_sensor_sonars_rear = u16::from_le_bytes([data[6usize], data[7usize]]);
         let raw_sensor_sonars_no_filt_left = u16::from_le_bytes([
-            data[11usize],
-            data[12usize],
+            data[2usize],
+            data[3usize],
         ]);
         let raw_sensor_sonars_no_filt_middle = u16::from_le_bytes([
-            data[13usize],
-            data[14usize],
+            data[3usize],
+            data[4usize],
         ]);
         let raw_sensor_sonars_no_filt_right = u16::from_le_bytes([
-            data[15usize],
-            data[16usize],
+            data[5usize],
+            data[6usize],
         ]);
         let raw_sensor_sonars_no_filt_rear = u16::from_le_bytes([
-            data[17usize],
-            data[18usize],
+            data[6usize],
+            data[7usize],
         ]);
         Ok(Self {
             sensor_sonars_mux: raw_sensor_sonars_mux as f64 * 1f64,
@@ -271,6 +282,34 @@ impl CanMessage<{ SensorSonars::LEN }> for SensorSonars {
     }
     fn encode(&self) -> (Id, [u8; SensorSonars::LEN]) {
         let mut data = [0u8; SensorSonars::LEN];
+        data[0usize] = (self.sensor_sonars_mux / 1f64) as u8;
+        let bytes = ((self.sensor_sonars_err_count / 1f64) as u16).to_le_bytes();
+        data[0usize] = bytes[0usize];
+        data[1usize] = bytes[1usize];
+        let bytes = ((self.sensor_sonars_left / 0.1f64) as u16).to_le_bytes();
+        data[2usize] = bytes[0usize];
+        data[3usize] = bytes[1usize];
+        let bytes = ((self.sensor_sonars_middle / 0.1f64) as u16).to_le_bytes();
+        data[3usize] = bytes[0usize];
+        data[4usize] = bytes[1usize];
+        let bytes = ((self.sensor_sonars_right / 0.1f64) as u16).to_le_bytes();
+        data[5usize] = bytes[0usize];
+        data[6usize] = bytes[1usize];
+        let bytes = ((self.sensor_sonars_rear / 0.1f64) as u16).to_le_bytes();
+        data[6usize] = bytes[0usize];
+        data[7usize] = bytes[1usize];
+        let bytes = ((self.sensor_sonars_no_filt_left / 0.1f64) as u16).to_le_bytes();
+        data[2usize] = bytes[0usize];
+        data[3usize] = bytes[1usize];
+        let bytes = ((self.sensor_sonars_no_filt_middle / 0.1f64) as u16).to_le_bytes();
+        data[3usize] = bytes[0usize];
+        data[4usize] = bytes[1usize];
+        let bytes = ((self.sensor_sonars_no_filt_right / 0.1f64) as u16).to_le_bytes();
+        data[5usize] = bytes[0usize];
+        data[6usize] = bytes[1usize];
+        let bytes = ((self.sensor_sonars_no_filt_rear / 0.1f64) as u16).to_le_bytes();
+        data[6usize] = bytes[0usize];
+        data[7usize] = bytes[1usize];
         let id = Id::Standard(StandardId::new(Self::ID as u16).unwrap());
         (id, data)
     }
