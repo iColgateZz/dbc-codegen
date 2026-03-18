@@ -5,7 +5,7 @@ use crate::codegen;
 use crate::{
     ir::IRBuilder,
     middle_end::{
-        nodes::{FilterRelevantMessages, InferSignalValueEnumType, SanitizeSignalEnumVariantNames},
+        nodes::{InferSignalValueEnumType, SanitizeSignalEnumVariantNames},
         pipeline::transform_pipeline::TransformationPipeline,
     },
 };
@@ -21,7 +21,6 @@ impl App {
 
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
-            .add(FilterRelevantMessages)
             .add(SanitizeSignalEnumVariantNames)
             .add(InferSignalValueEnumType)
             .run(&mut dbc);
