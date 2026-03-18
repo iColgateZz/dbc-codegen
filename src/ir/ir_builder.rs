@@ -1,5 +1,6 @@
 use can_dbc::Dbc as ParsedDbc;
 use can_dbc::Message as ParsedMessage;
+use can_dbc::Signal as ParsedSignal;
 use can_dbc::SignalExtendedValueTypeList as ParsedExtendedValueType;
 use crate::ir::{map_into, SignalValueEnum, ExtendedValueType, Signal, Message, SignalIdx, SignalLayout, SignalLayoutIdx};
 use can_dbc::ValueDescription as ParsedValueDescription;
@@ -10,62 +11,101 @@ use crate::DbcFile;
 
 type SignalKey = (can_dbc::MessageId, String);
 
-pub struct IRBuilder;
+pub struct IRBuilder {
+    file: DbcFile,
+    can_dbc_messages: Vec<ParsedMessage>,
+
+    value_enum_map: HashMap<SignalKey, SignalValueEnum>,
+    extended_type_map: HashMap<SignalKey, ExtendedValueType>,
+    signal_layout_map: HashMap<SignalLayout, SignalLayoutIdx>,
+}
 
 impl IRBuilder {
 
     pub fn to_ir(value: ParsedDbc) -> DbcFile {
+        let mut builder = Self::new(value);
+        builder.build();
+        builder.file
+    }
+
+    fn new(value: ParsedDbc) -> Self {
+        let value_enum_map = Self::value_enum_map(value.value_descriptions);
+        let extended_type_map = Self::extended_type_map(value.signal_extended_value_type_list);
+
         let mut file = DbcFile::default();
-
         file.nodes = map_into(value.nodes);
-        let mut value_enum_map = Self::value_enum_map(value.value_descriptions);
-        let mut extended_type_map = Self::extended_type_map(value.signal_extended_value_type_list);
-        let mut signal_layout_map: HashMap<SignalLayout, SignalLayoutIdx> = HashMap::new();
 
-        for msg in value.messages {
-            let ParsedMessage { id, name, size, transmitter, signals, .. } = msg;
+        Self {
+            file,
+            can_dbc_messages: value.messages,
+            value_enum_map,
+            extended_type_map,
+            signal_layout_map: HashMap::new(),
+        }
+    }
 
-            if name == "VECTOR__INDEPENDENT_SIG_MSG" {
+    fn build(&mut self) {
+        for msg in std::mem::take(&mut self.can_dbc_messages) {
+            if msg.name == "VECTOR__INDEPENDENT_SIG_MSG" {
                 continue;
             }
 
-            let mut signal_idxs = vec![];
-            for parsed_sig in signals {
+            let message = self.build_message(msg);
+            self.file.messages.push(message);
+        }
+    }
 
-                let key = (id, parsed_sig.name.clone());
+    fn build_message(&mut self, msg: ParsedMessage) -> Message {
+        let ParsedMessage { id, name, size, transmitter, signals, .. } = msg;
 
-                let layout = SignalLayout::from(&parsed_sig);
-                let layout_idx = if let Some(idx) = signal_layout_map.get(&layout) {
-                    *idx
-                } else {
-                    let idx = SignalLayoutIdx(file.signal_layouts.len());
-                    file.signal_layouts.push(layout);
-                    signal_layout_map.insert(layout, idx);
-                    idx
-                };
+        let signal_idxs = signals
+            .into_iter()
+            .map(|sig| self.build_signal(id, sig))
+            .collect();
 
-                let mut signal = Signal::from(parsed_sig);
-                signal.layout = layout_idx;
+        Message::from_parsed(id, name, size, transmitter, signal_idxs)
+    }
 
-                if let Some(enum_val) = value_enum_map.remove(&key) {
-                    signal.signal_value_enum = Some(enum_val);
-                }
+    fn build_signal(
+        &mut self,
+        message_id: can_dbc::MessageId,
+        parsed_sig: ParsedSignal,
+    ) -> SignalIdx {
 
-                if let Some(ext) = extended_type_map.remove(&key) {
-                    signal.extended_type = ext;
-                }
+        let key = (message_id, parsed_sig.name.clone());
 
-                let sig_idx = file.signals.len();
-                file.signals.push(signal);
-                signal_idxs.push(SignalIdx(sig_idx));
-            }
+        let layout_idx = self.build_signal_layout(&parsed_sig);
 
-            file.messages.push(
-                Message::from_parsed(id, name, size, transmitter, signal_idxs)
-            );
+        let mut signal = Signal::from(parsed_sig);
+        signal.layout = layout_idx;
+
+        if let Some(enum_val) = self.value_enum_map.remove(&key) {
+            signal.signal_value_enum = Some(enum_val);
         }
 
-        file
+        if let Some(ext) = self.extended_type_map.remove(&key) {
+            signal.extended_type = ext;
+        }
+
+        let idx = SignalIdx(self.file.signals.len());
+        self.file.signals.push(signal);
+
+        idx
+    }
+
+    fn build_signal_layout(&mut self, sig: &ParsedSignal) -> SignalLayoutIdx {
+        let layout = SignalLayout::from(sig);
+
+        if let Some(idx) = self.signal_layout_map.get(&layout) {
+            return *idx;
+        }
+
+        let idx = SignalLayoutIdx(self.file.signal_layouts.len());
+
+        self.file.signal_layouts.push(layout);
+        self.signal_layout_map.insert(layout, idx);
+
+        idx
     }
 
     fn value_enum_map(value_descriptions: Vec<ParsedValueDescription>) -> HashMap<SignalKey, SignalValueEnum> {
