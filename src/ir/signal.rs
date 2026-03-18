@@ -1,4 +1,5 @@
 use crate::ir::identifier::Identifier;
+use crate::ir::signal_value_type::{PhysicalType, RawType};
 use crate::ir::{SignalValueEnum, map_into, ExtendedValueType};
 use can_dbc::ByteOrder as ParsedByteOrder;
 use can_dbc::MultiplexIndicator as ParsedMultiplexIndicator;
@@ -24,6 +25,8 @@ pub struct Signal {
     pub receivers: Vec<Receiver>,
     pub signal_value_enum: Option<SignalValueEnum>,
     pub extended_type: ExtendedValueType,
+    pub raw_type: RawType,
+    pub physical_type: PhysicalType,
 }
 impl From<ParsedSignal> for Signal {
     fn from(value: ParsedSignal) -> Self {
@@ -42,6 +45,8 @@ impl From<ParsedSignal> for Signal {
             receivers: map_into(value.receivers),
             signal_value_enum: None,
             extended_type: ExtendedValueType::Integer,
+            raw_type: RawType::UnsignedInt(1),
+            physical_type: PhysicalType::UnsignedInt(1),
         }
     }
 }

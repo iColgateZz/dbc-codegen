@@ -9,6 +9,7 @@ pub mod signal;
 pub mod value_description;
 pub mod signal_value_enum;
 pub mod signal_extended_value_type;
+pub mod signal_value_type;
 
 use helpers::*;
 use identifier::*;
