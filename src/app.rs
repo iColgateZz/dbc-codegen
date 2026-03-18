@@ -3,7 +3,7 @@ use std::fs;
 
 use crate::codegen;
 use crate::{
-    DbcFile,
+    ir::ir_builder::IRBuilder,
     middle_end::{
         nodes::{FilterRelevantMessages, InferSignalValueEnumType, SanitizeSignalEnumVariantNames},
         pipeline::transform_pipeline::TransformationPipeline,
@@ -17,7 +17,7 @@ pub struct App;
 impl App {
     pub fn convert(input_path: &str) -> String {
         let data = fs::read_to_string(input_path).expect("Unable to read input file");
-        let mut dbc = DbcFile::from(ParsedDbc::try_from(data.as_str()).unwrap());
+        let mut dbc = IRBuilder::to_ir(ParsedDbc::try_from(data.as_str()).unwrap());
 
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
