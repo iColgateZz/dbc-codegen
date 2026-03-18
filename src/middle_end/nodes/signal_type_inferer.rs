@@ -1,4 +1,4 @@
-use crate::{ir::{signal::{Signal, ValueType}, signal_extended_value_type::ExtendedValueType, signal_value_type::{EnumCoverage, PhysicalType, RawType}}, middle_end::nodes::TransformationNode};
+use crate::{ir::{signal::Signal, signal_extended_value_type::ExtendedValueType, signal_layout::{SignalLayout, ValueType}, signal_value_type::{EnumCoverage, PhysicalType, RawType}}, middle_end::nodes::TransformationNode};
 
 // Determining raw_type
 // if SIG_VALTYPE_ exists:
@@ -37,26 +37,27 @@ pub struct InferSignalType;
 impl TransformationNode for InferSignalType {
     fn transform(&self, file: &mut crate::DbcFile) {
         for sig in &mut file.signals {
-            sig.raw_type = infer_raw_type(sig);
-            sig.physical_type = infer_physical_type(sig);
+            let sig_layout = file.signal_layouts[sig.layout.0];
+            sig.raw_type = infer_raw_type(sig, sig_layout);
+            sig.physical_type = infer_physical_type(sig, sig_layout);
         }
     }
 }
 
-fn infer_raw_type(sig: &Signal) -> RawType {
+fn infer_raw_type(sig: &Signal, sig_layout: SignalLayout) -> RawType {
     match sig.extended_type {
         ExtendedValueType::Float32  => RawType::Float32,
         ExtendedValueType::Double64 => RawType::Float64,
-        ExtendedValueType::Integer => match sig.value_type {
-            ValueType::Signed   => RawType::SignedInt(sig.size),
-            ValueType::Unsigned => RawType::UnsignedInt(sig.size),
+        ExtendedValueType::Integer => match sig_layout.value_type {
+            ValueType::Signed   => RawType::SignedInt(sig_layout.size),
+            ValueType::Unsigned => RawType::UnsignedInt(sig_layout.size),
         },
     }
 }
 
-fn infer_physical_type(sig: &Signal) -> PhysicalType {
+fn infer_physical_type(sig: &Signal, sig_layout: SignalLayout) -> PhysicalType {
     if let Some(variant_count) = sig.signal_value_enum.as_ref().map(|s| s.variants.len()) {
-        let possible_values: Option<u64> = 1u64.checked_shl(sig.size as u32);
+        let possible_values: Option<u64> = 1u64.checked_shl(sig_layout.size as u32);
         let coverage = match possible_values {
             None => EnumCoverage::Partial,
             Some(n) => {
@@ -74,14 +75,14 @@ fn infer_physical_type(sig: &Signal) -> PhysicalType {
         RawType::Float32 => PhysicalType::Float32,
         RawType::Float64 => PhysicalType::Float64,
         RawType::SignedInt(bits) => {
-            if is_float_scaled(sig) {
+            if is_float_scaled(sig_layout) {
                 PhysicalType::Float64
             } else {
                 PhysicalType::SignedInt(*bits)
             }
         }
         RawType::UnsignedInt(bits) => {
-            if is_float_scaled(sig) {
+            if is_float_scaled(sig_layout) {
                 PhysicalType::Float64
             } else {
                 PhysicalType::UnsignedInt(*bits)
@@ -90,6 +91,6 @@ fn infer_physical_type(sig: &Signal) -> PhysicalType {
     }
 }
 
-fn is_float_scaled(sig: &Signal) -> bool {
-    sig.factor.fract() != 0.0 || sig.offset.fract() != 0.0
+fn is_float_scaled(sig_layout: SignalLayout) -> bool {
+    sig_layout.factor.fract() != 0.0 || sig_layout.offset.fract() != 0.0
 }
