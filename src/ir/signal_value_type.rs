@@ -1,9 +1,10 @@
+use proc_macro2::Literal;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum RawType {
     Float32,
     Float64,
-    UnsignedInt(u64),
-    SignedInt(u64),
+    Integer(IntReprType),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -16,7 +17,86 @@ pub enum EnumCoverage {
 pub enum PhysicalType {
     Float32,
     Float64,
-    UnsignedInt(u64),
-    SignedInt(u64),
-    Enum(EnumCoverage),
+    Integer(IntReprType),
+    Enum {
+        coverage: EnumCoverage, 
+        repr: IntReprType
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum IntReprType {
+    U8,
+    U16,
+    U32,
+    U64,
+    I8,
+    I16,
+    I32,
+    #[default]
+    I64,
+}
+
+impl IntReprType {
+    pub fn as_rust_type(&self) -> &'static str {
+        match self {
+            Self::U8 => "u8",
+            Self::U16 => "u16",
+            Self::U32 => "u32",
+            Self::U64 => "u64",
+            Self::I8 => "i8",
+            Self::I16 => "i16",
+            Self::I32 => "i32",
+            Self::I64 => "i64",
+        }
+    }
+    
+    pub fn literal(&self, value: i64) -> proc_macro2::Literal {
+        match self {
+            Self::U8  => Literal::u8_suffixed(value as u8),
+            Self::U16 => Literal::u16_suffixed(value as u16),
+            Self::U32 => Literal::u32_suffixed(value as u32),
+            Self::U64 => Literal::u64_suffixed(value as u64),
+            Self::I8  => Literal::i8_suffixed(value as i8),
+            Self::I16 => Literal::i16_suffixed(value as i16),
+            Self::I32 => Literal::i32_suffixed(value as i32),
+            Self::I64 => Literal::i64_suffixed(value),
+        }
+    }
+
+    pub fn infer_repr_type(iter: impl IntoIterator<Item = i64>) -> IntReprType {
+        let mut min = i64::MAX;
+        let mut max = i64::MIN;
+        let mut any = false;
+    
+        for v in iter {
+            any = true;
+            if v < min {
+                min = v;
+            }
+            if v > max {
+                max = v;
+            }
+        }
+    
+        if !any {
+            return IntReprType::U8;
+        }
+    
+        if min >= 0 {
+            match max as u64 {
+                0..=255 => IntReprType::U8,
+                256..=65535 => IntReprType::U16,
+                v if v <= u32::MAX as u64 => IntReprType::U32,
+                _ => IntReprType::U64,
+            }
+        } else {
+            match (min, max) {
+                (mn, mx) if mn >= i8::MIN as i64 && mx <= i8::MAX as i64 => IntReprType::I8,
+                (mn, mx) if mn >= i16::MIN as i64 && mx <= i16::MAX as i64 => IntReprType::I16,
+                (mn, mx) if mn >= i32::MIN as i64 && mx <= i32::MAX as i64 => IntReprType::I32,
+                _ => IntReprType::I64,
+            }
+        }
+    }
 }

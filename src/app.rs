@@ -5,7 +5,7 @@ use crate::codegen;
 use crate::{
     ir::IRBuilder,
     middle_end::{
-        nodes::{InferSignalValueEnumType, SanitizeSignalEnumVariantNames},
+        nodes::SanitizeSignalEnumVariantNames,
         pipeline::transform_pipeline::TransformationPipeline,
     },
 };
@@ -22,7 +22,6 @@ impl App {
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
             .add(SanitizeSignalEnumVariantNames)
-            .add(InferSignalValueEnumType)
             .run(&mut dbc);
 
         codegen::rust::RustGen::generate(&dbc)

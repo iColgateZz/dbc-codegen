@@ -1,6 +1,7 @@
 use crate::ir::identifier::Identifier;
 use crate::ir::map_into;
 use crate::ir::signal_layout::SignalLayoutIdx;
+use crate::ir::signal_value_type::IntReprType;
 use can_dbc::MultiplexIndicator as ParsedMultiplexIndicator;
 use can_dbc::Signal as ParsedSignal;
 use crate::ir::signal_value_type::{PhysicalType, RawType};
@@ -36,8 +37,8 @@ impl From<ParsedSignal> for Signal {
             signal_value_enum: None,
             extended_type: ExtendedValueType::Integer,
 
-            raw_type: RawType::UnsignedInt(1),
-            physical_type: PhysicalType::UnsignedInt(1),
+            raw_type: RawType::Integer(IntReprType::I64),
+            physical_type: PhysicalType::Integer(IntReprType::I64),
         }
     }
 }

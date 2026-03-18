@@ -1,4 +1,4 @@
-use crate::{ir::{signal::Signal, signal_extended_value_type::ExtendedValueType, signal_layout::{SignalLayout, ValueType}, signal_value_type::{EnumCoverage, PhysicalType, RawType}}, middle_end::nodes::TransformationNode};
+use crate::{ir::{signal::Signal, signal_extended_value_type::ExtendedValueType, signal_layout::{SignalLayout, ValueType}, signal_value_type::{EnumCoverage, IntReprType, PhysicalType, RawType}}, middle_end::nodes::TransformationNode};
 
 // Determining raw_type
 // if SIG_VALTYPE_ exists:
@@ -48,9 +48,9 @@ fn infer_raw_type(sig: &Signal, sig_layout: &SignalLayout) -> RawType {
     match sig.extended_type {
         ExtendedValueType::Float32  => RawType::Float32,
         ExtendedValueType::Double64 => RawType::Float64,
-        ExtendedValueType::Integer => match sig_layout.value_type {
-            ValueType::Signed   => RawType::SignedInt(sig_layout.size),
-            ValueType::Unsigned => RawType::UnsignedInt(sig_layout.size),
+        ExtendedValueType::Integer => {
+            let iter = ;
+            RawType::Integer(IntReprType::infer_repr_type(iter))
         },
     }
 }
