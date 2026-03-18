@@ -32,7 +32,38 @@ impl From<&ParsedSignal> for SignalLayout {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+use std::hash::{Hash, Hasher};
+
+impl PartialEq for SignalLayout {
+    fn eq(&self, other: &Self) -> bool {
+        self.start_bit == other.start_bit
+            && self.size == other.size
+            && self.byte_order == other.byte_order
+            && self.value_type == other.value_type
+            && self.factor.to_bits() == other.factor.to_bits()
+            && self.offset.to_bits() == other.offset.to_bits()
+            && self.min.to_bits() == other.min.to_bits()
+            && self.max.to_bits() == other.max.to_bits()
+    }
+}
+
+impl Eq for SignalLayout {}
+
+impl Hash for SignalLayout {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.start_bit.hash(state);
+        self.size.hash(state);
+        self.byte_order.hash(state);
+        self.value_type.hash(state);
+
+        self.factor.to_bits().hash(state);
+        self.offset.to_bits().hash(state);
+        self.min.to_bits().hash(state);
+        self.max.to_bits().hash(state);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ByteOrder {
     BigEndian,
     LittleEndian,
@@ -46,7 +77,7 @@ impl From<ParsedByteOrder> for ByteOrder {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ValueType {
     Unsigned,
     Signed,

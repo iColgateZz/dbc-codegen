@@ -1,7 +1,7 @@
 use can_dbc::Dbc as ParsedDbc;
 use can_dbc::Message as ParsedMessage;
 use can_dbc::SignalExtendedValueTypeList as ParsedExtendedValueType;
-use crate::ir::{map_into, SignalValueEnum, ExtendedValueType, Signal, Message, SignalIdx};
+use crate::ir::{map_into, SignalValueEnum, ExtendedValueType, Signal, Message, SignalIdx, SignalLayout, SignalLayoutIdx};
 use can_dbc::ValueDescription as ParsedValueDescription;
 
 use std::collections::HashMap;
@@ -20,15 +20,32 @@ impl IRBuilder {
         file.nodes = map_into(value.nodes);
         let mut value_enum_map = Self::value_enum_map(value.value_descriptions);
         let mut extended_type_map = Self::extended_type_map(value.signal_extended_value_type_list);
+        let mut signal_layout_map: HashMap<SignalLayout, SignalLayoutIdx> = HashMap::new();
 
         for msg in value.messages {
-            //TODO: filter non-relevant messages here
-            let mut signal_ids = vec![];
             let ParsedMessage { id, name, size, transmitter, signals, .. } = msg;
 
-            for sig in signals {
-                let key = (id, sig.name.clone());
-                let mut signal = Signal::from(sig);
+            if name == "VECTOR__INDEPENDENT_SIG_MSG" {
+                continue;
+            }
+
+            let mut signal_idxs = vec![];
+            for parsed_sig in signals {
+
+                let key = (id, parsed_sig.name.clone());
+
+                let layout = SignalLayout::from(&parsed_sig);
+                let layout_idx = if let Some(idx) = signal_layout_map.get(&layout) {
+                    *idx
+                } else {
+                    let idx = SignalLayoutIdx(file.signal_layouts.len());
+                    file.signal_layouts.push(layout);
+                    signal_layout_map.insert(layout, idx);
+                    idx
+                };
+
+                let mut signal = Signal::from(parsed_sig);
+                signal.layout = layout_idx;
 
                 if let Some(enum_val) = value_enum_map.remove(&key) {
                     signal.signal_value_enum = Some(enum_val);
@@ -38,12 +55,14 @@ impl IRBuilder {
                     signal.extended_type = ext;
                 }
 
-                let id = file.signals.len();
+                let sig_idx = file.signals.len();
                 file.signals.push(signal);
-                signal_ids.push(SignalIdx(id));
+                signal_idxs.push(SignalIdx(sig_idx));
             }
 
-            file.messages.push(Message::from_parsed(id, name, size, transmitter, signal_ids));
+            file.messages.push(
+                Message::from_parsed(id, name, size, transmitter, signal_idxs)
+            );
         }
 
         file

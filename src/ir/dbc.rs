@@ -1,10 +1,11 @@
-use crate::ir::{Message, Node, Signal};
+use crate::ir::{Message, Node, Signal, SignalLayout};
 
 #[derive(Debug, Default)]
 pub struct DbcFile {
     pub nodes: Vec<Node>,
     pub messages: Vec<Message>,
     pub signals: Vec<Signal>,
+    pub signal_layouts: Vec<SignalLayout>
     //TODO: split signal into SignalLayout and SignalInstance
     //      All core fields -> Layout
     //      Instance has layout idx, name, receivers
