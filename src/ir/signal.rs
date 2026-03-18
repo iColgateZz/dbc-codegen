@@ -1,10 +1,10 @@
 use crate::ir::identifier::Identifier;
-use crate::ir::signal_value_type::{PhysicalType, RawType};
-use crate::ir::{SignalValueEnum, map_into, ExtendedValueType};
-use can_dbc::ByteOrder as ParsedByteOrder;
+use crate::ir::map_into;
+use crate::ir::signal_layout::SignalLayoutIdx;
 use can_dbc::MultiplexIndicator as ParsedMultiplexIndicator;
 use can_dbc::Signal as ParsedSignal;
-use can_dbc::ValueType as ParsedValueType;
+use crate::ir::signal_value_type::{PhysicalType, RawType};
+use crate::ir::{SignalValueEnum, ExtendedValueType};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SignalIdx(pub usize);
@@ -13,38 +13,29 @@ pub struct SignalIdx(pub usize);
 pub struct Signal {
     pub name: Identifier,
     pub multiplexer: MultiplexIndicator,
-    pub start_bit: u64,
-    pub size: u64,
-    pub byte_order: ByteOrder,
-    pub value_type: ValueType,
-    pub factor: f64,
-    pub offset: f64,
-    pub min: f64,
-    pub max: f64,
     pub unit: String,
     pub receivers: Vec<Receiver>,
+
+    pub layout: SignalLayoutIdx,
     pub signal_value_enum: Option<SignalValueEnum>,
     pub extended_type: ExtendedValueType,
+
     pub raw_type: RawType,
     pub physical_type: PhysicalType,
 }
+
 impl From<ParsedSignal> for Signal {
     fn from(value: ParsedSignal) -> Self {
         Signal {
             name: Identifier(value.name),
             multiplexer: MultiplexIndicator::from(value.multiplexer_indicator),
-            start_bit: value.start_bit,
-            size: value.size,
-            byte_order: ByteOrder::from(value.byte_order),
-            value_type: ValueType::from(value.value_type),
-            factor: value.factor,
-            offset: value.offset,
-            min: value.min,
-            max: value.max,
             unit: value.unit,
             receivers: map_into(value.receivers),
+
+            layout: SignalLayoutIdx(0),
             signal_value_enum: None,
             extended_type: ExtendedValueType::Integer,
+
             raw_type: RawType::UnsignedInt(1),
             physical_type: PhysicalType::UnsignedInt(1),
         }
@@ -69,34 +60,6 @@ impl From<ParsedMultiplexIndicator> for MultiplexIndicator {
                 MultiplexIndicator::MultiplexorAndMultiplexedSignal(v)
             }
             ParsedMultiplexIndicator::Plain => MultiplexIndicator::Plain,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ByteOrder {
-    BigEndian,
-    LittleEndian,
-}
-impl From<ParsedByteOrder> for ByteOrder {
-    fn from(value: ParsedByteOrder) -> Self {
-        match value {
-            ParsedByteOrder::BigEndian => ByteOrder::BigEndian,
-            ParsedByteOrder::LittleEndian => ByteOrder::LittleEndian,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ValueType {
-    Unsigned,
-    Signed,
-}
-impl From<ParsedValueType> for ValueType {
-    fn from(value: ParsedValueType) -> Self {
-        match value {
-            ParsedValueType::Signed => ValueType::Signed,
-            ParsedValueType::Unsigned => ValueType::Unsigned,
         }
     }
 }

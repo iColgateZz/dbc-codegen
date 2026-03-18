@@ -10,6 +10,7 @@ pub mod value_description;
 pub mod signal_value_enum;
 pub mod signal_extended_value_type;
 pub mod signal_value_type;
+pub mod signal_layout;
 
 use helpers::*;
 use identifier::*;
@@ -19,3 +20,4 @@ use signal::*;
 use value_description::*;
 use signal_value_enum::*;
 use signal_extended_value_type::*;
+use signal_layout::*;
