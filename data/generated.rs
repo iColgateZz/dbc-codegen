@@ -4,6 +4,7 @@ pub enum CanError {
     Err1,
     Err2,
     InvalidPayloadSize,
+    ValueOutOfRange,
 }
 pub trait CanMessage<const LEN: usize>: Sized {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;
@@ -70,6 +71,21 @@ pub struct DriverHeartbeat {
 impl DriverHeartbeat {
     pub const ID: u32 = 100u32;
     pub const LEN: usize = 1usize;
+    pub fn new(driver_heartbeat_cmd: DriverHeartbeatCmd) -> Result<Self, CanError> {
+        let mut msg = Self { driver_heartbeat_cmd };
+        msg.set_driver_heartbeat_cmd(msg.driver_heartbeat_cmd)?;
+        Ok(msg)
+    }
+    pub fn driver_heartbeat_cmd(&self) -> DriverHeartbeatCmd {
+        self.driver_heartbeat_cmd
+    }
+    pub fn set_driver_heartbeat_cmd(
+        &mut self,
+        value: DriverHeartbeatCmd,
+    ) -> Result<(), CanError> {
+        self.driver_heartbeat_cmd = value;
+        Ok(())
+    }
 }
 impl CanMessage<{ DriverHeartbeat::LEN }> for DriverHeartbeat {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
@@ -117,14 +133,72 @@ impl From<IoDebugTestEnum> for u8 {
 }
 #[derive(Debug, Clone)]
 pub struct IoDebug {
-    pub io_debug_test_unsigned: f64,
+    pub io_debug_test_unsigned: u8,
     pub io_debug_test_enum: IoDebugTestEnum,
-    pub io_debug_test_signed: f64,
+    pub io_debug_test_signed: i8,
     pub io_debug_test_float: f64,
 }
 impl IoDebug {
     pub const ID: u32 = 500u32;
     pub const LEN: usize = 4usize;
+    pub fn new(
+        io_debug_test_unsigned: u8,
+        io_debug_test_enum: IoDebugTestEnum,
+        io_debug_test_signed: i8,
+        io_debug_test_float: f64,
+    ) -> Result<Self, CanError> {
+        let mut msg = Self {
+            io_debug_test_unsigned,
+            io_debug_test_enum,
+            io_debug_test_signed,
+            io_debug_test_float,
+        };
+        msg.set_io_debug_test_unsigned(msg.io_debug_test_unsigned)?;
+        msg.set_io_debug_test_enum(msg.io_debug_test_enum)?;
+        msg.set_io_debug_test_signed(msg.io_debug_test_signed)?;
+        msg.set_io_debug_test_float(msg.io_debug_test_float)?;
+        Ok(msg)
+    }
+    pub fn io_debug_test_unsigned(&self) -> u8 {
+        self.io_debug_test_unsigned
+    }
+    pub fn io_debug_test_enum(&self) -> IoDebugTestEnum {
+        self.io_debug_test_enum
+    }
+    pub fn io_debug_test_signed(&self) -> i8 {
+        self.io_debug_test_signed
+    }
+    pub fn io_debug_test_float(&self) -> f64 {
+        self.io_debug_test_float
+    }
+    pub fn set_io_debug_test_unsigned(&mut self, value: u8) -> Result<(), CanError> {
+        if value < 0u8 || value > 0u8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.io_debug_test_unsigned = value;
+        Ok(())
+    }
+    pub fn set_io_debug_test_enum(
+        &mut self,
+        value: IoDebugTestEnum,
+    ) -> Result<(), CanError> {
+        self.io_debug_test_enum = value;
+        Ok(())
+    }
+    pub fn set_io_debug_test_signed(&mut self, value: i8) -> Result<(), CanError> {
+        if value < 0i8 || value > 0i8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.io_debug_test_signed = value;
+        Ok(())
+    }
+    pub fn set_io_debug_test_float(&mut self, value: f64) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.io_debug_test_float = value;
+        Ok(())
+    }
 }
 impl CanMessage<{ IoDebug::LEN }> for IoDebug {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
@@ -155,12 +229,41 @@ impl CanMessage<{ IoDebug::LEN }> for IoDebug {
 }
 #[derive(Debug, Clone)]
 pub struct MotorCmd {
-    pub motor_cmd_steer: f64,
-    pub motor_cmd_drive: f64,
+    pub motor_cmd_steer: i8,
+    pub motor_cmd_drive: u8,
 }
 impl MotorCmd {
     pub const ID: u32 = 101u32;
     pub const LEN: usize = 1usize;
+    pub fn new(motor_cmd_steer: i8, motor_cmd_drive: u8) -> Result<Self, CanError> {
+        let mut msg = Self {
+            motor_cmd_steer,
+            motor_cmd_drive,
+        };
+        msg.set_motor_cmd_steer(msg.motor_cmd_steer)?;
+        msg.set_motor_cmd_drive(msg.motor_cmd_drive)?;
+        Ok(msg)
+    }
+    pub fn motor_cmd_steer(&self) -> i8 {
+        self.motor_cmd_steer
+    }
+    pub fn motor_cmd_drive(&self) -> u8 {
+        self.motor_cmd_drive
+    }
+    pub fn set_motor_cmd_steer(&mut self, value: i8) -> Result<(), CanError> {
+        if value < -5i8 || value > 5i8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.motor_cmd_steer = value;
+        Ok(())
+    }
+    pub fn set_motor_cmd_drive(&mut self, value: u8) -> Result<(), CanError> {
+        if value < 0u8 || value > 9u8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.motor_cmd_drive = value;
+        Ok(())
+    }
 }
 impl CanMessage<{ MotorCmd::LEN }> for MotorCmd {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
@@ -185,12 +288,44 @@ impl CanMessage<{ MotorCmd::LEN }> for MotorCmd {
 }
 #[derive(Debug, Clone)]
 pub struct MotorStatus {
-    pub motor_status_wheel_error: f64,
+    pub motor_status_wheel_error: u8,
     pub motor_status_speed_kph: f64,
 }
 impl MotorStatus {
     pub const ID: u32 = 400u32;
     pub const LEN: usize = 3usize;
+    pub fn new(
+        motor_status_wheel_error: u8,
+        motor_status_speed_kph: f64,
+    ) -> Result<Self, CanError> {
+        let mut msg = Self {
+            motor_status_wheel_error,
+            motor_status_speed_kph,
+        };
+        msg.set_motor_status_wheel_error(msg.motor_status_wheel_error)?;
+        msg.set_motor_status_speed_kph(msg.motor_status_speed_kph)?;
+        Ok(msg)
+    }
+    pub fn motor_status_wheel_error(&self) -> u8 {
+        self.motor_status_wheel_error
+    }
+    pub fn motor_status_speed_kph(&self) -> f64 {
+        self.motor_status_speed_kph
+    }
+    pub fn set_motor_status_wheel_error(&mut self, value: u8) -> Result<(), CanError> {
+        if value < 0u8 || value > 0u8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.motor_status_wheel_error = value;
+        Ok(())
+    }
+    pub fn set_motor_status_speed_kph(&mut self, value: f64) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.motor_status_speed_kph = value;
+        Ok(())
+    }
 }
 impl CanMessage<{ MotorStatus::LEN }> for MotorStatus {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
@@ -220,8 +355,8 @@ impl CanMessage<{ MotorStatus::LEN }> for MotorStatus {
 }
 #[derive(Debug, Clone)]
 pub struct SensorSonars {
-    pub sensor_sonars_mux: f64,
-    pub sensor_sonars_err_count: f64,
+    pub sensor_sonars_mux: u8,
+    pub sensor_sonars_err_count: u16,
     pub sensor_sonars_left: f64,
     pub sensor_sonars_middle: f64,
     pub sensor_sonars_right: f64,
@@ -234,6 +369,154 @@ pub struct SensorSonars {
 impl SensorSonars {
     pub const ID: u32 = 200u32;
     pub const LEN: usize = 8usize;
+    pub fn new(
+        sensor_sonars_mux: u8,
+        sensor_sonars_err_count: u16,
+        sensor_sonars_left: f64,
+        sensor_sonars_middle: f64,
+        sensor_sonars_right: f64,
+        sensor_sonars_rear: f64,
+        sensor_sonars_no_filt_left: f64,
+        sensor_sonars_no_filt_middle: f64,
+        sensor_sonars_no_filt_right: f64,
+        sensor_sonars_no_filt_rear: f64,
+    ) -> Result<Self, CanError> {
+        let mut msg = Self {
+            sensor_sonars_mux,
+            sensor_sonars_err_count,
+            sensor_sonars_left,
+            sensor_sonars_middle,
+            sensor_sonars_right,
+            sensor_sonars_rear,
+            sensor_sonars_no_filt_left,
+            sensor_sonars_no_filt_middle,
+            sensor_sonars_no_filt_right,
+            sensor_sonars_no_filt_rear,
+        };
+        msg.set_sensor_sonars_mux(msg.sensor_sonars_mux)?;
+        msg.set_sensor_sonars_err_count(msg.sensor_sonars_err_count)?;
+        msg.set_sensor_sonars_left(msg.sensor_sonars_left)?;
+        msg.set_sensor_sonars_middle(msg.sensor_sonars_middle)?;
+        msg.set_sensor_sonars_right(msg.sensor_sonars_right)?;
+        msg.set_sensor_sonars_rear(msg.sensor_sonars_rear)?;
+        msg.set_sensor_sonars_no_filt_left(msg.sensor_sonars_no_filt_left)?;
+        msg.set_sensor_sonars_no_filt_middle(msg.sensor_sonars_no_filt_middle)?;
+        msg.set_sensor_sonars_no_filt_right(msg.sensor_sonars_no_filt_right)?;
+        msg.set_sensor_sonars_no_filt_rear(msg.sensor_sonars_no_filt_rear)?;
+        Ok(msg)
+    }
+    pub fn sensor_sonars_mux(&self) -> u8 {
+        self.sensor_sonars_mux
+    }
+    pub fn sensor_sonars_err_count(&self) -> u16 {
+        self.sensor_sonars_err_count
+    }
+    pub fn sensor_sonars_left(&self) -> f64 {
+        self.sensor_sonars_left
+    }
+    pub fn sensor_sonars_middle(&self) -> f64 {
+        self.sensor_sonars_middle
+    }
+    pub fn sensor_sonars_right(&self) -> f64 {
+        self.sensor_sonars_right
+    }
+    pub fn sensor_sonars_rear(&self) -> f64 {
+        self.sensor_sonars_rear
+    }
+    pub fn sensor_sonars_no_filt_left(&self) -> f64 {
+        self.sensor_sonars_no_filt_left
+    }
+    pub fn sensor_sonars_no_filt_middle(&self) -> f64 {
+        self.sensor_sonars_no_filt_middle
+    }
+    pub fn sensor_sonars_no_filt_right(&self) -> f64 {
+        self.sensor_sonars_no_filt_right
+    }
+    pub fn sensor_sonars_no_filt_rear(&self) -> f64 {
+        self.sensor_sonars_no_filt_rear
+    }
+    pub fn set_sensor_sonars_mux(&mut self, value: u8) -> Result<(), CanError> {
+        if value < 0u8 || value > 0u8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_mux = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_err_count(&mut self, value: u16) -> Result<(), CanError> {
+        if value < 0u16 || value > 0u16 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_err_count = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_left(&mut self, value: f64) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_left = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_middle(&mut self, value: f64) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_middle = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_right(&mut self, value: f64) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_right = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_rear(&mut self, value: f64) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_rear = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_no_filt_left(
+        &mut self,
+        value: f64,
+    ) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_no_filt_left = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_no_filt_middle(
+        &mut self,
+        value: f64,
+    ) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_no_filt_middle = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_no_filt_right(
+        &mut self,
+        value: f64,
+    ) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_no_filt_right = value;
+        Ok(())
+    }
+    pub fn set_sensor_sonars_no_filt_rear(
+        &mut self,
+        value: f64,
+    ) -> Result<(), CanError> {
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.sensor_sonars_no_filt_rear = value;
+        Ok(())
+    }
 }
 impl CanMessage<{ SensorSonars::LEN }> for SensorSonars {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {

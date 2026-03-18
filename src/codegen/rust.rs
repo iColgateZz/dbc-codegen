@@ -5,6 +5,7 @@ use syn::File;
 use crate::DbcFile;
 use crate::ir::message::{Message, MessageId};
 use crate::ir::signal::Signal;
+use crate::ir::signal_value_type::PhysicalType;
 
 pub struct RustGen;
 
@@ -47,6 +48,7 @@ impl ToTokens for ErrorEnum {
                 Err1,
                 Err2,
                 InvalidPayloadSize,
+                ValueOutOfRange,
             }
         }
         .to_tokens(tokens);
@@ -132,7 +134,7 @@ impl ToTokens for MessageDef<'_> {
                 .signal_value_enum
                 .as_ref()
                 .map(|_| format_ident!("{}", sig.name.upper_camel()))
-                .unwrap_or(format_ident!("f64"));
+                .unwrap_or(format_ident!("{}", sig.physical_type.as_rust_type()));
             quote! { pub #field: #rust_type }
         });
 
@@ -142,10 +144,130 @@ impl ToTokens for MessageDef<'_> {
         };
         let len = msg.size as usize;
 
+        let constructor_params = signals.iter().map(|sig| {
+            let field = format_ident!("{}", sig.name.lower());
+            let rust_type = sig
+                .signal_value_enum
+                .as_ref()
+                .map(|_| format_ident!("{}", sig.name.upper_camel()))
+                .unwrap_or(format_ident!("{}", sig.physical_type.as_rust_type()));
+
+            quote! { #field: #rust_type }
+        });
+
+        let constructor_fields: Vec<_> = signals
+            .iter()
+            .map(|sig| format_ident!("{}", sig.name.lower()))
+            .collect();
+
+        let constructor_validations = constructor_fields.iter().map(|field| {
+            let setter = format_ident!("set_{}", field);
+            quote! {
+                msg.#setter(msg.#field)?;
+            }
+        });
+
+        let getters = signals.iter().map(|sig| {
+            let field = format_ident!("{}", sig.name.lower());
+            let rust_type = sig
+                .signal_value_enum
+                .as_ref()
+                .map(|_| format_ident!("{}", sig.name.upper_camel()))
+                .unwrap_or(format_ident!("{}", sig.physical_type.as_rust_type()));
+
+            quote! {
+                pub fn #field(&self) -> #rust_type {
+                    self.#field
+                }
+            }
+        });
+
+        let setters = signals.iter().map(|sig| {
+            let field = format_ident!("{}", sig.name.lower());
+            let set_name = format_ident!("set_{}", sig.name.lower());
+
+            let rust_type = sig
+                .signal_value_enum
+                .as_ref()
+                .map(|_| format_ident!("{}", sig.name.upper_camel()))
+                .unwrap_or(format_ident!("{}", sig.physical_type.as_rust_type()));
+
+            let sig_layout = self.file.signal_layouts[sig.layout.0];
+            let check = if sig.signal_value_enum.is_some() {
+                quote! {}
+            } else {
+                let phys = &sig.physical_type;
+
+                let min_literal = match phys {
+                    PhysicalType::Float32 => {
+                        let v = sig_layout.min as f32;
+                        quote! { #v }
+                    }
+                    PhysicalType::Float64 => {
+                        let v = sig_layout.min as f64;
+                        quote! { #v }
+                    }
+                    PhysicalType::Integer(_) => {
+                        phys.literal(sig_layout.min as i64).to_token_stream()
+                    }
+                    PhysicalType::Enum { .. } => {
+                        quote! {}
+                    }
+                };
+
+                let max_literal = match phys {
+                    PhysicalType::Float32 => {
+                        let v = sig_layout.max as f32;
+                        quote! { #v }
+                    }
+                    PhysicalType::Float64 => {
+                        let v = sig_layout.max as f64;
+                        quote! { #v }
+                    }
+                    PhysicalType::Integer(_) => {
+                        phys.literal(sig_layout.max as i64).to_token_stream()
+                    }
+                    PhysicalType::Enum { .. } => {
+                        quote! {}
+                    }
+                };
+
+                quote! {
+                    if value < #min_literal || value > #max_literal {
+                        return Err(CanError::ValueOutOfRange);
+                    }
+                }
+            };
+
+            quote! {
+                pub fn #set_name(&mut self, value: #rust_type) -> Result<(), CanError> {
+                    #check
+                    self.#field = value;
+                    Ok(())
+                }
+            }
+        });
+
         let impl_block = quote! {
             impl #name {
                 pub const ID: u32 = #id;
                 pub const LEN: usize = #len;
+
+                pub fn new(
+                    #( #constructor_params ),*
+                ) -> Result<Self, CanError> {
+                    let mut msg = Self {
+                        #( #constructor_fields ),*
+                    };
+
+                    #( #constructor_validations )*
+
+                    Ok(msg)
+                }
+
+                #( #getters )*
+
+                #( #setters )*
             }
         };
 
