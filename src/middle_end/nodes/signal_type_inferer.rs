@@ -32,9 +32,9 @@ use crate::{ir::{signal::Signal, signal_extended_value_type::ExtendedValueType, 
 // 2. Where the raw type allows for N values and enum has <  N entries
 
 /// Infer singal raw and physical types
-pub struct InferSignalType;
+pub struct InferSignalTypes;
 
-impl TransformationNode for InferSignalType {
+impl TransformationNode for InferSignalTypes {
     fn transform(&self, file: &mut crate::DbcFile) {
         for sig in &mut file.signals {
             let sig_layout = &file.signal_layouts[sig.layout.0];
