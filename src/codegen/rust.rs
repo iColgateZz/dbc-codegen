@@ -434,12 +434,27 @@ impl<'a> SignalCtx<'a> {
         }
     }
 
-    fn start_bit(&self) -> usize {
-        self.layout.start_bit as usize
-    }
+    //TODO: move the calculations to a transformer node
+    fn start_end_bit(&self) -> (usize, usize) {
+        match self.layout.byte_order {
+            ByteOrder::LittleEndian => {
+                let start = self.layout.start_bit as usize;
+                let end = start + self.layout.size as usize;
+                (start, end)
+            }
 
-    fn end_bit(&self) -> usize {
-        self.start_bit() + self.layout.size as usize
+            ByteOrder::BigEndian => {
+                let start_bit = self.layout.start_bit;
+
+                let x = (start_bit / 8) * 8;
+                let y = 7 - (start_bit % 8);
+
+                let start = (x + y) as usize;
+                let end = start + self.layout.size as usize;
+
+                (start, end)
+            }
+        }
     }
 
     fn bitvec_order(&self) -> TokenStream {
@@ -449,11 +464,9 @@ impl<'a> SignalCtx<'a> {
         }
     }
 
-    //TODO: depending on the byte order calculate the correct start and end bits!
     fn decode_read(&self) -> TokenStream {
         let raw = self.raw_ident();
-        let start = self.start_bit();
-        let end = self.end_bit();
+        let (start, end) = self.start_end_bit();
         let order = self.bitvec_order();
 
         if self.is_enum() || !self.is_float() {
@@ -494,8 +507,7 @@ impl<'a> SignalCtx<'a> {
     //      do not perform subtraction when offset is 0
     fn encode_write(&self) -> TokenStream {
         let field = self.field_ident();
-        let start = self.start_bit();
-        let end = self.end_bit();
+        let (start, end) = self.start_end_bit();
         let order = self.bitvec_order();
 
         if self.is_enum() {
