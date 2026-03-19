@@ -1,4 +1,5 @@
 use embedded_can::{Frame, Id, StandardId, ExtendedId};
+use bitvec::prelude::*;
 #[derive(Debug, Clone)]
 pub enum CanError {
     Err1,
@@ -89,7 +90,9 @@ impl CanMessage<{ DriverHeartbeat::LEN }> for DriverHeartbeat {
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let raw_driver_heartbeat_cmd = data[0usize];
+        let raw_driver_heartbeat_cmd = data
+            .view_bits::<Lsb0>()[0usize..8usize]
+            .load_le::<u8>();
         Ok(Self {
             driver_heartbeat_cmd: DriverHeartbeatCmd::from(
                 raw_driver_heartbeat_cmd as u8,
@@ -98,7 +101,8 @@ impl CanMessage<{ DriverHeartbeat::LEN }> for DriverHeartbeat {
     }
     fn encode(&self) -> [u8; DriverHeartbeat::LEN] {
         let mut data = [0u8; DriverHeartbeat::LEN];
-        data[0usize] = u8::from(self.driver_heartbeat_cmd);
+        data.view_bits_mut::<Lsb0>()[0usize..8usize]
+            .store_le(u8::from(self.driver_heartbeat_cmd));
         data
     }
 }
@@ -201,23 +205,35 @@ impl CanMessage<{ IoDebug::LEN }> for IoDebug {
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let raw_io_debug_test_unsigned = data[0usize];
-        let raw_io_debug_test_enum = data[1usize];
-        let raw_io_debug_test_signed = data[2usize];
-        let raw_io_debug_test_float = data[3usize];
+        let raw_io_debug_test_unsigned = data
+            .view_bits::<Lsb0>()[0usize..8usize]
+            .load_le::<u8>();
+        let raw_io_debug_test_enum = data
+            .view_bits::<Lsb0>()[8usize..16usize]
+            .load_le::<u8>();
+        let raw_io_debug_test_signed = data
+            .view_bits::<Lsb0>()[16usize..24usize]
+            .load_le::<i8>();
+        let raw_io_debug_test_float = data
+            .view_bits::<Lsb0>()[24usize..32usize]
+            .load_le::<u8>();
         Ok(Self {
-            io_debug_test_unsigned: (raw_io_debug_test_unsigned as u8) * (1u8) + (0u8),
+            io_debug_test_unsigned: (raw_io_debug_test_unsigned) * (1u8) + (0u8),
             io_debug_test_enum: IoDebugTestEnum::from(raw_io_debug_test_enum as u8),
-            io_debug_test_signed: (raw_io_debug_test_signed as i8) * (1i8) + (0i8),
+            io_debug_test_signed: (raw_io_debug_test_signed) * (1i8) + (0i8),
             io_debug_test_float: (raw_io_debug_test_float as f64) * (0.5f64) + (0f64),
         })
     }
     fn encode(&self) -> [u8; IoDebug::LEN] {
         let mut data = [0u8; IoDebug::LEN];
-        data[0usize] = ((self.io_debug_test_unsigned - (0u8)) / (1u8)) as u8;
-        data[1usize] = u8::from(self.io_debug_test_enum);
-        data[2usize] = ((self.io_debug_test_signed - (0i8)) / (1i8)) as u8;
-        data[3usize] = ((self.io_debug_test_float - (0f64)) / (0.5f64)) as u8;
+        data.view_bits_mut::<Lsb0>()[0usize..8usize]
+            .store_le((self.io_debug_test_unsigned - (0u8)) / (1u8));
+        data.view_bits_mut::<Lsb0>()[8usize..16usize]
+            .store_le(u8::from(self.io_debug_test_enum));
+        data.view_bits_mut::<Lsb0>()[16usize..24usize]
+            .store_le((self.io_debug_test_signed - (0i8)) / (1i8));
+        data.view_bits_mut::<Lsb0>()[24usize..32usize]
+            .store_le(((self.io_debug_test_float - (0f64)) / (0.5f64)) as u8);
         data
     }
 }
@@ -265,17 +281,23 @@ impl CanMessage<{ MotorCmd::LEN }> for MotorCmd {
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let raw_motor_cmd_steer = data[0usize];
-        let raw_motor_cmd_drive = data[0usize];
+        let raw_motor_cmd_steer = data
+            .view_bits::<Lsb0>()[0usize..4usize]
+            .load_le::<i8>();
+        let raw_motor_cmd_drive = data
+            .view_bits::<Lsb0>()[4usize..8usize]
+            .load_le::<u8>();
         Ok(Self {
-            motor_cmd_steer: (raw_motor_cmd_steer as i8) * (1i8) + (-5i8),
-            motor_cmd_drive: (raw_motor_cmd_drive as u8) * (1u8) + (0u8),
+            motor_cmd_steer: (raw_motor_cmd_steer) * (1i8) + (-5i8),
+            motor_cmd_drive: (raw_motor_cmd_drive) * (1u8) + (0u8),
         })
     }
     fn encode(&self) -> [u8; MotorCmd::LEN] {
         let mut data = [0u8; MotorCmd::LEN];
-        data[0usize] = ((self.motor_cmd_steer - (-5i8)) / (1i8)) as u8;
-        data[0usize] = ((self.motor_cmd_drive - (0u8)) / (1u8)) as u8;
+        data.view_bits_mut::<Lsb0>()[0usize..4usize]
+            .store_le((self.motor_cmd_steer - (-5i8)) / (1i8));
+        data.view_bits_mut::<Lsb0>()[4usize..8usize]
+            .store_le((self.motor_cmd_drive - (0u8)) / (1u8));
         data
     }
 }
@@ -326,25 +348,24 @@ impl CanMessage<{ MotorStatus::LEN }> for MotorStatus {
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let raw_motor_status_wheel_error = data[0usize];
-        let raw_motor_status_speed_kph = u16::from_le_bytes([
-            data[1usize],
-            data[2usize],
-        ]);
+        let raw_motor_status_wheel_error = data
+            .view_bits::<Lsb0>()[0usize..1usize]
+            .load_le::<u8>();
+        let raw_motor_status_speed_kph = data
+            .view_bits::<Lsb0>()[8usize..24usize]
+            .load_le::<u16>();
         Ok(Self {
-            motor_status_wheel_error: (raw_motor_status_wheel_error as u8) * (1u8)
-                + (0u8),
+            motor_status_wheel_error: (raw_motor_status_wheel_error) * (1u8) + (0u8),
             motor_status_speed_kph: (raw_motor_status_speed_kph as f64) * (0.001f64)
                 + (0f64),
         })
     }
     fn encode(&self) -> [u8; MotorStatus::LEN] {
         let mut data = [0u8; MotorStatus::LEN];
-        data[0usize] = ((self.motor_status_wheel_error - (0u8)) / (1u8)) as u8;
-        let bytes = (((self.motor_status_speed_kph - (0f64)) / (0.001f64)) as u16)
-            .to_le_bytes();
-        data[1usize] = bytes[0usize];
-        data[2usize] = bytes[1usize];
+        data.view_bits_mut::<Lsb0>()[0usize..1usize]
+            .store_le((self.motor_status_wheel_error - (0u8)) / (1u8));
+        data.view_bits_mut::<Lsb0>()[8usize..24usize]
+            .store_le(((self.motor_status_speed_kph - (0f64)) / (0.001f64)) as u16);
         data
     }
 }
@@ -519,35 +540,39 @@ impl CanMessage<{ SensorSonars::LEN }> for SensorSonars {
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let raw_sensor_sonars_mux = data[0usize];
-        let raw_sensor_sonars_err_count = u16::from_le_bytes([
-            data[0usize],
-            data[1usize],
-        ]);
-        let raw_sensor_sonars_left = u16::from_le_bytes([data[2usize], data[3usize]]);
-        let raw_sensor_sonars_middle = u16::from_le_bytes([data[3usize], data[4usize]]);
-        let raw_sensor_sonars_right = u16::from_le_bytes([data[5usize], data[6usize]]);
-        let raw_sensor_sonars_rear = u16::from_le_bytes([data[6usize], data[7usize]]);
-        let raw_sensor_sonars_no_filt_left = u16::from_le_bytes([
-            data[2usize],
-            data[3usize],
-        ]);
-        let raw_sensor_sonars_no_filt_middle = u16::from_le_bytes([
-            data[3usize],
-            data[4usize],
-        ]);
-        let raw_sensor_sonars_no_filt_right = u16::from_le_bytes([
-            data[5usize],
-            data[6usize],
-        ]);
-        let raw_sensor_sonars_no_filt_rear = u16::from_le_bytes([
-            data[6usize],
-            data[7usize],
-        ]);
+        let raw_sensor_sonars_mux = data
+            .view_bits::<Lsb0>()[0usize..4usize]
+            .load_le::<u8>();
+        let raw_sensor_sonars_err_count = data
+            .view_bits::<Lsb0>()[4usize..16usize]
+            .load_le::<u16>();
+        let raw_sensor_sonars_left = data
+            .view_bits::<Lsb0>()[16usize..28usize]
+            .load_le::<u16>();
+        let raw_sensor_sonars_middle = data
+            .view_bits::<Lsb0>()[28usize..40usize]
+            .load_le::<u16>();
+        let raw_sensor_sonars_right = data
+            .view_bits::<Lsb0>()[40usize..52usize]
+            .load_le::<u16>();
+        let raw_sensor_sonars_rear = data
+            .view_bits::<Lsb0>()[52usize..64usize]
+            .load_le::<u16>();
+        let raw_sensor_sonars_no_filt_left = data
+            .view_bits::<Lsb0>()[16usize..28usize]
+            .load_le::<u16>();
+        let raw_sensor_sonars_no_filt_middle = data
+            .view_bits::<Lsb0>()[28usize..40usize]
+            .load_le::<u16>();
+        let raw_sensor_sonars_no_filt_right = data
+            .view_bits::<Lsb0>()[40usize..52usize]
+            .load_le::<u16>();
+        let raw_sensor_sonars_no_filt_rear = data
+            .view_bits::<Lsb0>()[52usize..64usize]
+            .load_le::<u16>();
         Ok(Self {
-            sensor_sonars_mux: (raw_sensor_sonars_mux as u8) * (1u8) + (0u8),
-            sensor_sonars_err_count: (raw_sensor_sonars_err_count as u16) * (1u16)
-                + (0u16),
+            sensor_sonars_mux: (raw_sensor_sonars_mux) * (1u8) + (0u8),
+            sensor_sonars_err_count: (raw_sensor_sonars_err_count) * (1u16) + (0u16),
             sensor_sonars_left: (raw_sensor_sonars_left as f64) * (0.1f64) + (0f64),
             sensor_sonars_middle: (raw_sensor_sonars_middle as f64) * (0.1f64) + (0f64),
             sensor_sonars_right: (raw_sensor_sonars_right as f64) * (0.1f64) + (0f64),
@@ -564,43 +589,26 @@ impl CanMessage<{ SensorSonars::LEN }> for SensorSonars {
     }
     fn encode(&self) -> [u8; SensorSonars::LEN] {
         let mut data = [0u8; SensorSonars::LEN];
-        data[0usize] = ((self.sensor_sonars_mux - (0u8)) / (1u8)) as u8;
-        let bytes = (((self.sensor_sonars_err_count - (0u16)) / (1u16)) as u16)
-            .to_le_bytes();
-        data[0usize] = bytes[0usize];
-        data[1usize] = bytes[1usize];
-        let bytes = (((self.sensor_sonars_left - (0f64)) / (0.1f64)) as u16)
-            .to_le_bytes();
-        data[2usize] = bytes[0usize];
-        data[3usize] = bytes[1usize];
-        let bytes = (((self.sensor_sonars_middle - (0f64)) / (0.1f64)) as u16)
-            .to_le_bytes();
-        data[3usize] = bytes[0usize];
-        data[4usize] = bytes[1usize];
-        let bytes = (((self.sensor_sonars_right - (0f64)) / (0.1f64)) as u16)
-            .to_le_bytes();
-        data[5usize] = bytes[0usize];
-        data[6usize] = bytes[1usize];
-        let bytes = (((self.sensor_sonars_rear - (0f64)) / (0.1f64)) as u16)
-            .to_le_bytes();
-        data[6usize] = bytes[0usize];
-        data[7usize] = bytes[1usize];
-        let bytes = (((self.sensor_sonars_no_filt_left - (0f64)) / (0.1f64)) as u16)
-            .to_le_bytes();
-        data[2usize] = bytes[0usize];
-        data[3usize] = bytes[1usize];
-        let bytes = (((self.sensor_sonars_no_filt_middle - (0f64)) / (0.1f64)) as u16)
-            .to_le_bytes();
-        data[3usize] = bytes[0usize];
-        data[4usize] = bytes[1usize];
-        let bytes = (((self.sensor_sonars_no_filt_right - (0f64)) / (0.1f64)) as u16)
-            .to_le_bytes();
-        data[5usize] = bytes[0usize];
-        data[6usize] = bytes[1usize];
-        let bytes = (((self.sensor_sonars_no_filt_rear - (0f64)) / (0.1f64)) as u16)
-            .to_le_bytes();
-        data[6usize] = bytes[0usize];
-        data[7usize] = bytes[1usize];
+        data.view_bits_mut::<Lsb0>()[0usize..4usize]
+            .store_le((self.sensor_sonars_mux - (0u8)) / (1u8));
+        data.view_bits_mut::<Lsb0>()[4usize..16usize]
+            .store_le((self.sensor_sonars_err_count - (0u16)) / (1u16));
+        data.view_bits_mut::<Lsb0>()[16usize..28usize]
+            .store_le(((self.sensor_sonars_left - (0f64)) / (0.1f64)) as u16);
+        data.view_bits_mut::<Lsb0>()[28usize..40usize]
+            .store_le(((self.sensor_sonars_middle - (0f64)) / (0.1f64)) as u16);
+        data.view_bits_mut::<Lsb0>()[40usize..52usize]
+            .store_le(((self.sensor_sonars_right - (0f64)) / (0.1f64)) as u16);
+        data.view_bits_mut::<Lsb0>()[52usize..64usize]
+            .store_le(((self.sensor_sonars_rear - (0f64)) / (0.1f64)) as u16);
+        data.view_bits_mut::<Lsb0>()[16usize..28usize]
+            .store_le(((self.sensor_sonars_no_filt_left - (0f64)) / (0.1f64)) as u16);
+        data.view_bits_mut::<Lsb0>()[28usize..40usize]
+            .store_le(((self.sensor_sonars_no_filt_middle - (0f64)) / (0.1f64)) as u16);
+        data.view_bits_mut::<Lsb0>()[40usize..52usize]
+            .store_le(((self.sensor_sonars_no_filt_right - (0f64)) / (0.1f64)) as u16);
+        data.view_bits_mut::<Lsb0>()[52usize..64usize]
+            .store_le(((self.sensor_sonars_no_filt_rear - (0f64)) / (0.1f64)) as u16);
         data
     }
 }

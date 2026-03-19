@@ -6,7 +6,7 @@ use crate::DbcFile;
 use crate::ir::message::{Message, MessageId};
 use crate::ir::signal::Signal;
 use crate::ir::signal_layout::SignalLayout;
-use crate::ir::signal_value_type::{RustIntegerLiteral, RustType, RustFloatLiteral};
+use crate::ir::signal_value_type::{RustIntegerLiteral, RustType, RustFloatLiteral, IntReprType};
 
 pub struct RustGen;
 
@@ -14,6 +14,7 @@ impl RustGen {
     pub fn generate(file: &DbcFile) -> String {
         let imports = quote! {
             use embedded_can::{Frame, Id, StandardId, ExtendedId};
+            use bitvec::prelude::*;
         };
 
         let messages = &file.messages;
@@ -405,29 +406,31 @@ impl<'a> SignalCtx<'a> {
         }
     }
 
-    fn byte_count(&self) -> usize {
-        self.layout.size.div_ceil(8) as usize
+    fn start_bit(&self) -> usize {
+        self.layout.start_bit as usize
     }
 
-    fn start_byte(&self) -> usize {
-        self.layout.start_bit as usize / 8
-    }
-
-    fn byte_indices(&self) -> Vec<usize> {
-        let start = self.start_byte();
-        (start..start + self.byte_count()).collect()
+    fn end_bit(&self) -> usize {
+        self.start_bit() + self.layout.size as usize
     }
 
     fn decode_read(&self) -> TokenStream {
         let raw = self.raw_ident();
-        let indices = self.byte_indices();
-        let count = self.byte_count();
+        let start = self.start_bit();
+        let end = self.end_bit();
 
-        match count {
-            1 => quote! { let #raw = data[#(#indices)*]; },
-            2 => quote! { let #raw = u16::from_le_bytes([#(data[#indices]),*]); },
-            4 => quote! { let #raw = u32::from_le_bytes([#(data[#indices]),*]); },
-            _ => panic!("unsupported signal size"),
+        if self.is_enum() || !self.signal.physical_type.is_float() {
+            let raw_ty = self.raw_rust_type();
+            quote! {
+                let #raw = data.view_bits::<Lsb0>()[#start..#end].load_le::<#raw_ty>();
+            }
+        } else {
+            let int_ty = IntReprType::from_size_sign(self.layout.size, false);
+            let int_ty_ident = format_ident!("{}", int_ty.as_rust_type());
+
+            quote! {
+                let #raw = data.view_bits::<Lsb0>()[#start..#end].load_le::<#int_ty_ident>();
+            }
         }
     }
 
@@ -438,82 +441,70 @@ impl<'a> SignalCtx<'a> {
         if self.is_enum() {
             let enum_name = self.enum_ident();
             let raw_ty = self.raw_rust_type();
-
             quote! { #field: #enum_name::from(#raw as #raw_ty) }
-        } else {
+        } else if self.signal.physical_type.is_float() {
             let factor = self.layout.factor;
             let offset = self.layout.offset;
             let phys = &self.signal.physical_type;
 
-            let factor_literal: TokenStream;
-            let offset_literal: TokenStream;
-
-            if phys.is_float() {
-                factor_literal = phys.fliteral(factor).to_token_stream();
-                offset_literal = phys.fliteral(offset).to_token_stream();
-            } else {
-                factor_literal = phys.literal(factor as i64).to_token_stream();
-                offset_literal = phys.literal(offset as i64).to_token_stream();
-            }
+            let factor_literal = phys.fliteral(factor).to_token_stream();
+            let offset_literal = phys.fliteral(offset).to_token_stream();
 
             let ty = format_ident!("{}", phys.as_rust_type());
 
             quote! {
                 #field: (#raw as #ty) * (#factor_literal) + (#offset_literal)
             }
+        } else {
+            let factor = self.layout.factor;
+            let offset = self.layout.offset;
+            let phys = &self.signal.physical_type;
+
+            let factor_literal = phys.literal(factor as i64).to_token_stream();
+            let offset_literal = phys.literal(offset as i64).to_token_stream();
+
+            quote! {
+                #field: (#raw) * (#factor_literal) + (#offset_literal)
+            }
         }
     }
 
     fn encode_write(&self) -> TokenStream {
         let field = self.field_ident();
-        let indices = self.byte_indices();
-        let byte_count = self.byte_count();
+        let start = self.start_bit();
+        let end = self.end_bit();
 
-        let raw_value = if self.is_enum() {
+        if self.is_enum() {
             let ty = self.raw_rust_type();
-            quote! { #ty::from(self.#field) }
-        } else {
+            quote! {
+                data.view_bits_mut::<Lsb0>()[#start..#end].store_le(#ty::from(self.#field));
+            }
+        } else if self.signal.physical_type.is_float() {
             let phys = &self.signal.physical_type;
             let factor = self.layout.factor;
             let offset = self.layout.offset;
 
-            let factor_literal: TokenStream;
-            let offset_literal: TokenStream;
+            let factor_literal = phys.fliteral(factor).to_token_stream();
+            let offset_literal = phys.fliteral(offset).to_token_stream();
 
-            if phys.is_float() {
-                factor_literal = phys.fliteral(factor).to_token_stream();
-                offset_literal = phys.fliteral(offset).to_token_stream();
-            } else {
-                factor_literal = phys.literal(factor as i64).to_token_stream();
-                offset_literal = phys.literal(offset as i64).to_token_stream();
-            }
+            let int_ty = IntReprType::from_size_sign(self.layout.size, false);
+            let int_ty_ident = format_ident!("{}", int_ty.as_rust_type());
 
-            match byte_count {
-                1 => quote! {
-                    ((self.#field - (#offset_literal)) / (#factor_literal)) as u8
-                },
-                2 => quote! {
-                    ((self.#field - (#offset_literal)) / (#factor_literal)) as u16
-                },
-                4 => quote! {
-                    ((self.#field - (#offset_literal)) / (#factor_literal)) as u32
-                },
-                _ => panic!("unsupported signal size"),
+            quote! {
+                data.view_bits_mut::<Lsb0>()[#start..#end].store_le(((self.#field - (#offset_literal)) / (#factor_literal)) as #int_ty_ident);
             }
-        };
-
-        match byte_count {
-            1 => {
-                let idx = indices[0];
-                quote! { data[#idx] = #raw_value; }
-            }
-            _ => {
-                let slots: Vec<_> = (0..byte_count).collect();
-                quote! {
-                    let bytes = (#raw_value).to_le_bytes();
-                    #( data[#indices] = bytes[#slots]; )*
-                }
+        } else {
+            let factor = self.layout.factor;
+            let offset = self.layout.offset;
+            let phys = &self.signal.physical_type;
+            
+            let factor_literal = phys.literal(factor as i64).to_token_stream();
+            let offset_literal = phys.literal(offset as i64).to_token_stream();
+            
+            quote! {
+                data.view_bits_mut::<Lsb0>()[#start..#end].store_le((self.#field - (#offset_literal)) / (#factor_literal));
             }
         }
     }
+
 }
