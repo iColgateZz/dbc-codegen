@@ -4,8 +4,12 @@ pub trait RustType {
     fn as_rust_type(&self) -> &'static str;
 }
 
-pub trait RustLiteral {
+pub trait RustIntegerLiteral {
     fn literal(&self, value: i64) -> Literal;
+}
+
+pub trait RustFloatLiteral {
+    fn fliteral(&self, value: f64) -> Literal;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,6 +46,15 @@ pub enum PhysicalType {
     },
 }
 
+impl PhysicalType {
+    pub fn is_float(&self) -> bool {
+        match self {
+            PhysicalType::Float32 | PhysicalType::Float64 => true,
+            _ => false,
+        }
+    }
+}
+
 impl RustType for PhysicalType {
     fn as_rust_type(&self) -> &'static str {
         match self {
@@ -53,15 +66,22 @@ impl RustType for PhysicalType {
     }
 }
 
-impl RustLiteral for PhysicalType {
+impl RustIntegerLiteral for PhysicalType {
     fn literal(&self, value: i64) -> Literal {
         match self {
-            PhysicalType::Float32 => Literal::f32_suffixed(value as f32),
-            PhysicalType::Float64 => Literal::f64_suffixed(value as f64),
-
             PhysicalType::Integer(repr) => repr.literal(value),
-
             PhysicalType::Enum { repr, .. } => repr.literal(value),
+            _ => panic!("Use only with integer types"),
+        }
+    }
+}
+
+impl RustFloatLiteral for PhysicalType {
+    fn fliteral(&self, value: f64) -> Literal {
+        match self {
+            PhysicalType::Float32 => Literal::f32_suffixed(value as f32),
+            PhysicalType::Float64 => Literal::f64_suffixed(value),
+            _ => panic!("Use only with floating point types"),
         }
     }
 }
@@ -110,7 +130,7 @@ impl RustType for IntReprType {
     }
 }
 
-impl RustLiteral for IntReprType {
+impl RustIntegerLiteral for IntReprType {
     fn literal(&self, value: i64) -> Literal {
         match self {
             Self::U8  => Literal::u8_suffixed(value as u8),

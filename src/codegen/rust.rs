@@ -6,7 +6,7 @@ use crate::DbcFile;
 use crate::ir::message::{Message, MessageId};
 use crate::ir::signal::Signal;
 use crate::ir::signal_layout::SignalLayout;
-use crate::ir::signal_value_type::{RustLiteral, RustType};
+use crate::ir::signal_value_type::{RustIntegerLiteral, RustType, RustFloatLiteral};
 
 pub struct RustGen;
 
@@ -387,8 +387,16 @@ impl<'a> SignalCtx<'a> {
         let min = self.layout.min;
         let max = self.layout.max;
 
-        let min_literal = phys.literal(min as i64).to_token_stream();
-        let max_literal = phys.literal(max as i64).to_token_stream();
+        let min_literal: TokenStream;
+        let max_literal: TokenStream;
+
+        if phys.is_float() {
+            min_literal = phys.fliteral(min).to_token_stream();
+            max_literal = phys.fliteral(max).to_token_stream();
+        } else {
+            min_literal = phys.literal(min as i64).to_token_stream();
+            max_literal = phys.literal(max as i64).to_token_stream();
+        }
 
         quote! {
             if value < #min_literal || value > #max_literal {
@@ -434,7 +442,25 @@ impl<'a> SignalCtx<'a> {
             quote! { #field: #enum_name::from(#raw as #raw_ty) }
         } else {
             let factor = self.layout.factor;
-            quote! { #field: #raw as f64 * #factor }
+            let offset = self.layout.offset;
+            let phys = &self.signal.physical_type;
+
+            let factor_literal: TokenStream;
+            let offset_literal: TokenStream;
+
+            if phys.is_float() {
+                factor_literal = phys.fliteral(factor).to_token_stream();
+                offset_literal = phys.fliteral(offset).to_token_stream();
+            } else {
+                factor_literal = phys.literal(factor as i64).to_token_stream();
+                offset_literal = phys.literal(offset as i64).to_token_stream();
+            }
+
+            let ty = format_ident!("{}", phys.as_rust_type());
+
+            quote! {
+                #field: (#raw as #ty) * (#factor_literal) + (#offset_literal)
+            }
         }
     }
 
@@ -447,12 +473,31 @@ impl<'a> SignalCtx<'a> {
             let ty = self.raw_rust_type();
             quote! { #ty::from(self.#field) }
         } else {
+            let phys = &self.signal.physical_type;
             let factor = self.layout.factor;
+            let offset = self.layout.offset;
+
+            let factor_literal: TokenStream;
+            let offset_literal: TokenStream;
+
+            if phys.is_float() {
+                factor_literal = phys.fliteral(factor).to_token_stream();
+                offset_literal = phys.fliteral(offset).to_token_stream();
+            } else {
+                factor_literal = phys.literal(factor as i64).to_token_stream();
+                offset_literal = phys.literal(offset as i64).to_token_stream();
+            }
 
             match byte_count {
-                1 => quote! { (self.#field / #factor) as u8 },
-                2 => quote! { (self.#field / #factor) as u16 },
-                4 => quote! { (self.#field / #factor) as u32 },
+                1 => quote! {
+                    ((self.#field - (#offset_literal)) / (#factor_literal)) as u8
+                },
+                2 => quote! {
+                    ((self.#field - (#offset_literal)) / (#factor_literal)) as u16
+                },
+                4 => quote! {
+                    ((self.#field - (#offset_literal)) / (#factor_literal)) as u32
+                },
                 _ => panic!("unsupported signal size"),
             }
         };

@@ -206,18 +206,18 @@ impl CanMessage<{ IoDebug::LEN }> for IoDebug {
         let raw_io_debug_test_signed = data[2usize];
         let raw_io_debug_test_float = data[3usize];
         Ok(Self {
-            io_debug_test_unsigned: raw_io_debug_test_unsigned as f64 * 1f64,
+            io_debug_test_unsigned: (raw_io_debug_test_unsigned as u8) * (1u8) + (0u8),
             io_debug_test_enum: IoDebugTestEnum::from(raw_io_debug_test_enum as u8),
-            io_debug_test_signed: raw_io_debug_test_signed as f64 * 1f64,
-            io_debug_test_float: raw_io_debug_test_float as f64 * 0.5f64,
+            io_debug_test_signed: (raw_io_debug_test_signed as i8) * (1i8) + (0i8),
+            io_debug_test_float: (raw_io_debug_test_float as f64) * (0.5f64) + (0f64),
         })
     }
     fn encode(&self) -> [u8; IoDebug::LEN] {
         let mut data = [0u8; IoDebug::LEN];
-        data[0usize] = (self.io_debug_test_unsigned / 1f64) as u8;
+        data[0usize] = ((self.io_debug_test_unsigned - (0u8)) / (1u8)) as u8;
         data[1usize] = u8::from(self.io_debug_test_enum);
-        data[2usize] = (self.io_debug_test_signed / 1f64) as u8;
-        data[3usize] = (self.io_debug_test_float / 0.5f64) as u8;
+        data[2usize] = ((self.io_debug_test_signed - (0i8)) / (1i8)) as u8;
+        data[3usize] = ((self.io_debug_test_float - (0f64)) / (0.5f64)) as u8;
         data
     }
 }
@@ -268,14 +268,14 @@ impl CanMessage<{ MotorCmd::LEN }> for MotorCmd {
         let raw_motor_cmd_steer = data[0usize];
         let raw_motor_cmd_drive = data[0usize];
         Ok(Self {
-            motor_cmd_steer: raw_motor_cmd_steer as f64 * 1f64,
-            motor_cmd_drive: raw_motor_cmd_drive as f64 * 1f64,
+            motor_cmd_steer: (raw_motor_cmd_steer as i8) * (1i8) + (-5i8),
+            motor_cmd_drive: (raw_motor_cmd_drive as u8) * (1u8) + (0u8),
         })
     }
     fn encode(&self) -> [u8; MotorCmd::LEN] {
         let mut data = [0u8; MotorCmd::LEN];
-        data[0usize] = (self.motor_cmd_steer / 1f64) as u8;
-        data[0usize] = (self.motor_cmd_drive / 1f64) as u8;
+        data[0usize] = ((self.motor_cmd_steer - (-5i8)) / (1i8)) as u8;
+        data[0usize] = ((self.motor_cmd_drive - (0u8)) / (1u8)) as u8;
         data
     }
 }
@@ -332,14 +332,17 @@ impl CanMessage<{ MotorStatus::LEN }> for MotorStatus {
             data[2usize],
         ]);
         Ok(Self {
-            motor_status_wheel_error: raw_motor_status_wheel_error as f64 * 1f64,
-            motor_status_speed_kph: raw_motor_status_speed_kph as f64 * 0.001f64,
+            motor_status_wheel_error: (raw_motor_status_wheel_error as u8) * (1u8)
+                + (0u8),
+            motor_status_speed_kph: (raw_motor_status_speed_kph as f64) * (0.001f64)
+                + (0f64),
         })
     }
     fn encode(&self) -> [u8; MotorStatus::LEN] {
         let mut data = [0u8; MotorStatus::LEN];
-        data[0usize] = (self.motor_status_wheel_error / 1f64) as u8;
-        let bytes = ((self.motor_status_speed_kph / 0.001f64) as u16).to_le_bytes();
+        data[0usize] = ((self.motor_status_wheel_error - (0u8)) / (1u8)) as u8;
+        let bytes = (((self.motor_status_speed_kph - (0f64)) / (0.001f64)) as u16)
+            .to_le_bytes();
         data[1usize] = bytes[0usize];
         data[2usize] = bytes[1usize];
         data
@@ -542,47 +545,60 @@ impl CanMessage<{ SensorSonars::LEN }> for SensorSonars {
             data[7usize],
         ]);
         Ok(Self {
-            sensor_sonars_mux: raw_sensor_sonars_mux as f64 * 1f64,
-            sensor_sonars_err_count: raw_sensor_sonars_err_count as f64 * 1f64,
-            sensor_sonars_left: raw_sensor_sonars_left as f64 * 0.1f64,
-            sensor_sonars_middle: raw_sensor_sonars_middle as f64 * 0.1f64,
-            sensor_sonars_right: raw_sensor_sonars_right as f64 * 0.1f64,
-            sensor_sonars_rear: raw_sensor_sonars_rear as f64 * 0.1f64,
-            sensor_sonars_no_filt_left: raw_sensor_sonars_no_filt_left as f64 * 0.1f64,
-            sensor_sonars_no_filt_middle: raw_sensor_sonars_no_filt_middle as f64
-                * 0.1f64,
-            sensor_sonars_no_filt_right: raw_sensor_sonars_no_filt_right as f64 * 0.1f64,
-            sensor_sonars_no_filt_rear: raw_sensor_sonars_no_filt_rear as f64 * 0.1f64,
+            sensor_sonars_mux: (raw_sensor_sonars_mux as u8) * (1u8) + (0u8),
+            sensor_sonars_err_count: (raw_sensor_sonars_err_count as u16) * (1u16)
+                + (0u16),
+            sensor_sonars_left: (raw_sensor_sonars_left as f64) * (0.1f64) + (0f64),
+            sensor_sonars_middle: (raw_sensor_sonars_middle as f64) * (0.1f64) + (0f64),
+            sensor_sonars_right: (raw_sensor_sonars_right as f64) * (0.1f64) + (0f64),
+            sensor_sonars_rear: (raw_sensor_sonars_rear as f64) * (0.1f64) + (0f64),
+            sensor_sonars_no_filt_left: (raw_sensor_sonars_no_filt_left as f64)
+                * (0.1f64) + (0f64),
+            sensor_sonars_no_filt_middle: (raw_sensor_sonars_no_filt_middle as f64)
+                * (0.1f64) + (0f64),
+            sensor_sonars_no_filt_right: (raw_sensor_sonars_no_filt_right as f64)
+                * (0.1f64) + (0f64),
+            sensor_sonars_no_filt_rear: (raw_sensor_sonars_no_filt_rear as f64)
+                * (0.1f64) + (0f64),
         })
     }
     fn encode(&self) -> [u8; SensorSonars::LEN] {
         let mut data = [0u8; SensorSonars::LEN];
-        data[0usize] = (self.sensor_sonars_mux / 1f64) as u8;
-        let bytes = ((self.sensor_sonars_err_count / 1f64) as u16).to_le_bytes();
+        data[0usize] = ((self.sensor_sonars_mux - (0u8)) / (1u8)) as u8;
+        let bytes = (((self.sensor_sonars_err_count - (0u16)) / (1u16)) as u16)
+            .to_le_bytes();
         data[0usize] = bytes[0usize];
         data[1usize] = bytes[1usize];
-        let bytes = ((self.sensor_sonars_left / 0.1f64) as u16).to_le_bytes();
+        let bytes = (((self.sensor_sonars_left - (0f64)) / (0.1f64)) as u16)
+            .to_le_bytes();
         data[2usize] = bytes[0usize];
         data[3usize] = bytes[1usize];
-        let bytes = ((self.sensor_sonars_middle / 0.1f64) as u16).to_le_bytes();
+        let bytes = (((self.sensor_sonars_middle - (0f64)) / (0.1f64)) as u16)
+            .to_le_bytes();
         data[3usize] = bytes[0usize];
         data[4usize] = bytes[1usize];
-        let bytes = ((self.sensor_sonars_right / 0.1f64) as u16).to_le_bytes();
+        let bytes = (((self.sensor_sonars_right - (0f64)) / (0.1f64)) as u16)
+            .to_le_bytes();
         data[5usize] = bytes[0usize];
         data[6usize] = bytes[1usize];
-        let bytes = ((self.sensor_sonars_rear / 0.1f64) as u16).to_le_bytes();
+        let bytes = (((self.sensor_sonars_rear - (0f64)) / (0.1f64)) as u16)
+            .to_le_bytes();
         data[6usize] = bytes[0usize];
         data[7usize] = bytes[1usize];
-        let bytes = ((self.sensor_sonars_no_filt_left / 0.1f64) as u16).to_le_bytes();
+        let bytes = (((self.sensor_sonars_no_filt_left - (0f64)) / (0.1f64)) as u16)
+            .to_le_bytes();
         data[2usize] = bytes[0usize];
         data[3usize] = bytes[1usize];
-        let bytes = ((self.sensor_sonars_no_filt_middle / 0.1f64) as u16).to_le_bytes();
+        let bytes = (((self.sensor_sonars_no_filt_middle - (0f64)) / (0.1f64)) as u16)
+            .to_le_bytes();
         data[3usize] = bytes[0usize];
         data[4usize] = bytes[1usize];
-        let bytes = ((self.sensor_sonars_no_filt_right / 0.1f64) as u16).to_le_bytes();
+        let bytes = (((self.sensor_sonars_no_filt_right - (0f64)) / (0.1f64)) as u16)
+            .to_le_bytes();
         data[5usize] = bytes[0usize];
         data[6usize] = bytes[1usize];
-        let bytes = ((self.sensor_sonars_no_filt_rear / 0.1f64) as u16).to_le_bytes();
+        let bytes = (((self.sensor_sonars_no_filt_rear - (0f64)) / (0.1f64)) as u16)
+            .to_le_bytes();
         data[6usize] = bytes[0usize];
         data[7usize] = bytes[1usize];
         data
