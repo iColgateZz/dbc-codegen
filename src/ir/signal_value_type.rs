@@ -96,42 +96,6 @@ impl IntReprType {
         }
     }
 
-    pub fn from_iter(iter: impl IntoIterator<Item = i64>) -> IntReprType {
-        let mut min = i64::MAX;
-        let mut max = i64::MIN;
-        let mut any = false;
-    
-        for v in iter {
-            any = true;
-            if v < min {
-                min = v;
-            }
-            if v > max {
-                max = v;
-            }
-        }
-    
-        if !any {
-            return IntReprType::U8;
-        }
-    
-        if min >= 0 {
-            match max as u64 {
-                0..=255 => IntReprType::U8,
-                256..=65535 => IntReprType::U16,
-                v if v <= u32::MAX as u64 => IntReprType::U32,
-                _ => IntReprType::U64,
-            }
-        } else {
-            match (min, max) {
-                (mn, mx) if mn >= i8::MIN as i64 && mx <= i8::MAX as i64 => IntReprType::I8,
-                (mn, mx) if mn >= i16::MIN as i64 && mx <= i16::MAX as i64 => IntReprType::I16,
-                (mn, mx) if mn >= i32::MIN as i64 && mx <= i32::MAX as i64 => IntReprType::I32,
-                _ => IntReprType::I64,
-            }
-        }
-    }
-
     pub fn from_size_sign(size: u64, signed: bool) -> IntReprType {
         match (signed, size) {
             (false, 0..=8) => IntReprType::U8,
