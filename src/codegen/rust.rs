@@ -308,6 +308,9 @@ impl MessageDef<'_> {
         .to_tokens(tokens);
     }
 
+    //TODO: generate getters/setters for plain signals,
+    //      add getters/setters for multiplexed signals,
+    //      new() methods are also missing
     fn generate_mux(
         &self,
         tokens: &mut TokenStream,
