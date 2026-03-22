@@ -5,9 +5,15 @@ members = [
 ]
 
 [package]
-name = "dbc-codegen"
+name = "dbc-codegen2"
 version = "0.1.0"
 edition = "2024"
+description = "DBC code generator for CAN bus messages"
+license = "MIT"
+repository = "https://github.com/iColgateZz/dbc-codegen2"
+readme = "README.md"
+keywords = ["cli", "can", "dbc", "codegen", "embedded", "automotive"]
+categories = ["cli", "can", "dbc", "embedded", "codegen", "automotive"]
 
 [dependencies]
 can-dbc = "8.0.0"

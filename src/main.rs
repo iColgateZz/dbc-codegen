@@ -1,6 +1,6 @@
 use can_dbc::Dbc as ParsedDbc;
 use clap::{Parser, Subcommand};
-use dbc_codegen::{
+use dbc_codegen2::{
     DbcFile,
     app::App,
     ir::IRBuilder, utils::Language,
