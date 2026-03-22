@@ -1,25 +1,46 @@
-# dbc-codegen
+# dbc-codegen2
 
-## Development
+`dbc-codegen2` is a **DBC code generator for CAN bus messages**.
 
-### CLI tool
+It parses a `.dbc` file, builds an intermediate representation (IR), and generates strongly typed code for working with CAN frames.
 
-Parse example DBC file into `.txt` file.
+Currently supported targets:
+
+- Rust
+
+---
+
+## Installation
+
+Install using Cargo from crates.io:
 
 ```bash
-cargo run -- parse
+cargo install dbc-codegen2
 ```
 
-Get IR of the DBC file.
-Index can be between 0-4
+After installation the CLI is available as:
 
 ```bash
-cargo run -- ir <index>
+dbc-codegen2
 ```
 
-Generate rust file based on the DBC file.
-Index can be between 0-4
+## Usage
+```bash
+dbc-codegen2 <COMMAND> <INPUT> -o <OUTPUT>
+```
+
+### Commands:
+
+Commands:
+
+| Command | Description                              |
+| ------- | ---------------------------------------- |
+| `parse` | Parse a DBC file and print parsed output |
+| `ir`    | Show intermediate representation         |
+| `gen`   | Generate code from a DBC file            |
+
+You can view help with:
 
 ```bash
-cargo run -- gen <index>
+dbc-codegen2 --help
 ```
