@@ -182,6 +182,7 @@ dependencies = [
  "can-dbc",
  "clap",
  "embedded-can",
+ "heck",
  "prettyplease",
  "proc-macro2",
  "quote",

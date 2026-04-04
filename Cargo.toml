@@ -23,3 +23,4 @@ proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full"] }
 clap = { version = "4", features = ["derive"] }
+heck = "0.5"
