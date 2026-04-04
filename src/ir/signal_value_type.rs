@@ -4,6 +4,10 @@ pub trait RustType {
     fn as_rust_type(&self) -> &'static str;
 }
 
+pub trait CppType {
+    fn as_cpp_type(&self) -> &'static str;
+}
+
 pub trait RustIntegerLiteral {
     fn literal(&self, value: i64) -> Literal;
 }
@@ -41,8 +45,8 @@ pub enum PhysicalType {
     Float64,
     Integer(IntReprType),
     Enum {
-        coverage: EnumCoverage, 
-        repr: IntReprType
+        coverage: EnumCoverage,
+        repr: IntReprType,
     },
 }
 
@@ -62,6 +66,17 @@ impl RustType for PhysicalType {
             PhysicalType::Float64 => "f64",
             PhysicalType::Integer(v) => v.as_rust_type(),
             PhysicalType::Enum { repr, .. } => repr.as_rust_type(),
+        }
+    }
+}
+
+impl CppType for PhysicalType {
+    fn as_cpp_type(&self) -> &'static str {
+        match self {
+            PhysicalType::Float32 => "float",
+            PhysicalType::Float64 => "double",
+            PhysicalType::Integer(v) => v.as_cpp_type(),
+            PhysicalType::Enum { repr, .. } => repr.as_cpp_type(),
         }
     }
 }
@@ -130,14 +145,29 @@ impl RustType for IntReprType {
     }
 }
 
+impl CppType for IntReprType {
+    fn as_cpp_type(&self) -> &'static str {
+        match self {
+            Self::U8 => "uint8_t",
+            Self::U16 => "uint16_t",
+            Self::U32 => "uint32_t",
+            Self::U64 => "uint64_t",
+            Self::I8 => "int8_t",
+            Self::I16 => "int16_t",
+            Self::I32 => "int32_t",
+            Self::I64 => "int64_t",
+        }
+    }
+}
+
 impl RustIntegerLiteral for IntReprType {
     fn literal(&self, value: i64) -> Literal {
         match self {
-            Self::U8  => Literal::u8_suffixed(value as u8),
+            Self::U8 => Literal::u8_suffixed(value as u8),
             Self::U16 => Literal::u16_suffixed(value as u16),
             Self::U32 => Literal::u32_suffixed(value as u32),
             Self::U64 => Literal::u64_suffixed(value as u64),
-            Self::I8  => Literal::i8_suffixed(value as i8),
+            Self::I8 => Literal::i8_suffixed(value as i8),
             Self::I16 => Literal::i16_suffixed(value as i16),
             Self::I32 => Literal::i32_suffixed(value as i32),
             Self::I64 => Literal::i64_suffixed(value),
