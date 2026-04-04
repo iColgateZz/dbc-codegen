@@ -70,26 +70,6 @@ struct EngineModeValue {
   }
 
   [[nodiscard]] constexpr uint8_t to_raw() const noexcept { return raw; }
-
-  void debug_print() const noexcept {
-    switch (mode) {
-    case EngineMode::Off:
-      std::printf("Off");
-      break;
-    case EngineMode::Idle:
-      std::printf("Idle");
-      break;
-    case EngineMode::Drive:
-      std::printf("Drive");
-      break;
-    case EngineMode::Sport:
-      std::printf("Sport");
-      break;
-    default:
-      std::printf("_Other(%u)", raw);
-      break;
-    }
-  }
 };
 
 struct EngineData {
@@ -126,15 +106,6 @@ struct EngineData {
 
     return {ID, buf};
   }
-
-#ifndef CAN_NO_DEBUG
-  void debug_print() const noexcept {
-    std::printf("EngineData { rpm: %.3f, speed: %.3f, engine_mode: ",
-                static_cast<double>(rpm), static_cast<double>(speed));
-    engine_mode.debug_print();
-    std::printf(" }\n");
-  }
-#endif
 };
 
 struct OtherData {
@@ -161,13 +132,6 @@ struct OtherData {
 
     return {ID, buf};
   }
-
-#ifndef CAN_NO_DEBUG
-  void debug_print() const noexcept {
-    std::printf("OtherData { something: %.3f }\n",
-                static_cast<double>(something));
-  }
-#endif
 };
 
 using CanMsg = std::variant<EngineData, OtherData>;
@@ -192,9 +156,3 @@ parse_can(uint32_t id, std::span<const uint8_t, 8> data) noexcept {
     return std::unexpected(CanError::UnknownId);
   }
 }
-
-#ifndef CAN_NO_DEBUG
-inline void debug_print_can_msg(const CanMsg &msg) noexcept {
-  std::visit([](const auto &m) { m.debug_print(); }, msg);
-}
-#endif
