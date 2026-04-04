@@ -48,18 +48,29 @@ constexpr void write_be(uint8_t *d, T v) noexcept {
 
 } // namespace detail
 
-struct DRIVER_HEARTBEAT {
+enum class DriverHeartbeatCmd : uint8_t {
+  Reboot = 2,
+  Sync = 1,
+  Noop = 0,
 };
 
-struct IO_DEBUG {
+struct DriverHeartbeat {
 };
 
-struct MOTOR_CMD {
+enum class IoDebugTestEnum : uint8_t {
+  Two = 2,
+  One = 1,
 };
 
-struct MOTOR_STATUS {
+struct IoDebug {
 };
 
-struct SENSOR_SONARS {
+struct MotorCmd {
+};
+
+struct MotorStatus {
+};
+
+struct SensorSonars {
 };
 

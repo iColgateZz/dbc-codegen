@@ -1,4 +1,10 @@
-use crate::{DbcFile, codegen::Generator, empty, end_block, line, start_block};
+use crate::{
+    DbcFile,
+    codegen::Generator,
+    empty, end_block,
+    ir::{message::Message, signal::Signal, signal_value_enum::SignalValueEnum, signal_value_type::CppType},
+    line, start_block,
+};
 
 pub struct CppGen;
 
@@ -12,7 +18,10 @@ impl CppGen {
         Self::includes(&mut out);
         Self::errors(&mut out);
         Self::endian_read_and_write(&mut out);
-        Self::messages(&mut out, file);
+
+        for message in &file.messages {
+            Self::message(&mut out, message, file);
+        }
 
         out.into_string()
     }
@@ -42,40 +51,67 @@ impl CppGen {
 
     fn endian_read_fn(out: &mut Generator, name: &str, swap_if: &str) {
         line!(out, "template <typename T>");
-        start_block!(out, "[[nodiscard]] constexpr T {name}(const uint8_t *d) noexcept");
+        start_block!(
+            out,
+            "[[nodiscard]] constexpr T {name}(const uint8_t *d) noexcept"
+        );
         line!(out, "T v{{}};");
         line!(out, "std::memcpy(&v, d, sizeof(T));");
-        line!(out, "if constexpr (std::endian::native == std::endian::{swap_if}) v = std::byteswap(v);");
+        line!(
+            out,
+            "if constexpr (std::endian::native == std::endian::{swap_if}) v = std::byteswap(v);"
+        );
         end_block!(out, "return v;");
         empty!(out);
     }
-    
+
     fn endian_write_fn(out: &mut Generator, name: &str, swap_if: &str) {
         line!(out, "template <typename T>");
         start_block!(out, "constexpr void {name}(uint8_t *d, T v) noexcept");
-        line!(out, "if constexpr (std::endian::native == std::endian::{swap_if}) v = std::byteswap(v);");
+        line!(
+            out,
+            "if constexpr (std::endian::native == std::endian::{swap_if}) v = std::byteswap(v);"
+        );
         end_block!(out, "std::memcpy(d, &v, sizeof(T));");
         empty!(out);
     }
-    
+
     fn endian_read_and_write(out: &mut Generator) {
         line!(out, "namespace detail {{");
         empty!(out);
-    
+
         Self::endian_read_fn(out, "read_le", "big");
         Self::endian_read_fn(out, "read_be", "little");
         Self::endian_write_fn(out, "write_le", "big");
         Self::endian_write_fn(out, "write_be", "little");
-    
+
         line!(out, "}} // namespace detail");
         empty!(out);
     }
 
-    fn messages(out: &mut Generator, file: &DbcFile) {
-        for message in &file.messages {
-            start_block!(out, "struct {}", message.name.0);
-            end_block!(out, "");
-            empty!(out);
+    fn message(out: &mut Generator, msg: &Message, file: &DbcFile) {
+        let signals = msg.signal_idxs.iter().map(|idx| &file.signals[idx.0]);
+
+        for signal in signals {
+            if let Some(enum_def) = &signal.signal_value_enum {
+                Self::signal_value_enum(out, signal, enum_def);
+            }   
         }
+        
+        start_block!(out, "struct {}", msg.name.upper_camel());
+        end_block!(out, "");
+        empty!(out);
+    }
+
+    fn signal_value_enum(out: &mut Generator, signal: &Signal, enum_def: &SignalValueEnum) {
+        let name = &signal.name.upper_camel();
+        let cpp_type = &signal.physical_type.as_cpp_type();
+        
+        start_block!(out, "enum class {} : {}", name, cpp_type);
+        for variant in &enum_def.variants {
+            line!(out, "{} = {},", variant.description, variant.value)
+        }
+        end_block!(out, "");
+        empty!(out);
     }
 }
