@@ -60,6 +60,17 @@ enum class EngineMode : uint8_t {
   Sport = 3,
 };
 
+[[nodiscard]] constexpr std::expected<EngineMode, CanError>
+engine_mode_from_raw(uint8_t v) noexcept {
+  switch (v) {
+  case 0: return EngineMode::Off;
+  case 1: return EngineMode::Idle;
+  case 2: return EngineMode::Drive;
+  case 3: return EngineMode::Sport;
+  default: return std::unexpected(CanError::InvalidData);
+  }
+}
+
 struct EngineData {
   static constexpr uint32_t ID = 100u;
   static constexpr std::size_t LEN = 8u;
@@ -77,10 +88,14 @@ struct EngineData {
     const uint16_t raw_rpm = detail::read_le<uint16_t>(&data[0]);
     const uint16_t raw_speed = detail::read_le<uint16_t>(&data[2]);
 
+    const auto engine_mode = engine_mode_from_raw(data[4]);
+    if (!engine_mode)
+      return std::unexpected(engine_mode.error());
+
     return EngineData{
         .rpm = raw_rpm * 0.125f,
         .speed = raw_speed * 0.01f,
-        .engine_mode = static_cast<EngineMode>(data[4]),
+        .engine_mode = *engine_mode,
     };
   }
 
