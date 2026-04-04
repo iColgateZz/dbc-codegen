@@ -10,6 +10,12 @@
 #include <span>
 #include <variant>
 
+enum class CanError : uint8_t {
+  UnknownId,
+  InvalidLength,
+  InvalidData,
+};
+
 struct DRIVER_HEARTBEAT {
 };
 

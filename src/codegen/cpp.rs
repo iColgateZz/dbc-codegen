@@ -10,6 +10,7 @@ impl CppGen {
         empty!(out);
 
         Self::includes(&mut out);
+        Self::errors(&mut out);
         Self::messages(&mut out, file);
 
         out.into_string()
@@ -24,6 +25,17 @@ impl CppGen {
         for include in INCLUDES {
             line!(out, "#include <{}>", include);
         }
+        empty!(out);
+    }
+
+    fn errors(out: &mut Generator) {
+        const ERRORS: &[&str] = &["UnknownId", "InvalidLength", "InvalidData"];
+
+        start_block!(out, "enum class CanError : uint8_t");
+        for error in ERRORS {
+            line!(out, "{},", error);
+        }
+        end_block!(out, "");
         empty!(out);
     }
 
