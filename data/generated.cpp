@@ -65,6 +65,8 @@ driver_heartbeat_cmd_from_raw(uint8_t v) noexcept {
 };
 
 struct DriverHeartbeat {
+  static constexpr uint16_t ID = 100;
+  static constexpr std::size_t LEN = 1;
 };
 
 enum class IoDebugTestEnum : uint8_t {
@@ -82,14 +84,22 @@ io_debug_test_enum_from_raw(uint8_t v) noexcept {
 };
 
 struct IoDebug {
+  static constexpr uint16_t ID = 500;
+  static constexpr std::size_t LEN = 4;
 };
 
 struct MotorCmd {
+  static constexpr uint16_t ID = 101;
+  static constexpr std::size_t LEN = 1;
 };
 
 struct MotorStatus {
+  static constexpr uint16_t ID = 400;
+  static constexpr std::size_t LEN = 3;
 };
 
 struct SensorSonars {
+  static constexpr uint16_t ID = 200;
+  static constexpr std::size_t LEN = 8;
 };
 

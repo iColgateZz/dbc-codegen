@@ -4,7 +4,7 @@ use crate::{
     DbcFile,
     codegen::Generator,
     empty, end_block,
-    ir::{message::Message, signal::Signal, signal_value_enum::SignalValueEnum, signal_value_type::CppType},
+    ir::{message::{Message, MessageId}, signal::Signal, signal_value_enum::SignalValueEnum, signal_value_type::CppType},
     line, start_block,
 };
 
@@ -123,6 +123,15 @@ impl CppGen {
         }
         
         start_block!(out, "struct {}", msg.name.upper_camel());
+        match msg.id {
+            MessageId::Standard(id) => {
+                line!(out, "static constexpr uint16_t ID = {};", id);
+            }
+            MessageId::Extended(id) => {
+                line!(out, "static constexpr uint32_t ID = {};", id);
+            }
+        }
+        line!(out, "static constexpr std::size_t LEN = {};", msg.size);
         end_block!(out, "");
         empty!(out);
     }
