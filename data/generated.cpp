@@ -54,12 +54,31 @@ enum class DriverHeartbeatCmd : uint8_t {
   Noop = 0,
 };
 
+[[nodiscard]] constexpr std::expected<DriverHeartbeatCmd, CanError>
+driver_heartbeat_cmd_from_raw(uint8_t v) noexcept {
+  switch (v) {
+    case 2: return DriverHeartbeatCmd::Reboot;
+    case 1: return DriverHeartbeatCmd::Sync;
+    case 0: return DriverHeartbeatCmd::Noop;
+    default: return std::unexpected(CanError::InvalidData);
+  };
+};
+
 struct DriverHeartbeat {
 };
 
 enum class IoDebugTestEnum : uint8_t {
   Two = 2,
   One = 1,
+};
+
+[[nodiscard]] constexpr std::expected<IoDebugTestEnum, CanError>
+io_debug_test_enum_from_raw(uint8_t v) noexcept {
+  switch (v) {
+    case 2: return IoDebugTestEnum::Two;
+    case 1: return IoDebugTestEnum::One;
+    default: return std::unexpected(CanError::InvalidData);
+  };
 };
 
 struct IoDebug {

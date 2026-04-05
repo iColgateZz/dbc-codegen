@@ -1,3 +1,5 @@
+use heck::{ToSnakeCase};
+
 use crate::{
     DbcFile,
     codegen::Generator,
@@ -111,6 +113,16 @@ impl CppGen {
         for variant in &enum_def.variants {
             line!(out, "{} = {},", variant.description, variant.value)
         }
+        end_block!(out, "");
+        empty!(out);
+        
+        line!(out, "[[nodiscard]] constexpr std::expected<{}, CanError>", name);
+        start_block!(out, "{}_from_raw({} v) noexcept", name.to_snake_case(), cpp_type);
+        start_block!(out, "switch (v)");
+        for variant in &enum_def.variants {
+            line!(out, "case {}: return {}::{};", variant.value, name, variant.description);
+        }
+        end_block!(out, "default: return std::unexpected(CanError::InvalidData);");
         end_block!(out, "");
         empty!(out);
     }
