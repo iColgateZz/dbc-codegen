@@ -90,21 +90,7 @@ impl CppGen {
         line!(out, "}} // namespace detail");
         empty!(out);
     }
-
-    fn message(out: &mut Generator, msg: &Message, file: &DbcFile) {
-        let signals = msg.signal_idxs.iter().map(|idx| &file.signals[idx.0]);
-
-        for signal in signals {
-            if let Some(enum_def) = &signal.signal_value_enum {
-                Self::signal_value_enum(out, signal, enum_def);
-            }   
-        }
-        
-        start_block!(out, "struct {}", msg.name.upper_camel());
-        end_block!(out, "");
-        empty!(out);
-    }
-
+    
     fn signal_value_enum(out: &mut Generator, signal: &Signal, enum_def: &SignalValueEnum) {
         let name = &signal.name.upper_camel();
         let cpp_type = &signal.physical_type.as_cpp_type();
@@ -123,6 +109,20 @@ impl CppGen {
             line!(out, "case {}: return {}::{};", variant.value, name, variant.description);
         }
         end_block!(out, "default: return std::unexpected(CanError::InvalidData);");
+        end_block!(out, "");
+        empty!(out);
+    }
+
+    fn message(out: &mut Generator, msg: &Message, file: &DbcFile) {
+        let signals = msg.signal_idxs.iter().map(|idx| &file.signals[idx.0]);
+
+        for signal in signals {
+            if let Some(enum_def) = &signal.signal_value_enum {
+                Self::signal_value_enum(out, signal, enum_def);
+            }   
+        }
+        
+        start_block!(out, "struct {}", msg.name.upper_camel());
         end_block!(out, "");
         empty!(out);
     }
