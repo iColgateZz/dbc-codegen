@@ -78,6 +78,62 @@ impl CppGen {
         empty!(out);
     }
 
+    fn extract_le_fn(out: &mut Generator) {
+        line!(out, "template <typename T>");
+        start_block!(
+            out,
+            "[[nodiscard]] constexpr T extract_le(const uint8_t* data, std::size_t start, std::size_t end) noexcept"
+        );
+        line!(out, "using U = std::make_unsigned_t<T>;");
+        line!(out, "U result = 0;");
+        line!(out, "const std::size_t len = end - start;");
+        start_block!(out, "for (std::size_t i = 0; i < len; ++i)");
+        line!(out, "const std::size_t bit_idx = start + i;");
+        line!(
+            out,
+            "result |= static_cast<U>((data[bit_idx / 8] >> (bit_idx % 8)) & 0x1u) << i;"
+        );
+        end_block!(out, "");
+        start_block!(out, "if constexpr (std::is_signed_v<T>)");
+        start_block!(
+            out,
+            "if (len < sizeof(U) * 8 && (result & (U(1) << (len - 1))))"
+        );
+        line!(out, "result |= ~U(0) << len;");
+        end_block!(out, "");
+        end_block!(out, "");
+        end_block!(out, "return static_cast<T>(result);");
+        empty!(out);
+    }
+
+    fn extract_be_fn(out: &mut Generator) {
+        line!(out, "template <typename T>");
+        start_block!(
+            out,
+            "[[nodiscard]] constexpr T extract_be(const uint8_t* data, std::size_t start, std::size_t end) noexcept"
+        );
+        line!(out, "using U = std::make_unsigned_t<T>;");
+        line!(out, "U result = 0;");
+        line!(out, "const std::size_t len = end - start;");
+        start_block!(out, "for (std::size_t i = 0; i < len; ++i)");
+        line!(out, "const std::size_t bit_idx = start + i;");
+        line!(
+            out,
+            "result = (result << 1) | static_cast<U>((data[bit_idx / 8] >> (7 - bit_idx % 8)) & 0x1u);"
+        );
+        end_block!(out, "");
+        start_block!(out, "if constexpr (std::is_signed_v<T>)");
+        start_block!(
+            out,
+            "if (len < sizeof(U) * 8 && (result & (U(1) << (len - 1))))"
+        );
+        line!(out, "result |= ~U(0) << len;");
+        end_block!(out, "");
+        end_block!(out, "");
+        end_block!(out, "return static_cast<T>(result);");
+        empty!(out);
+    }
+
     fn endian_read_and_write(out: &mut Generator) {
         line!(out, "namespace detail {{");
         empty!(out);
@@ -86,6 +142,8 @@ impl CppGen {
         Self::endian_read_fn(out, "read_be", "little");
         Self::endian_write_fn(out, "write_le", "big");
         Self::endian_write_fn(out, "write_be", "little");
+        Self::extract_le_fn(out);
+        Self::extract_be_fn(out);
 
         line!(out, "}} // namespace detail");
         empty!(out);
