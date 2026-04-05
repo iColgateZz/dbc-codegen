@@ -69,6 +69,11 @@ struct DriverHeartbeat {
   static constexpr std::size_t LEN = 1;
   
   DriverHeartbeatCmd driver_heartbeat_cmd;
+  
+  [[nodiscard]] static std::expected<DriverHeartbeat, CanError>
+  parse(std::span<const uint8_t, LEN> data) noexcept {
+  };
+  
 };
 
 enum class IoDebugTestEnum : uint8_t {
@@ -93,6 +98,14 @@ struct IoDebug {
   IoDebugTestEnum io_debug_test_enum;
   int8_t io_debug_test_signed;
   double io_debug_test_float;
+  
+  [[nodiscard]] static std::expected<IoDebug, CanError>
+  parse(std::span<const uint8_t, LEN> data) noexcept {
+    const uint8_t raw_io_debug_test_unsigned = detail::read_le<uint8_t>(&data[0]);
+    const int8_t raw_io_debug_test_signed = detail::read_le<int8_t>(&data[0]);
+    const uint8_t raw_io_debug_test_float = detail::read_le<uint8_t>(&data[0]);
+  };
+  
 };
 
 struct MotorCmd {
@@ -101,6 +114,13 @@ struct MotorCmd {
   
   int8_t motor_cmd_steer;
   uint8_t motor_cmd_drive;
+  
+  [[nodiscard]] static std::expected<MotorCmd, CanError>
+  parse(std::span<const uint8_t, LEN> data) noexcept {
+    const int8_t raw_motor_cmd_steer = detail::read_le<int8_t>(&data[0]);
+    const uint8_t raw_motor_cmd_drive = detail::read_le<uint8_t>(&data[0]);
+  };
+  
 };
 
 struct MotorStatus {
@@ -109,6 +129,13 @@ struct MotorStatus {
   
   uint8_t motor_status_wheel_error;
   double motor_status_speed_kph;
+  
+  [[nodiscard]] static std::expected<MotorStatus, CanError>
+  parse(std::span<const uint8_t, LEN> data) noexcept {
+    const uint8_t raw_motor_status_wheel_error = detail::read_le<uint8_t>(&data[0]);
+    const uint16_t raw_motor_status_speed_kph = detail::read_le<uint16_t>(&data[0]);
+  };
+  
 };
 
 struct SensorSonars {
@@ -125,5 +152,20 @@ struct SensorSonars {
   double sensor_sonars_no_filt_middle;
   double sensor_sonars_no_filt_right;
   double sensor_sonars_no_filt_rear;
+  
+  [[nodiscard]] static std::expected<SensorSonars, CanError>
+  parse(std::span<const uint8_t, LEN> data) noexcept {
+    const uint8_t raw_sensor_sonars_mux = detail::read_le<uint8_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_err_count = detail::read_le<uint16_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_left = detail::read_le<uint16_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_middle = detail::read_le<uint16_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_right = detail::read_le<uint16_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_rear = detail::read_le<uint16_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_no_filt_left = detail::read_le<uint16_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_no_filt_middle = detail::read_le<uint16_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_no_filt_right = detail::read_le<uint16_t>(&data[0]);
+    const uint16_t raw_sensor_sonars_no_filt_rear = detail::read_le<uint16_t>(&data[0]);
+  };
+  
 };
 

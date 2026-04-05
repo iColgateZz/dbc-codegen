@@ -4,7 +4,7 @@ use crate::{
     DbcFile,
     codegen::Generator,
     empty, end_block,
-    ir::{message::{Message, MessageId}, signal::Signal, signal_value_enum::SignalValueEnum, signal_value_type::CppType},
+    ir::{message::{Message, MessageId}, signal::Signal, signal_layout::ByteOrder, signal_value_enum::SignalValueEnum, signal_value_type::CppType},
     line, start_block,
 };
 
@@ -112,6 +112,26 @@ impl CppGen {
         end_block!(out, "");
         empty!(out);
     }
+    
+    fn parse_message(out: &mut Generator, msg: &Message, signals: &Vec<&Signal>, file: &DbcFile) {
+        line!(out, "[[nodiscard]] static std::expected<{}, CanError>", msg.name.upper_camel());
+        start_block!(out, "parse(std::span<const uint8_t, LEN> data) noexcept");
+        for signal in signals {
+            let byte_order = file.signal_layouts[signal.layout.0].byte_order;
+            let endian = match byte_order {
+                ByteOrder::BigEndian => {"read_be"}
+                ByteOrder::LittleEndian => {"read_le"}
+            };
+            let raw_type = signal.raw_type.as_cpp_type();
+                
+            if let Some(_) = &signal.signal_value_enum {
+            } else {
+                line!(out, "const {} raw_{} = detail::{}<{}>(&data[0]);", raw_type, signal.name.0.to_snake_case(), endian, raw_type)
+            }
+        }
+        end_block!(out, "");
+        empty!(out);
+    }
 
     fn message(out: &mut Generator, msg: &Message, file: &DbcFile) {
         let signals: Vec<_> = msg.signal_idxs.iter().map(|idx| &file.signals[idx.0]).collect();
@@ -141,6 +161,9 @@ impl CppGen {
                 line!(out, "{} {};", signal.physical_type.as_cpp_type(), signal.name.lower());
             }   
         }
+        empty!(out);
+        
+        Self::parse_message(out, msg, &signals, file);
         
         end_block!(out, "");
         empty!(out);
