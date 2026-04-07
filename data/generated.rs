@@ -56,7 +56,6 @@ impl From<DriverHeartbeatCmd> for u8 {
             DriverHeartbeatCmd::Reboot => 2u8,
             DriverHeartbeatCmd::Sync => 1u8,
             DriverHeartbeatCmd::Noop => 0u8,
-            _ => panic!("Invalid enum value"),
         }
     }
 }
@@ -124,7 +123,6 @@ impl From<IoDebugTestEnum> for u8 {
         match val {
             IoDebugTestEnum::Two => 2u8,
             IoDebugTestEnum::One => 1u8,
-            _ => panic!("Invalid enum value"),
         }
     }
 }

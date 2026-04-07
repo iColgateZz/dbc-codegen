@@ -626,7 +626,7 @@ impl ToTokens for SignalValueEnum<'_> {
         let other_into_arm = if !self.config.no_enum_other {
             quote! { #enum_name::_Other(v) => v, }
         } else {
-            quote! { _ => panic!("Invalid enum value"), }
+            quote! {}
         };
 
         quote! {
