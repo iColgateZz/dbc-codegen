@@ -650,15 +650,15 @@ impl<'a> SignalCtx<'a> {
     }
 
     fn field_ident(&self) -> syn::Ident {
-        format_ident!("{}", self.signal.name.lower())
+        format_ident!("{}", self.signal.name.snake_case())
     }
 
     fn setter_ident(&self) -> syn::Ident {
-        format_ident!("set_{}", self.signal.name.lower())
+        format_ident!("set_{}", self.signal.name.snake_case())
     }
 
     fn raw_ident(&self) -> syn::Ident {
-        format_ident!("raw_{}", self.signal.name.lower())
+        format_ident!("raw_{}", self.signal.name.snake_case())
     }
 
     fn enum_ident(&self) -> syn::Ident {
