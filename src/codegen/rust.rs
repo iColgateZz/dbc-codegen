@@ -168,7 +168,7 @@ impl MessageDef<'_> {
 
         let value_enums = signals
             .iter()
-            .map(|s| SignalValueEnum { signal: s.signal, config: self.config });
+            .map(|s| SignalValueEnumCtx { signal: s.signal, config: self.config });
         let fields = Self::gen_fields(&signals);
 
         let id_expr = match msg.id {
@@ -280,7 +280,7 @@ impl MessageDef<'_> {
 
         let value_enums = signals
             .iter()
-            .map(|s| SignalValueEnum { signal: s.signal, config: self.config });
+            .map(|s| SignalValueEnumCtx { signal: s.signal, config: self.config });
 
         let id_expr = match msg.id {
             MessageId::Standard(id) => {
@@ -576,12 +576,12 @@ impl MessageDef<'_> {
     }
 }
 
-struct SignalValueEnum<'a> {
+struct SignalValueEnumCtx<'a> {
     signal: &'a Signal,
     config: &'a CodegenConfig,
 }
 
-impl ToTokens for SignalValueEnum<'_> {
+impl ToTokens for SignalValueEnumCtx<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let signal = self.signal;
 
@@ -655,6 +655,12 @@ impl ToTokens for SignalValueEnum<'_> {
             }
         }
         .to_tokens(tokens);
+    }
+}
+
+impl<'a> SignalValueEnumCtx<'a> {
+    fn gen_enum_variants() {
+        
     }
 }
 
