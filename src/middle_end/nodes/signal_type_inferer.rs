@@ -1,4 +1,4 @@
-use crate::{ir::{signal::Signal, signal_extended_value_type::ExtendedValueType, signal_layout::{SignalLayout, ValueType}, signal_value_type::{EnumCoverage, IntReprType, PhysicalType, RawType}}, middle_end::nodes::TransformationNode};
+use crate::{ir::{signal::Signal, signal_extended_value_type::ExtendedValueType, signal_layout::{SignalLayout, ValueType}, signal_value_enum::SignalValueEnum, signal_value_type::{EnumCoverage, IntReprType, PhysicalType, RawType}}, middle_end::nodes::TransformationNode};
 
 // Determining raw_type
 // if SIG_VALTYPE_ exists:
@@ -38,8 +38,9 @@ impl TransformationNode for InferSignalTypes {
     fn transform(&self, file: &mut crate::DbcFile) {
         for sig in &mut file.signals {
             let sig_layout = &file.signal_layouts[sig.layout.0];
+            let sve_option = sig.signal_value_enum_idx.map(|idx| &file.signal_value_enums[idx.0]);
             sig.raw_type = infer_raw_type(sig, sig_layout);
-            sig.physical_type = infer_physical_type(sig, sig_layout);
+            sig.physical_type = infer_physical_type(sig, sig_layout, sve_option);
         }
     }
 }
@@ -56,8 +57,8 @@ fn infer_raw_type(sig: &Signal, sig_layout: &SignalLayout) -> RawType {
     }
 }
 
-fn infer_physical_type(sig: &Signal, sig_layout: &SignalLayout) -> PhysicalType {
-    if let Some(variant_count) = sig.signal_value_enum.as_ref().map(|s| s.variants.len()) {
+fn infer_physical_type(sig: &Signal, sig_layout: &SignalLayout, sve_option: Option<&SignalValueEnum>) -> PhysicalType {
+    if let Some(variant_count) = sve_option.map(|s| s.variants.len()) {
         let possible_values: Option<u64> = 1u64.checked_shl(sig_layout.size as u32);
         let coverage = match possible_values {
             None => EnumCoverage::Partial,
