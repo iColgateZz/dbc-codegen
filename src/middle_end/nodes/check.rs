@@ -1,7 +1,7 @@
 use crate::ir::DbcFile;
 
 pub trait CheckNode {
-    fn check(&self, file: &DbcFile, diagnostics: &Diagnostics);
+    fn check(&self, file: &DbcFile, diagnostics: &mut Diagnostics);
 }
 
 #[derive(Debug)]
