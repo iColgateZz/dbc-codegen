@@ -737,7 +737,7 @@ impl<'a> SignalCtx<'a> {
 
     fn enum_ident(&self) -> syn::Ident {
         let sve = self.sve.expect("enum_ident called without enum");
-        format_ident!("{}", sve.name)
+        format_ident!("{}", sve.name.to_upper_camel_case())
     }
 
     fn rust_type(&self) -> syn::Ident {
