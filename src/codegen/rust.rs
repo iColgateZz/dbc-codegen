@@ -135,7 +135,7 @@ impl ToTokens for MessageDef<'_> {
         let signals: Vec<SignalCtx> = msg
             .signal_idxs
             .iter()
-            .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file))
+            .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file, self.config))
             .collect();
 
         //TODO: this should definitely happen on the IR level
@@ -708,10 +708,11 @@ struct SignalCtx<'a> {
     signal: &'a Signal,
     layout: &'a SignalLayout,
     sve: Option<&'a SignalValueEnum>,
+    config: &'a CodegenConfig,
 }
 
 impl<'a> SignalCtx<'a> {
-    fn new(signal: &'a Signal, file: &'a DbcFile) -> Self {
+    fn new(signal: &'a Signal, file: &'a DbcFile, config: &'a CodegenConfig) -> Self {
         let sve = signal
             .signal_value_enum_idx
             .map(|idx| &file.signal_value_enums[idx.0]);
@@ -720,6 +721,7 @@ impl<'a> SignalCtx<'a> {
             signal,
             layout: &file.signal_layouts[signal.layout.0],
             sve,
+            config,
         }
     }
 
@@ -799,6 +801,10 @@ impl<'a> SignalCtx<'a> {
 
         let min = self.layout.min;
         let max = self.layout.max;
+
+        if self.config.zero_zero_range_allows_all && min == max && min == 0.0 {
+            return quote!{};
+        }
 
         let min = self.f64_to_correct_literal_with_type(min);
         let max = self.f64_to_correct_literal_with_type(max);

@@ -172,9 +172,6 @@ impl IoDebug {
         self.io_debug_test_float
     }
     pub fn set_io_debug_test_unsigned(&mut self, value: u8) -> Result<(), CanError> {
-        if value < 0u8 || value > 0u8 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.io_debug_test_unsigned = value;
         Ok(())
     }
@@ -186,16 +183,10 @@ impl IoDebug {
         Ok(())
     }
     pub fn set_io_debug_test_signed(&mut self, value: i8) -> Result<(), CanError> {
-        if value < 0i8 || value > 0i8 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.io_debug_test_signed = value;
         Ok(())
     }
     pub fn set_io_debug_test_float(&mut self, value: f64) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.io_debug_test_float = value;
         Ok(())
     }
@@ -329,16 +320,10 @@ impl MotorStatus {
         self.motor_status_speed_kph
     }
     pub fn set_motor_status_wheel_error(&mut self, value: u8) -> Result<(), CanError> {
-        if value < 0u8 || value > 0u8 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.motor_status_wheel_error = value;
         Ok(())
     }
     pub fn set_motor_status_speed_kph(&mut self, value: f64) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.motor_status_speed_kph = value;
         Ok(())
     }
@@ -409,30 +394,18 @@ impl SensorSonarsMux0 {
         self.sensor_sonars_rear
     }
     pub fn set_sensor_sonars_left(&mut self, value: f64) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_left = value;
         Ok(())
     }
     pub fn set_sensor_sonars_middle(&mut self, value: f64) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_middle = value;
         Ok(())
     }
     pub fn set_sensor_sonars_right(&mut self, value: f64) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_right = value;
         Ok(())
     }
     pub fn set_sensor_sonars_rear(&mut self, value: f64) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_rear = value;
         Ok(())
     }
@@ -509,9 +482,6 @@ impl SensorSonarsMux1 {
         &mut self,
         value: f64,
     ) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_no_filt_left = value;
         Ok(())
     }
@@ -519,9 +489,6 @@ impl SensorSonarsMux1 {
         &mut self,
         value: f64,
     ) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_no_filt_middle = value;
         Ok(())
     }
@@ -529,9 +496,6 @@ impl SensorSonarsMux1 {
         &mut self,
         value: f64,
     ) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_no_filt_right = value;
         Ok(())
     }
@@ -539,9 +503,6 @@ impl SensorSonarsMux1 {
         &mut self,
         value: f64,
     ) -> Result<(), CanError> {
-        if value < 0f64 || value > 0f64 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_no_filt_rear = value;
         Ok(())
     }
@@ -608,9 +569,6 @@ impl SensorSonars {
         self.sensor_sonars_err_count
     }
     pub fn set_sensor_sonars_err_count(&mut self, value: u16) -> Result<(), CanError> {
-        if value < 0u16 || value > 0u16 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.sensor_sonars_err_count = value;
         Ok(())
     }
