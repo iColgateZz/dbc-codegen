@@ -23,3 +23,11 @@ impl CheckPipeline {
         }
     }
 }
+
+//TODO: overlapping signals in a message
+// invalid multiplexing layout
+// enum value out of signal range
+// signal bit overflow
+// duplicate message IDs
+// invalid scaling (factor = 0)
+// inconsistent float/integer usage
