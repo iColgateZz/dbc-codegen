@@ -5,7 +5,7 @@ use crate::ir::signal_value_type::IntReprType;
 use can_dbc::MultiplexIndicator as ParsedMultiplexIndicator;
 use can_dbc::Signal as ParsedSignal;
 use crate::ir::signal_value_type::{PhysicalType, RawType};
-use crate::ir::{SignalValueEnum, ExtendedValueType};
+use crate::ir::{SignalValueEnumIdx, ExtendedValueType};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SignalIdx(pub usize);
@@ -18,7 +18,7 @@ pub struct Signal {
     pub receivers: Vec<Receiver>,
 
     pub layout: SignalLayoutIdx,
-    pub signal_value_enum: Option<SignalValueEnum>,
+    pub signal_value_enum_idx: Option<SignalValueEnumIdx>,
     pub extended_type: ExtendedValueType,
 
     pub raw_type: RawType,
@@ -34,7 +34,7 @@ impl From<ParsedSignal> for Signal {
             receivers: map_into(value.receivers),
 
             layout: SignalLayoutIdx(0),
-            signal_value_enum: None,
+            signal_value_enum_idx: None,
             extended_type: ExtendedValueType::Integer,
 
             raw_type: RawType::Integer(IntReprType::I64),

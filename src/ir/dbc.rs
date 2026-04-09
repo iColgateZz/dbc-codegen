@@ -1,4 +1,4 @@
-use crate::ir::{Message, Node, Signal, SignalLayout, message_layout::MessageLayout};
+use crate::ir::{Message, Node, Signal, SignalLayout, message_layout::MessageLayout, signal_value_enum::SignalValueEnum};
 
 #[derive(Debug, Default)]
 pub struct DbcFile {
@@ -6,7 +6,8 @@ pub struct DbcFile {
     pub messages: Vec<Message>,
     pub message_layouts: Vec<MessageLayout>,
     pub signals: Vec<Signal>,
-    pub signal_layouts: Vec<SignalLayout>
+    pub signal_layouts: Vec<SignalLayout>,
+    pub signal_value_enums: Vec<SignalValueEnum>,
     //TODO: split signal into SignalLayout and SignalInstance
     //      All core fields -> Layout
     //      Instance has layout idx, name, receivers

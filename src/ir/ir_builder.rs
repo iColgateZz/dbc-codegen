@@ -2,7 +2,7 @@ use can_dbc::Dbc as ParsedDbc;
 use can_dbc::Message as ParsedMessage;
 use can_dbc::Signal as ParsedSignal;
 use can_dbc::SignalExtendedValueTypeList as ParsedExtendedValueType;
-use crate::ir::{map_into, SignalValueEnum, ExtendedValueType, Signal, Message, SignalIdx, SignalLayout, SignalLayoutIdx, MessageLayout, MessageLayoutIdx};
+use crate::ir::{map_into, SignalValueEnum, SignalValueEnumIdx, ExtendedValueType, Signal, Message, SignalIdx, SignalLayout, SignalLayoutIdx, MessageLayout, MessageLayoutIdx};
 use can_dbc::ValueDescription as ParsedValueDescription;
 
 use std::collections::HashMap;
@@ -120,7 +120,10 @@ impl IRBuilder {
         signal.layout = layout_idx;
 
         if let Some(enum_val) = self.value_enum_map.remove(&key) {
-            signal.signal_value_enum = Some(enum_val);
+            let idx = SignalValueEnumIdx(self.file.signal_value_enums.len());
+            self.file.signal_value_enums.push(enum_val);
+
+            signal.signal_value_enum_idx = Some(idx);
         }
 
         if let Some(ext) = self.extended_type_map.remove(&key) {
