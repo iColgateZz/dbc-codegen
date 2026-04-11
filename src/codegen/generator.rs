@@ -38,6 +38,16 @@ impl Generator {
         self.push_indent();
         self.buffer.push_str("};\n");
     }
+    
+    pub fn end_block_no_close(&mut self, text: &str) {
+        self.indent_level = self.indent_level.saturating_sub(1);
+        
+        if !text.is_empty() {
+            self.push_indent();
+            self.buffer.push_str(text);
+            self.buffer.push_str("\n");
+        }
+    }
 
     pub fn get(&self) -> &str {
         &self.buffer
@@ -78,6 +88,13 @@ macro_rules! start_block {
 macro_rules! end_block {
     ($gen:expr, $fmt:literal $(, $args:expr)* $(,)?) => {
         $gen.end_block(&format!($fmt $(, $args)*))
+    };
+}
+
+#[macro_export]
+macro_rules! end_block_no_close {
+    ($gen:expr, $fmt:literal $(, $args:expr)* $(,)?) => {
+        $gen.end_block_no_close(&format!($fmt $(, $args)*))
     };
 }
 
