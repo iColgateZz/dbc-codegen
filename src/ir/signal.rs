@@ -23,6 +23,8 @@ pub struct Signal {
 
     pub raw_type: RawType,
     pub physical_type: PhysicalType,
+
+    pub comment: Option<String>,
 }
 
 impl From<ParsedSignal> for Signal {
@@ -39,6 +41,8 @@ impl From<ParsedSignal> for Signal {
 
             raw_type: RawType::Integer(IntReprType::I64),
             physical_type: PhysicalType::Integer(IntReprType::I64),
+
+            comment: None,
         }
     }
 }

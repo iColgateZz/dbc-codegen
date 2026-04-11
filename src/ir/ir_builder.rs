@@ -1,6 +1,8 @@
 use can_dbc::Dbc as ParsedDbc;
 use can_dbc::Message as ParsedMessage;
+use can_dbc::MessageId as ParsedMessageId;
 use can_dbc::Signal as ParsedSignal;
+use can_dbc::Comment as ParsedComment;
 use can_dbc::SignalExtendedValueTypeList as ParsedExtendedValueType;
 use crate::ir::{map_into, SignalValueEnum, SignalValueEnumIdx, ExtendedValueType, Signal, Message, SignalIdx, SignalLayout, SignalLayoutIdx, MessageLayout, MessageLayoutIdx};
 use can_dbc::ValueDescription as ParsedValueDescription;
@@ -20,6 +22,9 @@ pub struct IRBuilder {
 
     signal_layout_map: HashMap<SignalLayout, SignalLayoutIdx>,
     message_layout_map: HashMap<MessageLayout, MessageLayoutIdx>,
+
+    message_comment_map: HashMap<ParsedMessageId, String>,
+    signal_comment_map: HashMap<SignalKey, String>,
 }
 
 impl IRBuilder {
@@ -33,6 +38,7 @@ impl IRBuilder {
     fn new(value: ParsedDbc) -> Self {
         let value_enum_map = Self::value_enum_map(value.value_descriptions);
         let extended_type_map = Self::extended_type_map(value.signal_extended_value_type_list);
+        let (message_comment_map, signal_comment_map) = Self::comment_maps(value.comments);
 
         let mut file = DbcFile::default();
         file.nodes = map_into(value.nodes);
@@ -46,6 +52,9 @@ impl IRBuilder {
 
             signal_layout_map: HashMap::new(),
             message_layout_map: HashMap::new(),
+
+            message_comment_map,
+            signal_comment_map,
         }
     }
 
@@ -73,6 +82,7 @@ impl IRBuilder {
         }
 
         let layout_idx = self.build_message_layout(signal_layout_idxs);
+        let comment = self.message_comment_map.remove(&id);
 
         let message = Message::from_parsed(
             id,
@@ -81,6 +91,7 @@ impl IRBuilder {
             transmitter,
             signal_idxs,
             layout_idx,
+            comment,
         );
 
         self.file.messages.push(message);
@@ -129,6 +140,8 @@ impl IRBuilder {
         if let Some(ext) = self.extended_type_map.remove(&key) {
             signal.extended_type = ext;
         }
+
+        signal.comment = self.signal_comment_map.remove(&key);
 
         let idx = SignalIdx(self.file.signals.len());
         self.file.signals.push(signal);
@@ -180,5 +193,29 @@ impl IRBuilder {
         }
 
         extended_type_map
+    }
+
+    fn comment_maps(
+        comments: Vec<ParsedComment>,
+    ) -> (
+        HashMap<ParsedMessageId, String>,
+        HashMap<SignalKey, String>,
+    ) {
+        let mut msg_map = HashMap::new();
+        let mut sig_map = HashMap::new();
+
+        for c in comments {
+            match c {
+                ParsedComment::Message { id, comment } => {
+                    msg_map.insert(id, comment);
+                }
+                ParsedComment::Signal { message_id, name, comment } => {
+                    sig_map.insert((message_id, name), comment);
+                }
+                _ => {}
+            }
+        }
+
+        (msg_map, sig_map)
     }
 }

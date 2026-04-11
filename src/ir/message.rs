@@ -12,6 +12,7 @@ pub struct Message {
     pub transmitter: Transmitter,
     pub signal_idxs: Vec<SignalIdx>,
     pub layout: MessageLayoutIdx,
+    pub comment: Option<String>,
 }
 
 impl Message {
@@ -22,6 +23,7 @@ impl Message {
         transmitter: ParsedTransmitter,
         signals: Vec<SignalIdx>,
         layout: MessageLayoutIdx,
+        comment: Option<String>,
     ) -> Self {
         Message {
             id: id.into(),
@@ -30,6 +32,7 @@ impl Message {
             transmitter: Transmitter::from(transmitter),
             signal_idxs: signals,
             layout: layout,
+            comment
         }
     }
 
