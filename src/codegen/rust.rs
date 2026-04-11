@@ -1,16 +1,16 @@
-use proc_macro2::{TokenStream, Ident};
+use proc_macro2::{Ident, TokenStream};
 use quote::{ToTokens, format_ident, quote};
 use syn::File;
 
 use crate::DbcFile;
 use crate::codegen::config::CodegenConfig;
-use crate::ir::message::{Message, MessageId};
-use crate::ir::signal::{MultiplexIndicator, Signal};
-use crate::ir::signal_layout::{SignalLayout, ByteOrder};
+use crate::ir::message::{Message, MessageId, MessageSignalClassification};
+use crate::ir::signal::{Signal};
+use crate::ir::signal_layout::{ByteOrder, SignalLayout};
 use crate::ir::signal_value_enum::SignalValueEnum;
 use crate::ir::signal_value_type::{IntReprType, RustFloatLiteral, RustIntegerLiteral, RustType};
-use std::collections::BTreeMap;
 use heck::ToUpperCamelCase;
+use std::collections::BTreeMap;
 
 pub struct RustGen;
 
@@ -22,14 +22,21 @@ impl RustGen {
         };
 
         let messages = &file.messages;
-        let value_enums = file
-            .signal_value_enums
-            .iter()
-            .map(|e| SignalValueEnumCtx { enum_def: e, config });
+        let value_enums = file.signal_value_enums.iter().map(|e| SignalValueEnumCtx {
+            enum_def: e,
+            config,
+        });
         let error_enum = ErrorEnum;
         let msg_trait = MsgTrait;
         let msg_enum = MsgEnum { messages };
-        let message_defs: Vec<_> = messages.iter().map(|m| MessageDef { msg: m, file, config: config }).collect();
+        let message_defs: Vec<_> = messages
+            .iter()
+            .map(|m| MessageDef {
+                msg: m,
+                file,
+                config: config,
+            })
+            .collect();
 
         let tokens = quote! {
             #imports
@@ -130,41 +137,56 @@ struct MessageDef<'a> {
 
 impl ToTokens for MessageDef<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let msg = self.msg;
-
-        let signals: Vec<SignalCtx> = msg
-            .signal_idxs
-            .iter()
-            .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file, self.config))
-            .collect();
-
-        //TODO: this should definitely happen on the IR level
-        let mut plain = Vec::new();
-        let mut muxed: BTreeMap<u64, Vec<&SignalCtx>> = BTreeMap::new();
-        let mut mux_signal: Option<&SignalCtx> = None;
-
-        for s in &signals {
-            match &s.signal.multiplexer {
-                MultiplexIndicator::Plain => plain.push(s),
-
-                MultiplexIndicator::Multiplexor => {
-                    mux_signal = Some(s);
-                    // plain.push(s);
-                }
-
-                MultiplexIndicator::MultiplexedSignal(v) => {
-                    muxed.entry(*v).or_default().push(s);
-                }
-
-                // intentionally skip
-                MultiplexIndicator::MultiplexorAndMultiplexedSignal(_v) => (),
+        match self.msg.classify_signals(&self.file.signals) {
+            MessageSignalClassification::Plain { signals } => {
+                let ctxs: Vec<SignalCtx> = signals
+                    .iter()
+                    .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file, self.config))
+                    .collect();
+                self.generate_plain(tokens, &ctxs);
             }
-        }
+            MessageSignalClassification::Multiplexed {
+                plain,
+                mux_signal,
+                muxed,
+            } => {
+                let all_ctxs: Vec<SignalCtx> = self
+                    .msg
+                    .signal_idxs
+                    .iter()
+                    .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file, self.config))
+                    .collect();
+                let plain_ctxs: Vec<&SignalCtx> = plain
+                    .iter()
+                    .map(|idx| {
+                        &all_ctxs[self.msg.signal_idxs.iter().position(|i| i == idx).unwrap()]
+                    })
+                    .collect();
+                let mux_ctx = &all_ctxs[self
+                    .msg
+                    .signal_idxs
+                    .iter()
+                    .position(|i| i == &mux_signal)
+                    .unwrap()];
+                let muxed_ctxs: BTreeMap<u64, Vec<&SignalCtx>> = muxed
+                    .iter()
+                    .map(|(v, idxs)| {
+                        let sigs = idxs
+                            .iter()
+                            .map(|idx| {
+                                &all_ctxs
+                                    [self.msg.signal_idxs.iter().position(|i| i == idx).unwrap()]
+                            })
+                            .collect();
+                        (*v, sigs)
+                    })
+                    .collect();
 
-        if muxed.is_empty() {
-            self.generate_plain(tokens, &signals);
-        } else {
-            self.generate_mux(tokens, &signals, plain, muxed, mux_signal.unwrap());
+                // should refactor generate_mux to take SignalIdx values directly
+                // and build SignalCtx internally
+                // would make it simpler here
+                self.generate_mux(tokens, &all_ctxs, plain_ctxs, muxed_ctxs, mux_ctx);
+            }
         }
     }
 }
@@ -416,7 +438,6 @@ impl MessageDef<'_> {
             }
         });
 
-
         let struct_def = quote! {
             #[derive(Debug, Clone)]
             pub struct #name {
@@ -597,15 +618,13 @@ impl ToTokens for SignalValueEnumCtx<'_> {
 }
 
 impl<'a> SignalValueEnumCtx<'a> {
-
     fn gen_with_other(
         &self,
         enum_name: &Ident,
         rust_type: &Ident,
         sve: &SignalValueEnum,
     ) -> TokenStream {
-
-        let variants= Self::gen_enum_variants(sve);
+        let variants = Self::gen_enum_variants(sve);
         let from_arms = self.gen_from_arms(sve);
         let into_arms = self.gen_into_arms(sve);
 
@@ -642,8 +661,7 @@ impl<'a> SignalValueEnumCtx<'a> {
         rust_type: &Ident,
         sve: &SignalValueEnum,
     ) -> TokenStream {
-
-        let variants= Self::gen_enum_variants(sve);
+        let variants = Self::gen_enum_variants(sve);
         let from_arms = self.gen_from_arms(sve);
         let into_arms = self.gen_into_arms(sve);
 
@@ -803,7 +821,7 @@ impl<'a> SignalCtx<'a> {
         let max = self.layout.max;
 
         if self.config.zero_zero_range_allows_all && min == max && min == 0.0 {
-            return quote!{};
+            return quote! {};
         }
 
         let min = self.f64_to_correct_literal_with_type(min);
@@ -911,5 +929,4 @@ impl<'a> SignalCtx<'a> {
             }
         }
     }
-
 }

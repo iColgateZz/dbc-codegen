@@ -1,6 +1,8 @@
-use crate::ir::{Identifier, SignalIdx, MessageLayoutIdx};
+use crate::ir::signal::{MultiplexIndicator, Signal};
+use crate::ir::{Identifier, MessageLayoutIdx, SignalIdx};
 use can_dbc::MessageId as ParsedMessageId;
 use can_dbc::Transmitter as ParsedTransmitter;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 pub struct Message {
@@ -14,7 +16,7 @@ pub struct Message {
 
 impl Message {
     pub fn from_parsed(
-        id: ParsedMessageId, 
+        id: ParsedMessageId,
         name: String,
         size: u64,
         transmitter: ParsedTransmitter,
@@ -28,6 +30,40 @@ impl Message {
             transmitter: Transmitter::from(transmitter),
             signal_idxs: signals,
             layout: layout,
+        }
+    }
+
+    pub fn classify_signals(&self, signals: &[Signal]) -> MessageSignalClassification {
+        let mut plain = Vec::new();
+        let mut mux_signal = None;
+        let mut muxed: BTreeMap<u64, Vec<SignalIdx>> = BTreeMap::new();
+
+        for &idx in &self.signal_idxs {
+            match &signals[idx.0].multiplexer {
+                MultiplexIndicator::Plain => plain.push(idx),
+                MultiplexIndicator::Multiplexor => mux_signal = Some(idx),
+                MultiplexIndicator::MultiplexedSignal(v) => {
+                    muxed.entry(*v).or_default().push(idx);
+                }
+
+                // intentionally skip
+                MultiplexIndicator::MultiplexorAndMultiplexedSignal(_) => {}
+            }
+        }
+
+        if muxed.is_empty() {
+            // If there's a mux selector but no muxed groups, treat it as plain
+            if let Some(m) = mux_signal {
+                plain.push(m);
+            }
+            MessageSignalClassification::Plain { signals: plain }
+        } else {
+            MessageSignalClassification::Multiplexed {
+                plain,
+                mux_signal: mux_signal
+                    .expect("message has muxed signals but no multiplexor signal"),
+                muxed,
+            }
         }
     }
 }
@@ -58,4 +94,15 @@ impl From<ParsedTransmitter> for Transmitter {
             ParsedTransmitter::VectorXXX => Transmitter::VectorXXX,
         }
     }
+}
+
+pub enum MessageSignalClassification {
+    Plain {
+        signals: Vec<SignalIdx>,
+    },
+    Multiplexed {
+        plain: Vec<SignalIdx>,
+        mux_signal: SignalIdx,
+        muxed: BTreeMap<u64, Vec<SignalIdx>>,
+    },
 }
