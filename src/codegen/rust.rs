@@ -5,7 +5,8 @@ use syn::File;
 use crate::DbcFile;
 use crate::codegen::config::CodegenConfig;
 use crate::ir::message::{Message, MessageId, MessageSignalClassification};
-use crate::ir::signal::{Signal};
+use crate::ir::node::Node;
+use crate::ir::signal::{Receiver, Signal};
 use crate::ir::signal_layout::{ByteOrder, SignalLayout};
 use crate::ir::signal_value_enum::SignalValueEnum;
 use crate::ir::signal_value_type::{IntReprType, RustFloatLiteral, RustIntegerLiteral, RustType};
@@ -276,7 +277,7 @@ impl MessageDef<'_> {
             }
         };
 
-        let doc = doc_comment(&msg.comment);
+        let doc = message_doc(&msg);
 
         quote! {
             #doc
@@ -441,7 +442,7 @@ impl MessageDef<'_> {
             }
         });
 
-        let doc = doc_comment(&msg.comment);
+        let doc = message_doc(&msg);
 
         let struct_def = quote! {
             #doc
@@ -563,7 +564,7 @@ impl MessageDef<'_> {
         signals.iter().map(|s| {
             let field = s.field_ident();
             let ty = s.rust_type();
-            let doc = doc_comment(&s.signal.comment);
+            let doc = signal_doc(&s);
 
             quote! {
                 #doc
@@ -941,12 +942,97 @@ impl<'a> SignalCtx<'a> {
     }
 }
 
-fn doc_comment(comment: &Option<String>) -> Option<TokenStream> {
-    comment.as_ref().map(|c| {
-        let lines: Vec<_> = c.lines().collect();
+fn message_doc(msg: &Message) -> TokenStream {
+    let name = &msg.name.raw();
 
-        quote! {
-            #( #[doc = #lines] )*
+    let id_text = match msg.id {
+        MessageId::Standard(id) => {
+            format!("Standard {} (0x{:X})", id, id)
+        },
+        MessageId::Extended(id) => {
+            format!("Extended {} (0x{:X})", id, id)
         }
-    })
+    };
+
+    let size = msg.size;
+    let transmitter = match &msg.transmitter {
+        crate::ir::message::Transmitter::Node(name) => name.raw(),
+        crate::ir::message::Transmitter::VectorXXX => "VectorXXX"
+    };
+
+    let mut lines = vec![
+        format!("{}", name),
+        format!("ID: {}", id_text),
+        format!("Size: {} bytes", size),
+        format!("Transmitter: {}", transmitter),
+    ];
+
+    if let Some(comment) = &msg.comment {
+        lines.push("".into());
+        lines.extend(comment.lines().map(|l| l.to_string()));
+    }
+
+    quote! {
+        #( #[doc = #lines] )*
+    }
+}
+
+fn signal_doc(sig: &SignalCtx) -> TokenStream {
+    let s = sig.signal;
+    let layout = sig.layout;
+
+    let name = &s.name;
+    let min = layout.min;
+    let max = layout.max;
+    let unit = &s.unit;
+    let receivers = if s.receivers.is_empty() {
+        "".into()
+    } else {
+        s.receivers
+        .iter()
+        .map(|r| match r {
+            Receiver::Node(id) => id.raw().to_string(),
+            Receiver::VectorXXX => "VectorXXX".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+    };
+
+    let (start, _) = sig.start_end_bit();
+    let size = layout.size;
+    let factor = layout.factor;
+    let offset = layout.offset;
+
+    let byte_order = match layout.byte_order {
+        ByteOrder::LittleEndian => "LittleEndian",
+        ByteOrder::BigEndian => "BigEndian",
+    };
+
+    let signed = match &layout.value_type {
+        crate::ir::signal_layout::ValueType::Unsigned => "unsigned",
+        crate::ir::signal_layout::ValueType::Signed => "signed",
+    };
+
+    let mut lines = vec![
+        format!("{}", name.raw()),
+        format!("Min: {}", min),
+        format!("Max: {}", max),
+        format!("Unit: {}", unit),
+        format!("Receivers: {}", receivers),
+        format!("Start bit: {}", start),
+        format!("Size: {} bits", size),
+        format!("Factor: {}", factor),
+        format!("Offset: {}", offset),
+        format!("Byte order: {}", byte_order),
+        format!("Type: {}", signed),
+    ];
+
+    if let Some(comment) = &s.comment {
+        lines.push("".into());
+        lines.extend(comment.lines().map(|l| l.to_string()));
+    }
+
+    quote! {
+        #( #[doc = #lines] )*
+    }
 }
