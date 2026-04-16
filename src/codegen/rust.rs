@@ -81,7 +81,7 @@ struct MsgTrait;
 impl ToTokens for MsgTrait {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         quote! {
-            pub trait CanMessage<const LEN: usize>: Sized {
+            pub trait CanMessageTrait<const LEN: usize>: Sized {
                 fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;
                 fn encode(&self) -> [u8; LEN];
             }
@@ -242,7 +242,7 @@ impl MessageDef<'_> {
                 #( #setters )*
             }
 
-            impl CanMessage<{ Self::LEN }> for #name {
+            impl CanMessageTrait<{ Self::LEN }> for #name {
 
                 fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
                     let data = frame.data();
@@ -409,7 +409,7 @@ impl MessageDef<'_> {
                 #( #mux_setters )*
             }
 
-            impl CanMessage<{ Self::LEN }> for #name {
+            impl CanMessageTrait<{ Self::LEN }> for #name {
                 fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
                     let data = frame.data();
 
