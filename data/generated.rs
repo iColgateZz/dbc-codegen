@@ -60,7 +60,7 @@ impl From<IoDebugTestEnum> for u8 {
         }
     }
 }
-pub trait CanMessage<const LEN: usize>: Sized {
+pub trait CanMessageTrait<const LEN: usize>: Sized {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;
     fn encode(&self) -> [u8; LEN];
 }
@@ -117,8 +117,8 @@ impl DriverHeartbeat {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn driver_heartbeat_cmd(&self) -> DriverHeartbeatCmd {
-        let data = &self.data;
-        let raw_driver_heartbeat_cmd = data
+        let raw_driver_heartbeat_cmd = self
+            .data
             .view_bits::<Lsb0>()[0usize..8usize]
             .load_le::<u8>();
         DriverHeartbeatCmd::from(raw_driver_heartbeat_cmd as u8)
@@ -127,14 +127,11 @@ impl DriverHeartbeat {
         &mut self,
         value: DriverHeartbeatCmd,
     ) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let driver_heartbeat_cmd = value;
-        data.view_bits_mut::<Lsb0>()[0usize..8usize]
-            .store_le(u8::from(driver_heartbeat_cmd));
+        self.data.view_bits_mut::<Lsb0>()[0usize..8usize].store_le(u8::from(value));
         Ok(())
     }
 }
-impl CanMessage<{ Self::LEN }> for DriverHeartbeat {
+impl CanMessageTrait<{ Self::LEN }> for DriverHeartbeat {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
@@ -184,8 +181,8 @@ impl IoDebug {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn io_debug_test_unsigned(&self) -> u8 {
-        let data = &self.data;
-        let raw_io_debug_test_unsigned = data
+        let raw_io_debug_test_unsigned = self
+            .data
             .view_bits::<Lsb0>()[0usize..8usize]
             .load_le::<u8>();
         (raw_io_debug_test_unsigned) * (1u8) + (0u8)
@@ -202,8 +199,8 @@ impl IoDebug {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn io_debug_test_enum(&self) -> IoDebugTestEnum {
-        let data = &self.data;
-        let raw_io_debug_test_enum = data
+        let raw_io_debug_test_enum = self
+            .data
             .view_bits::<Lsb0>()[8usize..16usize]
             .load_le::<u8>();
         IoDebugTestEnum::from(raw_io_debug_test_enum as u8)
@@ -220,8 +217,8 @@ impl IoDebug {
     ///- Byte order: LittleEndian
     ///- Type: signed
     pub fn io_debug_test_signed(&self) -> i8 {
-        let data = &self.data;
-        let raw_io_debug_test_signed = data
+        let raw_io_debug_test_signed = self
+            .data
             .view_bits::<Lsb0>()[16usize..24usize]
             .load_le::<i8>();
         (raw_io_debug_test_signed) * (1i8) + (0i8)
@@ -238,45 +235,48 @@ impl IoDebug {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn io_debug_test_float(&self) -> f64 {
-        let data = &self.data;
-        let raw_io_debug_test_float = data
+        let raw_io_debug_test_float = self
+            .data
             .view_bits::<Lsb0>()[24usize..32usize]
             .load_le::<u8>();
         (raw_io_debug_test_float as f64) * (0.5f64) + (0f64)
     }
     pub fn set_io_debug_test_unsigned(&mut self, value: u8) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let io_debug_test_unsigned = value;
-        data.view_bits_mut::<Lsb0>()[0usize..8usize]
-            .store_le((io_debug_test_unsigned - (0u8)) / (1u8));
+        if value < 0u8 || value > 0u8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[0usize..8usize]
+            .store_le((value - (0u8)) / (1u8));
         Ok(())
     }
     pub fn set_io_debug_test_enum(
         &mut self,
         value: IoDebugTestEnum,
     ) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let io_debug_test_enum = value;
-        data.view_bits_mut::<Lsb0>()[8usize..16usize]
-            .store_le(u8::from(io_debug_test_enum));
+        self.data.view_bits_mut::<Lsb0>()[8usize..16usize].store_le(u8::from(value));
         Ok(())
     }
     pub fn set_io_debug_test_signed(&mut self, value: i8) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let io_debug_test_signed = value;
-        data.view_bits_mut::<Lsb0>()[16usize..24usize]
-            .store_le((io_debug_test_signed - (0i8)) / (1i8));
+        if value < 0i8 || value > 0i8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[16usize..24usize]
+            .store_le((value - (0i8)) / (1i8));
         Ok(())
     }
     pub fn set_io_debug_test_float(&mut self, value: f64) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let io_debug_test_float = value;
-        data.view_bits_mut::<Lsb0>()[24usize..32usize]
-            .store_le(((io_debug_test_float - (0f64)) / (0.5f64)) as u8);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[24usize..32usize]
+            .store_le(((value - (0f64)) / (0.5f64)) as u8);
         Ok(())
     }
 }
-impl CanMessage<{ Self::LEN }> for IoDebug {
+impl CanMessageTrait<{ Self::LEN }> for IoDebug {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
@@ -319,8 +319,8 @@ impl MotorCmd {
     ///- Byte order: LittleEndian
     ///- Type: signed
     pub fn motor_cmd_steer(&self) -> i8 {
-        let data = &self.data;
-        let raw_motor_cmd_steer = data
+        let raw_motor_cmd_steer = self
+            .data
             .view_bits::<Lsb0>()[0usize..4usize]
             .load_le::<i8>();
         (raw_motor_cmd_steer) * (1i8) + (-5i8)
@@ -337,8 +337,8 @@ impl MotorCmd {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn motor_cmd_drive(&self) -> u8 {
-        let data = &self.data;
-        let raw_motor_cmd_drive = data
+        let raw_motor_cmd_drive = self
+            .data
             .view_bits::<Lsb0>()[4usize..8usize]
             .load_le::<u8>();
         (raw_motor_cmd_drive) * (1u8) + (0u8)
@@ -347,24 +347,22 @@ impl MotorCmd {
         if value < -5i8 || value > 5i8 {
             return Err(CanError::ValueOutOfRange);
         }
-        let data = &mut self.data;
-        let motor_cmd_steer = value;
-        data.view_bits_mut::<Lsb0>()[0usize..4usize]
-            .store_le((motor_cmd_steer - (-5i8)) / (1i8));
+        self.data
+            .view_bits_mut::<Lsb0>()[0usize..4usize]
+            .store_le((value - (-5i8)) / (1i8));
         Ok(())
     }
     pub fn set_motor_cmd_drive(&mut self, value: u8) -> Result<(), CanError> {
         if value < 0u8 || value > 9u8 {
             return Err(CanError::ValueOutOfRange);
         }
-        let data = &mut self.data;
-        let motor_cmd_drive = value;
-        data.view_bits_mut::<Lsb0>()[4usize..8usize]
-            .store_le((motor_cmd_drive - (0u8)) / (1u8));
+        self.data
+            .view_bits_mut::<Lsb0>()[4usize..8usize]
+            .store_le((value - (0u8)) / (1u8));
         Ok(())
     }
 }
-impl CanMessage<{ Self::LEN }> for MotorCmd {
+impl CanMessageTrait<{ Self::LEN }> for MotorCmd {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
@@ -410,8 +408,8 @@ impl MotorStatus {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn motor_status_wheel_error(&self) -> u8 {
-        let data = &self.data;
-        let raw_motor_status_wheel_error = data
+        let raw_motor_status_wheel_error = self
+            .data
             .view_bits::<Lsb0>()[0usize..1usize]
             .load_le::<u8>();
         (raw_motor_status_wheel_error) * (1u8) + (0u8)
@@ -428,28 +426,32 @@ impl MotorStatus {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn motor_status_speed_kph(&self) -> f64 {
-        let data = &self.data;
-        let raw_motor_status_speed_kph = data
+        let raw_motor_status_speed_kph = self
+            .data
             .view_bits::<Lsb0>()[8usize..24usize]
             .load_le::<u16>();
         (raw_motor_status_speed_kph as f64) * (0.001f64) + (0f64)
     }
     pub fn set_motor_status_wheel_error(&mut self, value: u8) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let motor_status_wheel_error = value;
-        data.view_bits_mut::<Lsb0>()[0usize..1usize]
-            .store_le((motor_status_wheel_error - (0u8)) / (1u8));
+        if value < 0u8 || value > 0u8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[0usize..1usize]
+            .store_le((value - (0u8)) / (1u8));
         Ok(())
     }
     pub fn set_motor_status_speed_kph(&mut self, value: f64) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let motor_status_speed_kph = value;
-        data.view_bits_mut::<Lsb0>()[8usize..24usize]
-            .store_le(((motor_status_speed_kph - (0f64)) / (0.001f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[8usize..24usize]
+            .store_le(((value - (0f64)) / (0.001f64)) as u16);
         Ok(())
     }
 }
-impl CanMessage<{ Self::LEN }> for MotorStatus {
+impl CanMessageTrait<{ Self::LEN }> for MotorStatus {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
@@ -488,8 +490,8 @@ impl SensorSonarsMux0 {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn sensor_sonars_left(&self) -> f64 {
-        let data = &self.data;
-        let raw_sensor_sonars_left = data
+        let raw_sensor_sonars_left = self
+            .data
             .view_bits::<Lsb0>()[16usize..28usize]
             .load_le::<u16>();
         (raw_sensor_sonars_left as f64) * (0.1f64) + (0f64)
@@ -506,8 +508,8 @@ impl SensorSonarsMux0 {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn sensor_sonars_middle(&self) -> f64 {
-        let data = &self.data;
-        let raw_sensor_sonars_middle = data
+        let raw_sensor_sonars_middle = self
+            .data
             .view_bits::<Lsb0>()[28usize..40usize]
             .load_le::<u16>();
         (raw_sensor_sonars_middle as f64) * (0.1f64) + (0f64)
@@ -524,8 +526,8 @@ impl SensorSonarsMux0 {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn sensor_sonars_right(&self) -> f64 {
-        let data = &self.data;
-        let raw_sensor_sonars_right = data
+        let raw_sensor_sonars_right = self
+            .data
             .view_bits::<Lsb0>()[40usize..52usize]
             .load_le::<u16>();
         (raw_sensor_sonars_right as f64) * (0.1f64) + (0f64)
@@ -542,38 +544,46 @@ impl SensorSonarsMux0 {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn sensor_sonars_rear(&self) -> f64 {
-        let data = &self.data;
-        let raw_sensor_sonars_rear = data
+        let raw_sensor_sonars_rear = self
+            .data
             .view_bits::<Lsb0>()[52usize..64usize]
             .load_le::<u16>();
         (raw_sensor_sonars_rear as f64) * (0.1f64) + (0f64)
     }
     pub fn set_sensor_sonars_left(&mut self, value: f64) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let sensor_sonars_left = value;
-        data.view_bits_mut::<Lsb0>()[16usize..28usize]
-            .store_le(((sensor_sonars_left - (0f64)) / (0.1f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[16usize..28usize]
+            .store_le(((value - (0f64)) / (0.1f64)) as u16);
         Ok(())
     }
     pub fn set_sensor_sonars_middle(&mut self, value: f64) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let sensor_sonars_middle = value;
-        data.view_bits_mut::<Lsb0>()[28usize..40usize]
-            .store_le(((sensor_sonars_middle - (0f64)) / (0.1f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[28usize..40usize]
+            .store_le(((value - (0f64)) / (0.1f64)) as u16);
         Ok(())
     }
     pub fn set_sensor_sonars_right(&mut self, value: f64) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let sensor_sonars_right = value;
-        data.view_bits_mut::<Lsb0>()[40usize..52usize]
-            .store_le(((sensor_sonars_right - (0f64)) / (0.1f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[40usize..52usize]
+            .store_le(((value - (0f64)) / (0.1f64)) as u16);
         Ok(())
     }
     pub fn set_sensor_sonars_rear(&mut self, value: f64) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let sensor_sonars_rear = value;
-        data.view_bits_mut::<Lsb0>()[52usize..64usize]
-            .store_le(((sensor_sonars_rear - (0f64)) / (0.1f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[52usize..64usize]
+            .store_le(((value - (0f64)) / (0.1f64)) as u16);
         Ok(())
     }
 }
@@ -597,8 +607,8 @@ impl SensorSonarsMux1 {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn sensor_sonars_no_filt_left(&self) -> f64 {
-        let data = &self.data;
-        let raw_sensor_sonars_no_filt_left = data
+        let raw_sensor_sonars_no_filt_left = self
+            .data
             .view_bits::<Lsb0>()[16usize..28usize]
             .load_le::<u16>();
         (raw_sensor_sonars_no_filt_left as f64) * (0.1f64) + (0f64)
@@ -615,8 +625,8 @@ impl SensorSonarsMux1 {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn sensor_sonars_no_filt_middle(&self) -> f64 {
-        let data = &self.data;
-        let raw_sensor_sonars_no_filt_middle = data
+        let raw_sensor_sonars_no_filt_middle = self
+            .data
             .view_bits::<Lsb0>()[28usize..40usize]
             .load_le::<u16>();
         (raw_sensor_sonars_no_filt_middle as f64) * (0.1f64) + (0f64)
@@ -633,8 +643,8 @@ impl SensorSonarsMux1 {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn sensor_sonars_no_filt_right(&self) -> f64 {
-        let data = &self.data;
-        let raw_sensor_sonars_no_filt_right = data
+        let raw_sensor_sonars_no_filt_right = self
+            .data
             .view_bits::<Lsb0>()[40usize..52usize]
             .load_le::<u16>();
         (raw_sensor_sonars_no_filt_right as f64) * (0.1f64) + (0f64)
@@ -651,8 +661,8 @@ impl SensorSonarsMux1 {
     ///- Byte order: LittleEndian
     ///- Type: unsigned
     pub fn sensor_sonars_no_filt_rear(&self) -> f64 {
-        let data = &self.data;
-        let raw_sensor_sonars_no_filt_rear = data
+        let raw_sensor_sonars_no_filt_rear = self
+            .data
             .view_bits::<Lsb0>()[52usize..64usize]
             .load_le::<u16>();
         (raw_sensor_sonars_no_filt_rear as f64) * (0.1f64) + (0f64)
@@ -661,40 +671,48 @@ impl SensorSonarsMux1 {
         &mut self,
         value: f64,
     ) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let sensor_sonars_no_filt_left = value;
-        data.view_bits_mut::<Lsb0>()[16usize..28usize]
-            .store_le(((sensor_sonars_no_filt_left - (0f64)) / (0.1f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[16usize..28usize]
+            .store_le(((value - (0f64)) / (0.1f64)) as u16);
         Ok(())
     }
     pub fn set_sensor_sonars_no_filt_middle(
         &mut self,
         value: f64,
     ) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let sensor_sonars_no_filt_middle = value;
-        data.view_bits_mut::<Lsb0>()[28usize..40usize]
-            .store_le(((sensor_sonars_no_filt_middle - (0f64)) / (0.1f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[28usize..40usize]
+            .store_le(((value - (0f64)) / (0.1f64)) as u16);
         Ok(())
     }
     pub fn set_sensor_sonars_no_filt_right(
         &mut self,
         value: f64,
     ) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let sensor_sonars_no_filt_right = value;
-        data.view_bits_mut::<Lsb0>()[40usize..52usize]
-            .store_le(((sensor_sonars_no_filt_right - (0f64)) / (0.1f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[40usize..52usize]
+            .store_le(((value - (0f64)) / (0.1f64)) as u16);
         Ok(())
     }
     pub fn set_sensor_sonars_no_filt_rear(
         &mut self,
         value: f64,
     ) -> Result<(), CanError> {
-        let data = &mut self.data;
-        let sensor_sonars_no_filt_rear = value;
-        data.view_bits_mut::<Lsb0>()[52usize..64usize]
-            .store_le(((sensor_sonars_no_filt_rear - (0f64)) / (0.1f64)) as u16);
+        if value < 0f64 || value > 0f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        self.data
+            .view_bits_mut::<Lsb0>()[52usize..64usize]
+            .store_le(((value - (0f64)) / (0.1f64)) as u16);
         Ok(())
     }
 }
@@ -711,7 +729,8 @@ impl SensorSonars {
     pub const LEN: usize = 8usize;
     pub fn mux(&self) -> Result<SensorSonarsMux, CanError> {
         let data = &self.data;
-        let raw_sensor_sonars_mux = data
+        let raw_sensor_sonars_mux = self
+            .data
             .view_bits::<Lsb0>()[0usize..4usize]
             .load_le::<u8>();
         let val = (raw_sensor_sonars_mux) * (1u8) + (0u8);
@@ -748,7 +767,7 @@ impl SensorSonars {
         Ok(())
     }
 }
-impl CanMessage<{ Self::LEN }> for SensorSonars {
+impl CanMessageTrait<{ Self::LEN }> for SensorSonars {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
