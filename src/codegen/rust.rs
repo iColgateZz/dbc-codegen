@@ -4,8 +4,8 @@ use syn::File;
 
 use crate::DbcFile;
 use crate::codegen::config::CodegenConfig;
-use crate::ir::message::{Message, MessageId, MessageSignalClassification};
-use crate::ir::signal::{Receiver, Signal};
+use crate::ir::message::{Message, MessageId};
+use crate::ir::signal::{MultiplexIndicator, Receiver, Signal};
 use crate::ir::signal_layout::{ByteOrder, SignalLayout};
 use crate::ir::signal_value_enum::SignalValueEnum;
 use crate::ir::signal_value_type::{IntReprType, RustFloatLiteral, RustIntegerLiteral, RustType};
@@ -138,50 +138,40 @@ struct MessageDef<'a> {
 
 impl ToTokens for MessageDef<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self.msg.classify_signals(&self.file.signals) {
-            MessageSignalClassification::Plain { signals } => {
-                let ctxs: Vec<SignalCtx> = signals
-                    .iter()
-                    .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file, self.config))
-                    .collect();
-                self.generate_plain(tokens, &ctxs);
-            }
-            MessageSignalClassification::Multiplexed {
-                plain: _,
-                mux_signal,
-                muxed,
-            } => {
-                let all_ctxs: Vec<SignalCtx> = self
-                    .msg
-                    .signal_idxs
-                    .iter()
-                    .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file, self.config))
-                    .collect();
-                let mux_ctx = &all_ctxs[self
-                    .msg
-                    .signal_idxs
-                    .iter()
-                    .position(|i| i == &mux_signal)
-                    .unwrap()];
-                let muxed_ctxs: BTreeMap<u64, Vec<&SignalCtx>> = muxed
-                    .iter()
-                    .map(|(v, idxs)| {
-                        let sigs = idxs
-                            .iter()
-                            .map(|idx| {
-                                &all_ctxs
-                                    [self.msg.signal_idxs.iter().position(|i| i == idx).unwrap()]
-                            })
-                            .collect();
-                        (*v, sigs)
-                    })
-                    .collect();
+        let msg = self.msg;
 
-                // should refactor generate_mux to take SignalIdx values directly
-                // and build SignalCtx internally
-                // would make it simpler here
-                self.generate_mux(tokens, muxed_ctxs, mux_ctx);
+        let signals: Vec<SignalCtx> = msg
+            .signal_idxs
+            .iter()
+            .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file, self.config))
+            .collect();
+
+        let mut plain = Vec::new();
+        let mut muxed: BTreeMap<u64, Vec<&SignalCtx>> = BTreeMap::new();
+        let mut mux_signal: Option<&SignalCtx> = None;
+
+        for s in &signals {
+            match &s.signal.multiplexer {
+                MultiplexIndicator::Plain => plain.push(s),
+
+                MultiplexIndicator::Multiplexor => {
+                    mux_signal = Some(s);
+                    // plain.push(s);
+                }
+
+                MultiplexIndicator::MultiplexedSignal(v) => {
+                    muxed.entry(*v).or_default().push(s);
+                }
+
+                // intentionally skip
+                MultiplexIndicator::MultiplexorAndMultiplexedSignal(_v) => (),
             }
+        }
+
+        if muxed.is_empty() {
+            self.generate_plain(tokens, &signals);
+        } else {
+            self.generate_mux(tokens,  plain, muxed, mux_signal.unwrap());
         }
     }
 }
@@ -283,6 +273,7 @@ impl MessageDef<'_> {
     fn generate_mux(
         &self,
         tokens: &mut TokenStream,
+        plain: Vec<&SignalCtx>,
         muxed: BTreeMap<u64, Vec<&SignalCtx>>,
         mux_signal: &SignalCtx,
     ) {
