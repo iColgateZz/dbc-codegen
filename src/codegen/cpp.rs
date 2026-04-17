@@ -60,7 +60,9 @@ impl CppGen {
     }
 
     fn includes(out: &mut Generator) {
-        const INCLUDES: &[&str] = &["array", "cstddef", "cstdint", "expected", "span", "variant", "utility", "cstring"];
+        const INCLUDES: &[&str] = &[
+            "array", "cstddef", "cstdint", "expected", "span", "variant", "utility", "cstring",
+        ];
 
         for include in INCLUDES {
             line!(out, "#include <{}>", include);
@@ -74,7 +76,7 @@ impl CppGen {
             "UnknownMuxValue",
             "InvalidPayloadSize",
             "ValueOutOfRange",
-            "InvalidEnumValue"
+            "InvalidEnumValue",
         ];
 
         start_block!(out, "enum class CanError : uint8_t");
@@ -210,7 +212,12 @@ impl CppGen {
         empty!(out);
     }
 
-    fn signal_value_enum(out: &mut Generator, signal: &Signal, enum_def: &SignalValueEnum, config: &CodegenConfig) {
+    fn signal_value_enum(
+        out: &mut Generator,
+        signal: &Signal,
+        enum_def: &SignalValueEnum,
+        config: &CodegenConfig,
+    ) {
         let name = &signal.name.upper_camel();
         let cpp_type = &signal.physical_type.as_cpp_type();
 
@@ -243,11 +250,7 @@ impl CppGen {
             );
         }
         if !config.no_enum_other {
-            end_block!(
-                out,
-                "default: return static_cast<{}>(v);",
-                name
-            );
+            end_block!(out, "default: return static_cast<{}>(v);", name);
         } else {
             end_block!(
                 out,
@@ -301,7 +304,8 @@ impl CppGen {
         let receivers = if signal.receivers.is_empty() {
             "".into()
         } else {
-            signal.receivers
+            signal
+                .receivers
                 .iter()
                 .map(|r| match r {
                     crate::ir::signal::Receiver::Node(id) => id.raw.clone(),
@@ -352,11 +356,7 @@ impl CppGen {
         line!(out, " */");
     }
 
-    fn emit_signal_getters(
-        out: &mut Generator,
-        signals: &[&Signal],
-        file: &DbcFile,
-    ) {
+    fn emit_signal_getters(out: &mut Generator, signals: &[&Signal], file: &DbcFile) {
         for signal in signals {
             Self::emit_signal_doc(out, signal, file);
             let layout = &file.signal_layouts[signal.layout.0];
@@ -375,7 +375,12 @@ impl CppGen {
                 phys_type.to_string()
             };
 
-            start_block!(out, "[[nodiscard]] {} {}() const noexcept", return_type, field_name);
+            start_block!(
+                out,
+                "[[nodiscard]] {} {}() const noexcept",
+                return_type,
+                field_name
+            );
             let data_expr = "data_.data()";
 
             if signal.signal_value_enum_idx.is_some() {
@@ -477,7 +482,13 @@ impl CppGen {
         }
     }
 
-    fn emit_setter_range_check(out: &mut Generator, signal: &Signal, file: &DbcFile, config: &CodegenConfig, field_name: &str) {
+    fn emit_setter_range_check(
+        out: &mut Generator,
+        signal: &Signal,
+        file: &DbcFile,
+        config: &CodegenConfig,
+        field_name: &str,
+    ) {
         if signal.signal_value_enum_idx.is_some() {
             return;
         }
@@ -492,11 +503,26 @@ impl CppGen {
 
         let phys_type = signal.physical_type.as_cpp_type();
         let is_phys_float = phys_type == "float" || phys_type == "double";
-        
-        let min_str = if is_phys_float { Self::format_cpp_float(min, phys_type) } else { format!("{}", min as i64) };
-        let max_str = if is_phys_float { Self::format_cpp_float(max, phys_type) } else { format!("{}", max as i64) };
 
-        line!(out, "if ({} < {} || {} > {}) return std::unexpected(CanError::ValueOutOfRange);", field_name, min_str, field_name, max_str);
+        let min_str = if is_phys_float {
+            Self::format_cpp_float(min, phys_type)
+        } else {
+            format!("{}", min as i64)
+        };
+        let max_str = if is_phys_float {
+            Self::format_cpp_float(max, phys_type)
+        } else {
+            format!("{}", max as i64)
+        };
+
+        line!(
+            out,
+            "if ({} < {} || {} > {}) return std::unexpected(CanError::ValueOutOfRange);",
+            field_name,
+            min_str,
+            field_name,
+            max_str
+        );
     }
 
     fn emit_signal_setters(
@@ -522,9 +548,15 @@ impl CppGen {
                 phys_type.to_string()
             };
 
-            start_block!(out, "std::expected<void, CanError> set_{}({} {}) noexcept", field_name, param_type, field_name);
+            start_block!(
+                out,
+                "std::expected<void, CanError> set_{}({} {}) noexcept",
+                field_name,
+                param_type,
+                field_name
+            );
             Self::emit_setter_range_check(out, signal, file, config, &field_name);
-            
+
             let data_expr = "data_.data()";
 
             if signal.signal_value_enum_idx.is_some() {
@@ -617,22 +649,45 @@ impl CppGen {
                 if s.signal_value_enum_idx.is_some() {
                     format!("{} {}", s.name.upper_camel(), s.name.raw.to_snake_case())
                 } else {
-                    format!("{} {}", s.physical_type.as_cpp_type(), s.name.raw.to_snake_case())
+                    format!(
+                        "{} {}",
+                        s.physical_type.as_cpp_type(),
+                        s.name.raw.to_snake_case()
+                    )
                 }
             })
             .collect::<Vec<_>>()
-            .join(",
-            ");
-        
-        let args_formatted = if args.is_empty() { String::new() } else { format!("
-            {}
-        ", args) };
+            .join(
+                ",
+            ",
+            );
 
-        start_block!(out, "[[nodiscard]] static std::expected<{}, CanError> create({}) noexcept", msg_name, args_formatted);
+        let args_formatted = if args.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "
+            {}
+        ",
+                args
+            )
+        };
+
+        start_block!(
+            out,
+            "[[nodiscard]] static std::expected<{}, CanError> create({}) noexcept",
+            msg_name,
+            args_formatted
+        );
         line!(out, "{} msg{{}};", msg_name);
         for signal in signals {
             let f = signal.name.raw.to_snake_case();
-            line!(out, "if (auto r = msg.set_{}({}); !r) return std::unexpected(r.error());", f, f);
+            line!(
+                out,
+                "if (auto r = msg.set_{}({}); !r) return std::unexpected(r.error());",
+                f,
+                f
+            );
         }
         end_block!(out, "return msg;");
         empty!(out);
@@ -660,7 +715,10 @@ impl CppGen {
         Self::emit_signal_getters(out, signals, file);
         Self::emit_signal_setters(out, signals, file, config);
 
-        line!(out, "[[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept {{ return data_; }}");
+        line!(
+            out,
+            "[[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept {{ return data_; }}"
+        );
         empty!(out);
 
         // Required for multiplex setter
@@ -693,27 +751,37 @@ impl CppGen {
                 Self::emit_message_doc(out, msg);
                 start_block!(out, "class {}", msg_name);
                 line!(out, "public:");
-                
+
                 match msg.id {
                     MessageId::Standard(id) => line!(out, "static constexpr uint16_t ID = {};", id),
                     MessageId::Extended(id) => line!(out, "static constexpr uint32_t ID = {};", id),
                 }
                 line!(out, "static constexpr std::size_t LEN = {};", msg.size);
                 empty!(out);
-                
+
                 Self::emit_create_method(out, &msg_name, &sigs);
 
-                start_block!(out, "[[nodiscard]] static std::expected<{}, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept", msg_name);
-                line!(out, "if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);");
+                start_block!(
+                    out,
+                    "[[nodiscard]] static std::expected<{}, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept",
+                    msg_name
+                );
+                line!(
+                    out,
+                    "if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);"
+                );
                 line!(out, "{} msg{{}};", msg_name);
                 line!(out, "std::memcpy(msg.data_.data(), frame.data(), LEN);");
                 end_block!(out, "return msg;");
                 empty!(out);
-                
+
                 Self::emit_signal_getters(out, &sigs, file);
                 Self::emit_signal_setters(out, &sigs, file, config);
 
-                line!(out, "[[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept {{ return data_; }}");
+                line!(
+                    out,
+                    "[[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept {{ return data_; }}"
+                );
                 empty!(out);
 
                 line!(out, "private:");
@@ -759,21 +827,28 @@ impl CppGen {
                 Self::emit_message_doc(out, msg);
                 start_block!(out, "class {}", msg_name);
                 line!(out, "public:");
-                
+
                 match msg.id {
                     MessageId::Standard(id) => line!(out, "static constexpr uint16_t ID = {};", id),
                     MessageId::Extended(id) => line!(out, "static constexpr uint32_t ID = {};", id),
                 }
                 line!(out, "static constexpr std::size_t LEN = {};", msg.size);
                 empty!(out);
-                
-                start_block!(out, "[[nodiscard]] static std::expected<{}, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept", msg_name);
-                line!(out, "if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);");
+
+                start_block!(
+                    out,
+                    "[[nodiscard]] static std::expected<{}, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept",
+                    msg_name
+                );
+                line!(
+                    out,
+                    "if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);"
+                );
                 line!(out, "{} msg{{}};", msg_name);
                 line!(out, "std::memcpy(msg.data_.data(), frame.data(), LEN);");
                 end_block!(out, "return msg;");
                 empty!(out);
-                
+
                 Self::emit_signal_getters(out, &plain_sigs, file);
                 Self::emit_signal_setters(out, &plain_sigs, file, config);
 
@@ -787,11 +862,23 @@ impl CppGen {
                     ByteOrder::LittleEndian => "insert_le",
                     ByteOrder::BigEndian => "insert_be",
                 };
-                
+
                 // Mux Getter
-                start_block!(out, "[[nodiscard]] std::expected<{}, CanError> mux() const noexcept", mux_enum_name);
-                line!(out, "const {} mux_raw = detail::{}<{}>({}, {}, {});", 
-                    mux_raw_type, mux_extract_fn, mux_raw_type, "data_.data()", mux_layout.bitvec_start, mux_layout.bitvec_end);
+                start_block!(
+                    out,
+                    "[[nodiscard]] std::expected<{}, CanError> mux() const noexcept",
+                    mux_enum_name
+                );
+                line!(
+                    out,
+                    "const {} mux_raw = detail::{}<{}>({}, {}, {});",
+                    mux_raw_type,
+                    mux_extract_fn,
+                    mux_raw_type,
+                    "data_.data()",
+                    mux_layout.bitvec_start,
+                    mux_layout.bitvec_end
+                );
                 start_block!(out, "switch (mux_raw)");
                 for (mux_value, _) in &muxed_sigs {
                     let variant_class = format!("{}Mux{}", msg_name, mux_value);
@@ -800,15 +887,26 @@ impl CppGen {
                     line!(out, "std::memcpy(inner.data_.data(), data_.data(), LEN);");
                     end_block!(out, "return inner;");
                 }
-                end_block!(out, "default: return std::unexpected(CanError::UnknownMuxValue);");
+                end_block!(
+                    out,
+                    "default: return std::unexpected(CanError::UnknownMuxValue);"
+                );
                 end_block!(out, "");
                 empty!(out);
-                
+
                 // Mux Setters
                 for (mux_value, _) in &muxed_sigs {
                     let variant_class = format!("{}Mux{}", msg_name, mux_value);
-                    start_block!(out, "void set_mux_{}(const {}& value) noexcept", mux_value, variant_class);
-                    line!(out, "for (std::size_t i = 0; i < LEN; ++i) data_[i] |= value.data_[i];");
+                    start_block!(
+                        out,
+                        "void set_mux_{}(const {}& value) noexcept",
+                        mux_value,
+                        variant_class
+                    );
+                    line!(
+                        out,
+                        "for (std::size_t i = 0; i < LEN; ++i) data_[i] |= value.data_[i];"
+                    );
                     line!(
                         out,
                         "detail::{}<{}>({}, {}, {}, static_cast<{}>({}));",
@@ -824,7 +922,10 @@ impl CppGen {
                 }
                 empty!(out);
 
-                line!(out, "[[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept {{ return data_; }}");
+                line!(
+                    out,
+                    "[[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept {{ return data_; }}"
+                );
                 empty!(out);
 
                 line!(out, "private:");
@@ -858,17 +959,16 @@ impl CppGen {
             let name = msg.name.upper_camel();
             line!(out, "case {}::ID:", name);
             start_block!(out, "");
-            line!(
-                out,
-                "auto r = {}::try_from_frame(frame);",
-                name
-            );
+            line!(out, "auto r = {}::try_from_frame(frame);", name);
             line!(out, "if (!r) return std::unexpected(r.error());");
             line!(out, "return CanMsg{{std::move(*r)}};");
             end_block!(out, "");
         }
 
-        end_block!(out, "default: return std::unexpected(CanError::UnknownFrameId);");
+        end_block!(
+            out,
+            "default: return std::unexpected(CanError::UnknownFrameId);"
+        );
         end_block!(out, "");
     }
 }
