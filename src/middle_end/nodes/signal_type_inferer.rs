@@ -82,7 +82,7 @@ fn infer_physical_type(sig: &Signal, sig_layout: &SignalLayout, sve_option: Opti
         RawType::Float64 => PhysicalType::Float64,
         RawType::Integer(int_repr) => {
             if is_float_scaled(sig_layout) {
-                PhysicalType::Float64
+                PhysicalType::Float32
             } else {
                 PhysicalType::Integer(*int_repr)
             }
