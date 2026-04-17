@@ -197,7 +197,7 @@ class IoDebug {
   
   [[nodiscard]] double io_debug_test_float() const noexcept {
     const uint8_t raw_io_debug_test_float = detail::extract_le<uint8_t>(data_.data(), 24, 32);
-    return static_cast<double>(raw_io_debug_test_float) * 0.5 + 0;
+    return static_cast<double>(raw_io_debug_test_float) * 0.5 + 0.0;
   };
   
   std::expected<void, CanError> set_io_debug_test_unsigned(uint8_t io_debug_test_unsigned) noexcept {
@@ -218,8 +218,8 @@ class IoDebug {
   };
   
   std::expected<void, CanError> set_io_debug_test_float(double io_debug_test_float) noexcept {
-    if (io_debug_test_float < 0f || io_debug_test_float > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint8_t>(data_.data(), 24, 32, static_cast<uint8_t>((io_debug_test_float - 0) / 0.5));
+    if (io_debug_test_float < 0.0 || io_debug_test_float > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint8_t>(data_.data(), 24, 32, static_cast<uint8_t>((io_debug_test_float - 0.0) / 0.5));
     return {};
   };
   
@@ -308,7 +308,7 @@ class MotorStatus {
   
   [[nodiscard]] double motor_status_speed_kph() const noexcept {
     const uint16_t raw_motor_status_speed_kph = detail::extract_le<uint16_t>(data_.data(), 8, 24);
-    return static_cast<double>(raw_motor_status_speed_kph) * 0.001 + 0;
+    return static_cast<double>(raw_motor_status_speed_kph) * 0.001 + 0.0;
   };
   
   std::expected<void, CanError> set_motor_status_wheel_error(uint8_t motor_status_wheel_error) noexcept {
@@ -318,8 +318,8 @@ class MotorStatus {
   };
   
   std::expected<void, CanError> set_motor_status_speed_kph(double motor_status_speed_kph) noexcept {
-    if (motor_status_speed_kph < 0f || motor_status_speed_kph > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 8, 24, static_cast<uint16_t>((motor_status_speed_kph - 0) / 0.001));
+    if (motor_status_speed_kph < 0.0 || motor_status_speed_kph > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 8, 24, static_cast<uint16_t>((motor_status_speed_kph - 0.0) / 0.001));
     return {};
   };
   
@@ -349,45 +349,45 @@ class SensorSonarsMux0 {
   
   [[nodiscard]] double sensor_sonars_left() const noexcept {
     const uint16_t raw_sensor_sonars_left = detail::extract_le<uint16_t>(data_.data(), 16, 28);
-    return static_cast<double>(raw_sensor_sonars_left) * 0.1 + 0;
+    return static_cast<double>(raw_sensor_sonars_left) * 0.1 + 0.0;
   };
   
   [[nodiscard]] double sensor_sonars_middle() const noexcept {
     const uint16_t raw_sensor_sonars_middle = detail::extract_le<uint16_t>(data_.data(), 28, 40);
-    return static_cast<double>(raw_sensor_sonars_middle) * 0.1 + 0;
+    return static_cast<double>(raw_sensor_sonars_middle) * 0.1 + 0.0;
   };
   
   [[nodiscard]] double sensor_sonars_right() const noexcept {
     const uint16_t raw_sensor_sonars_right = detail::extract_le<uint16_t>(data_.data(), 40, 52);
-    return static_cast<double>(raw_sensor_sonars_right) * 0.1 + 0;
+    return static_cast<double>(raw_sensor_sonars_right) * 0.1 + 0.0;
   };
   
   [[nodiscard]] double sensor_sonars_rear() const noexcept {
     const uint16_t raw_sensor_sonars_rear = detail::extract_le<uint16_t>(data_.data(), 52, 64);
-    return static_cast<double>(raw_sensor_sonars_rear) * 0.1 + 0;
+    return static_cast<double>(raw_sensor_sonars_rear) * 0.1 + 0.0;
   };
   
   std::expected<void, CanError> set_sensor_sonars_left(double sensor_sonars_left) noexcept {
-    if (sensor_sonars_left < 0f || sensor_sonars_left > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 16, 28, static_cast<uint16_t>((sensor_sonars_left - 0) / 0.1));
+    if (sensor_sonars_left < 0.0 || sensor_sonars_left > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 16, 28, static_cast<uint16_t>((sensor_sonars_left - 0.0) / 0.1));
     return {};
   };
   
   std::expected<void, CanError> set_sensor_sonars_middle(double sensor_sonars_middle) noexcept {
-    if (sensor_sonars_middle < 0f || sensor_sonars_middle > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 28, 40, static_cast<uint16_t>((sensor_sonars_middle - 0) / 0.1));
+    if (sensor_sonars_middle < 0.0 || sensor_sonars_middle > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 28, 40, static_cast<uint16_t>((sensor_sonars_middle - 0.0) / 0.1));
     return {};
   };
   
   std::expected<void, CanError> set_sensor_sonars_right(double sensor_sonars_right) noexcept {
-    if (sensor_sonars_right < 0f || sensor_sonars_right > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 40, 52, static_cast<uint16_t>((sensor_sonars_right - 0) / 0.1));
+    if (sensor_sonars_right < 0.0 || sensor_sonars_right > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 40, 52, static_cast<uint16_t>((sensor_sonars_right - 0.0) / 0.1));
     return {};
   };
   
   std::expected<void, CanError> set_sensor_sonars_rear(double sensor_sonars_rear) noexcept {
-    if (sensor_sonars_rear < 0f || sensor_sonars_rear > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 52, 64, static_cast<uint16_t>((sensor_sonars_rear - 0) / 0.1));
+    if (sensor_sonars_rear < 0.0 || sensor_sonars_rear > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 52, 64, static_cast<uint16_t>((sensor_sonars_rear - 0.0) / 0.1));
     return {};
   };
   
@@ -418,45 +418,45 @@ class SensorSonarsMux1 {
   
   [[nodiscard]] double sensor_sonars_no_filt_left() const noexcept {
     const uint16_t raw_sensor_sonars_no_filt_left = detail::extract_le<uint16_t>(data_.data(), 16, 28);
-    return static_cast<double>(raw_sensor_sonars_no_filt_left) * 0.1 + 0;
+    return static_cast<double>(raw_sensor_sonars_no_filt_left) * 0.1 + 0.0;
   };
   
   [[nodiscard]] double sensor_sonars_no_filt_middle() const noexcept {
     const uint16_t raw_sensor_sonars_no_filt_middle = detail::extract_le<uint16_t>(data_.data(), 28, 40);
-    return static_cast<double>(raw_sensor_sonars_no_filt_middle) * 0.1 + 0;
+    return static_cast<double>(raw_sensor_sonars_no_filt_middle) * 0.1 + 0.0;
   };
   
   [[nodiscard]] double sensor_sonars_no_filt_right() const noexcept {
     const uint16_t raw_sensor_sonars_no_filt_right = detail::extract_le<uint16_t>(data_.data(), 40, 52);
-    return static_cast<double>(raw_sensor_sonars_no_filt_right) * 0.1 + 0;
+    return static_cast<double>(raw_sensor_sonars_no_filt_right) * 0.1 + 0.0;
   };
   
   [[nodiscard]] double sensor_sonars_no_filt_rear() const noexcept {
     const uint16_t raw_sensor_sonars_no_filt_rear = detail::extract_le<uint16_t>(data_.data(), 52, 64);
-    return static_cast<double>(raw_sensor_sonars_no_filt_rear) * 0.1 + 0;
+    return static_cast<double>(raw_sensor_sonars_no_filt_rear) * 0.1 + 0.0;
   };
   
   std::expected<void, CanError> set_sensor_sonars_no_filt_left(double sensor_sonars_no_filt_left) noexcept {
-    if (sensor_sonars_no_filt_left < 0f || sensor_sonars_no_filt_left > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 16, 28, static_cast<uint16_t>((sensor_sonars_no_filt_left - 0) / 0.1));
+    if (sensor_sonars_no_filt_left < 0.0 || sensor_sonars_no_filt_left > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 16, 28, static_cast<uint16_t>((sensor_sonars_no_filt_left - 0.0) / 0.1));
     return {};
   };
   
   std::expected<void, CanError> set_sensor_sonars_no_filt_middle(double sensor_sonars_no_filt_middle) noexcept {
-    if (sensor_sonars_no_filt_middle < 0f || sensor_sonars_no_filt_middle > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 28, 40, static_cast<uint16_t>((sensor_sonars_no_filt_middle - 0) / 0.1));
+    if (sensor_sonars_no_filt_middle < 0.0 || sensor_sonars_no_filt_middle > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 28, 40, static_cast<uint16_t>((sensor_sonars_no_filt_middle - 0.0) / 0.1));
     return {};
   };
   
   std::expected<void, CanError> set_sensor_sonars_no_filt_right(double sensor_sonars_no_filt_right) noexcept {
-    if (sensor_sonars_no_filt_right < 0f || sensor_sonars_no_filt_right > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 40, 52, static_cast<uint16_t>((sensor_sonars_no_filt_right - 0) / 0.1));
+    if (sensor_sonars_no_filt_right < 0.0 || sensor_sonars_no_filt_right > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 40, 52, static_cast<uint16_t>((sensor_sonars_no_filt_right - 0.0) / 0.1));
     return {};
   };
   
   std::expected<void, CanError> set_sensor_sonars_no_filt_rear(double sensor_sonars_no_filt_rear) noexcept {
-    if (sensor_sonars_no_filt_rear < 0f || sensor_sonars_no_filt_rear > 0f) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint16_t>(data_.data(), 52, 64, static_cast<uint16_t>((sensor_sonars_no_filt_rear - 0) / 0.1));
+    if (sensor_sonars_no_filt_rear < 0.0 || sensor_sonars_no_filt_rear > 0.0) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 52, 64, static_cast<uint16_t>((sensor_sonars_no_filt_rear - 0.0) / 0.1));
     return {};
   };
   

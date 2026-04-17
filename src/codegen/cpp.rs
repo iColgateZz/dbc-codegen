@@ -48,6 +48,17 @@ impl CppGen {
         }
     }
 
+    fn format_cpp_float(val: f64, phys_type: &str) -> String {
+        let mut s = format!("{}", val);
+        if !s.contains('.') && !s.contains('e') && !s.contains('E') {
+            s.push_str(".0");
+        }
+        if phys_type == "float" {
+            s.push('f');
+        }
+        s
+    }
+
     fn includes(out: &mut Generator) {
         const INCLUDES: &[&str] = &["array", "cstddef", "cstdint", "expected", "span", "variant", "utility"];
 
@@ -290,11 +301,8 @@ impl CppGen {
                 line!(out, "return {}({});", from_fn, raw_name);
             } else if is_raw_float {
                 let uint_repr = Self::cpp_uint_repr_for_float(&signal.raw_type);
-                let (factor_str, offset_str) = if phys_type == "float" {
-                    (format!("{}f", layout.factor), format!("{}f", layout.offset))
-                } else {
-                    (format!("{}", layout.factor), format!("{}", layout.offset))
-                };
+                let factor_str = Self::format_cpp_float(layout.factor, phys_type);
+                let offset_str = Self::format_cpp_float(layout.offset, phys_type);
                 line!(
                     out,
                     "const {} {}_bits = detail::{}<{}>({}, {}, {});",
@@ -325,11 +333,8 @@ impl CppGen {
             } else if is_phys_float {
                 let raw_type = signal.raw_type.as_cpp_type();
                 let raw_name = format!("raw_{}", field_name);
-                let (factor_str, offset_str) = if phys_type == "float" {
-                    (format!("{}f", layout.factor), format!("{}f", layout.offset))
-                } else {
-                    (format!("{}", layout.factor), format!("{}", layout.offset))
-                };
+                let factor_str = Self::format_cpp_float(layout.factor, phys_type);
+                let offset_str = Self::format_cpp_float(layout.offset, phys_type);
                 line!(
                     out,
                     "const {} {} = detail::{}<{}>({}, {}, {});",
@@ -393,8 +398,8 @@ impl CppGen {
         let phys_type = signal.physical_type.as_cpp_type();
         let is_phys_float = phys_type == "float" || phys_type == "double";
         
-        let min_str = if is_phys_float { format!("{min}f") } else { format!("{}", min as i64) };
-        let max_str = if is_phys_float { format!("{max}f") } else { format!("{}", max as i64) };
+        let min_str = if is_phys_float { Self::format_cpp_float(min, phys_type) } else { format!("{}", min as i64) };
+        let max_str = if is_phys_float { Self::format_cpp_float(max, phys_type) } else { format!("{}", max as i64) };
 
         line!(out, "if ({} < {} || {} > {}) return std::unexpected(CanError::ValueOutOfRange);", field_name, min_str, field_name, max_str);
     }
@@ -442,11 +447,8 @@ impl CppGen {
                 );
             } else if is_raw_float {
                 let uint_repr = Self::cpp_uint_repr_for_float(&signal.raw_type);
-                let (factor_str, offset_str) = if phys_type == "float" {
-                    (format!("{}f", layout.factor), format!("{}f", layout.offset))
-                } else {
-                    (format!("{}", layout.factor), format!("{}", layout.offset))
-                };
+                let factor_str = Self::format_cpp_float(layout.factor, phys_type);
+                let offset_str = Self::format_cpp_float(layout.offset, phys_type);
                 line!(
                     out,
                     "const {} {}_raw = ({} - {}) / {};",
@@ -477,11 +479,8 @@ impl CppGen {
                 );
             } else if is_phys_float {
                 let raw_type = signal.raw_type.as_cpp_type();
-                let (factor_str, offset_str) = if phys_type == "float" {
-                    (format!("{}f", layout.factor), format!("{}f", layout.offset))
-                } else {
-                    (format!("{}", layout.factor), format!("{}", layout.offset))
-                };
+                let factor_str = Self::format_cpp_float(layout.factor, phys_type);
+                let offset_str = Self::format_cpp_float(layout.offset, phys_type);
                 line!(
                     out,
                     "detail::{}<{}>({}, {}, {}, static_cast<{}>(({} - {}) / {}));",
