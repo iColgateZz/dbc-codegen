@@ -240,7 +240,7 @@ impl CppGen {
         for signal in signals {
             let layout = &file.signal_layouts[signal.layout.0];
             let phys_type = signal.physical_type.as_cpp_type();
-            let field_name = signal.name.0.to_snake_case();
+            let field_name = signal.name.raw.to_snake_case();
             let extract_fn = match layout.byte_order {
                 ByteOrder::LittleEndian => "extract_le",
                 ByteOrder::BigEndian => "extract_be",
@@ -372,7 +372,7 @@ impl CppGen {
         for signal in signals {
             let layout = &file.signal_layouts[signal.layout.0];
             let phys_type = signal.physical_type.as_cpp_type();
-            let field_name = signal.name.0.to_snake_case();
+            let field_name = signal.name.raw.to_snake_case();
             let insert_fn = match layout.byte_order {
                 ByteOrder::LittleEndian => "insert_le",
                 ByteOrder::BigEndian => "insert_be",
@@ -471,7 +471,7 @@ impl CppGen {
         signals
             .iter()
             .map(|s| {
-                let f = s.name.0.to_snake_case();
+                let f = s.name.raw.to_snake_case();
                 if s.signal_value_enum_idx.is_some() {
                     format!(".{} = *{}_exp", f, f)
                 } else {
@@ -489,7 +489,7 @@ impl CppGen {
                     out,
                     "{} {};",
                     signal.name.upper_camel(),
-                    signal.name.0.to_snake_case()
+                    signal.name.raw.to_snake_case()
                 );
             } else {
                 line!(

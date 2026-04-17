@@ -10,19 +10,19 @@ impl TransformationNode for SanitizeMessageNames {
         let mut counts: HashMap<String, usize> = HashMap::new();
 
         for msg in &mut file.messages {
-            let base = format!("{}_MSG", msg.name.0);
+            let base = format!("{}_MSG", msg.name.raw);
 
             let count = counts.entry(base.to_lowercase()).or_insert(0);
 
-            let new_name = if *count == 0 {
-                base
+            let new_postfix = if *count == 0 {
+                "_MSG".into()
             } else {
-                format!("{}{}", base, count)
+                format!("_MSG{}", count)
             };
 
             *count += 1;
 
-            msg.name.0 = new_name;
+            msg.name.postfix = new_postfix;
         }
     }
 }
