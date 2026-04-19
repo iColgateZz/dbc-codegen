@@ -7,7 +7,7 @@ use std::{
 };
 
 #[derive(Parser)]
-#[command(name = "dbc-codegen")]
+#[command(name = "dbc-codegen2")]
 #[command(about = "DBC code generator", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
@@ -37,7 +37,8 @@ pub enum Command {
     /// Generate code from DBC
     Gen {
         /// Input file path
-        input: String,
+        #[arg(required = true, num_args = 1..)]
+        inputs: Vec<String>,
         /// Output file
         #[arg(short, long, default_value = "data/generated.rs")]
         output: String,
@@ -82,7 +83,7 @@ fn main() {
         }
 
         Command::Gen { 
-            input,
+            inputs,
             output, 
             lang, 
             no_enum_other,
@@ -90,7 +91,7 @@ fn main() {
             zero_zero_range_allows_all,
         } => {
             let config = CodegenConfig {
-                input: input,
+                inputs,
                 output,
                 lang,
                 no_enum_other,

@@ -19,8 +19,24 @@ pub struct App;
 
 impl App {
     pub fn run(config: CodegenConfig) -> std::io::Result<()> {
-        let data = fs::read_to_string(&config.input).expect("Unable to read input file");
-        let mut dbc = IRBuilder::to_ir(ParsedDbc::try_from(data.as_str()).unwrap());
+        let mut parsed_dbcs = config.inputs.iter().map(|input| {
+            let data = fs::read_to_string(input)
+                .unwrap_or_else(|e| panic!("Unable to read input file `{input}`: {e}"));
+
+            ParsedDbc::try_from(data.as_str())
+                .unwrap_or_else(|e| panic!("Unable to parse input file `{input}`: {e}"))
+        });
+
+        let first = parsed_dbcs
+            .next()
+            .expect("At least one input file is required");
+
+        let merged_parsed_dbc = parsed_dbcs.fold(first, |mut acc, dbc| {
+            merge_parsed_dbcs(&mut acc, dbc);
+            acc
+        });
+
+        let mut dbc = IRBuilder::to_ir(merged_parsed_dbc);
 
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
@@ -56,4 +72,40 @@ impl App {
 
         Ok(())
     }
+}
+
+// most of the symbols are not used
+fn merge_parsed_dbcs(dst: &mut ParsedDbc, mut src: ParsedDbc) {
+    // if dst.version == Default::default() {
+    //     dst.version = src.version;
+    // }
+
+    // if dst.bit_timing.is_none() {
+    //     dst.bit_timing = src.bit_timing.take();
+    // }
+
+    // dst.new_symbols.append(&mut src.new_symbols);
+    dst.nodes.append(&mut src.nodes);
+    // dst.value_tables.append(&mut src.value_tables);
+    dst.messages.append(&mut src.messages);
+    // dst.message_transmitters.append(&mut src.message_transmitters);
+    // dst.environment_variables.append(&mut src.environment_variables);
+    // dst.environment_variable_data.append(&mut src.environment_variable_data);
+    // dst.signal_types.append(&mut src.signal_types);
+    dst.comments.append(&mut src.comments);
+    // dst.attribute_definitions.append(&mut src.attribute_definitions);
+    // dst.relation_attribute_definitions.append(&mut src.relation_attribute_definitions);
+    // dst.attribute_defaults.append(&mut src.attribute_defaults);
+    // dst.relation_attribute_defaults.append(&mut src.relation_attribute_defaults);
+    // dst.relation_attribute_values.append(&mut src.relation_attribute_values);
+    // dst.attribute_values_database.append(&mut src.attribute_values_database);
+    // dst.attribute_values_node.append(&mut src.attribute_values_node);
+    // dst.attribute_values_message.append(&mut src.attribute_values_message);
+    // dst.attribute_values_signal.append(&mut src.attribute_values_signal);
+    // dst.attribute_values_env.append(&mut src.attribute_values_env);
+    dst.value_descriptions.append(&mut src.value_descriptions);
+    // dst.signal_type_refs.append(&mut src.signal_type_refs);
+    // dst.signal_groups.append(&mut src.signal_groups);
+    dst.signal_extended_value_type_list.append(&mut src.signal_extended_value_type_list);
+    // dst.extended_multiplex.append(&mut src.extended_multiplex);
 }
