@@ -38,6 +38,12 @@ dbc-codegen2 <COMMAND> <INPUTS> -o <OUTPUT> <FLAGS>
 | `ir`    | Show intermediate representation         |
 | `gen`   | Generate code from a DBC file            |
 
+Use `--help` to get more information. For example,
+
+```bash
+dbc-codegen2 gen --help
+```
+
 
 ### Flags
 
