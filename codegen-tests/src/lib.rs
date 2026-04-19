@@ -69,7 +69,7 @@ fn _run_codegen(input: &Path) -> Result<()> {
         .to_string();
 
     let config = CodegenConfig {
-        input: input_str,
+        inputs: vec![input_str],
         output: GENERATED_FILE.into(),
         lang: Language::Rust,
         no_enum_other: true,
