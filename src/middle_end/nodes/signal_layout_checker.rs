@@ -6,16 +6,19 @@ impl CheckNode for CheckSignalLayoutValidity {
     fn check(&self, file: &crate::DbcFile, diagnostics: &mut Diagnostics) {
         for msg in &file.messages {
             let msg_bits = msg.size.saturating_mul(8);
-            if msg_bits == 0 {
-                diagnostics.error(format!(
-                    "Message '{}' has size 0",
-                    msg.name.raw(),
-                ));
-            }
 
             for sig_idx in &msg.signal_idxs {
                 let sig = &file.signals[sig_idx.0];
                 let layout = &file.signal_layouts[sig.layout.0];
+
+                if msg_bits == 0 && layout.size > 0 {
+                    diagnostics.error(format!(
+                        "Message '{}' has size 0, but contains signal '{}' with size {}",
+                        msg.name.raw(),
+                        sig.name.raw(),
+                        layout.size
+                    ));
+                }
 
                 if layout.size == 0 {
                     diagnostics.error(format!(
