@@ -18,7 +18,7 @@ use crate::{
 pub struct App;
 
 impl App {
-    pub fn run(config: CodegenConfig) -> std::io::Result<()> {
+    pub fn run(config: CodegenConfig) -> anyhow::Result<()> {
         let mut parsed_dbcs = config.inputs.iter().map(|input| {
             let data = fs::read_to_string(input)
                 .unwrap_or_else(|e| panic!("Unable to read input file `{input}`: {e}"));
@@ -48,7 +48,7 @@ impl App {
         diagnostics.emit();
 
         if diagnostics.has_errors() {
-            exit(1);
+            anyhow::bail!("En error was found during validation phase!");
         }
 
         //TODO: give user options to add new nodes/remove nodes

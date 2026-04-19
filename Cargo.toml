@@ -16,6 +16,7 @@ keywords = ["can", "dbc", "codegen", "embedded", "automotive"]
 categories = ["embedded", "automotive"]
 
 [dependencies]
+anyhow = "1"
 can-dbc = "8.0.0"
 embedded-can = "0.4"
 prettyplease = "0.2"

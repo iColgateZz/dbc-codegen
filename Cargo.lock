@@ -193,6 +193,7 @@ dependencies = [
 name = "dbc-codegen2"
 version = "0.1.2"
 dependencies = [
+ "anyhow",
  "can-dbc",
  "clap",
  "embedded-can",
