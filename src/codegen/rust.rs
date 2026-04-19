@@ -409,8 +409,6 @@ impl MessageDef<'_> {
             let fn_name = format_ident!("set_mux{}", idx);
             let struct_name = format_ident!("{}Mux{}", name, idx);
 
-            let mux_raw_ty = mux_signal.raw_rust_type();
-
             let (start, end) = mux_signal.start_end_bit();
             let order = mux_signal.bitvec_order();
             let store = mux_signal.store_fn();
@@ -424,7 +422,7 @@ impl MessageDef<'_> {
                     self.data = b0.bitor(b1).into_inner();
 
                     self.data.view_bits_mut::<#order>()[#start..#end]
-                        .#store(#idx as #mux_raw_ty);
+                        .#store(#idx);
 
                     Ok(())
                 }
