@@ -43,6 +43,7 @@ impl RustGen {
             use embedded_can::{Frame, Id, StandardId, ExtendedId};
             use bitvec::prelude::*;
             use core::ops::BitOr;
+            use core::convert::TryFrom;
         };
 
         let messages = &file.messages;
