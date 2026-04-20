@@ -218,7 +218,7 @@ impl CppGen {
         enum_def: &SignalValueEnum,
         config: &CodegenConfig,
     ) {
-        let name = &enum_def.name.to_upper_camel_case();
+        let name = &enum_def.name.upper_camel();
         let cpp_type = &signal.physical_type.as_cpp_type();
 
         if config.no_enum_other {
@@ -464,7 +464,7 @@ impl CppGen {
             let is_phys_float = phys_type == "float" || phys_type == "double";
 
             let return_type = if let Some(idx) = signal.signal_value_enum_idx {
-                let enum_name = file.signal_value_enums[idx.0].name.to_upper_camel_case();
+                let enum_name = file.signal_value_enums[idx.0].name.upper_camel();
                 if config.no_enum_other {
                     format!("std::expected<{}, CanError>", enum_name)
                 } else {
@@ -498,7 +498,7 @@ impl CppGen {
                 );
                 let from_fn = {
                     let idx = signal.signal_value_enum_idx.unwrap();
-                    let enum_name = file.signal_value_enums[idx.0].name.to_upper_camel_case();
+                    let enum_name = file.signal_value_enums[idx.0].name.upper_camel();
                     format!("{}_from_raw", enum_name.to_snake_case())
                 };
                 line!(out, "return {}({});", from_fn, raw_name);
@@ -646,7 +646,7 @@ impl CppGen {
             let is_phys_float = phys_type == "float" || phys_type == "double";
 
             let param_type = if let Some(idx) = signal.signal_value_enum_idx {
-                file.signal_value_enums[idx.0].name.to_upper_camel_case()
+                file.signal_value_enums[idx.0].name.upper_camel()
             } else {
                 phys_type.to_string()
             };
@@ -761,7 +761,7 @@ impl CppGen {
                 if let Some(idx) = s.signal_value_enum_idx {
                     format!(
                         "{} {}",
-                        file.signal_value_enums[idx.0].name.to_upper_camel_case(),
+                        file.signal_value_enums[idx.0].name.upper_camel(),
                         s.name.raw.to_snake_case()
                     )
                 } else {
@@ -960,7 +960,7 @@ impl CppGen {
                         if let Some(idx) = s.signal_value_enum_idx {
                             format!(
                                 "{} {}",
-                                file.signal_value_enums[idx.0].name.to_upper_camel_case(),
+                                file.signal_value_enums[idx.0].name.upper_camel(),
                                 s.name.raw.to_snake_case()
                             )
                         } else {
