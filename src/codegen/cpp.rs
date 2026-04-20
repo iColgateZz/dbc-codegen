@@ -462,6 +462,7 @@ impl CppGen {
             };
             let is_raw_float = matches!(signal.raw_type, RawType::Float32 | RawType::Float64);
             let is_phys_float = phys_type == "float" || phys_type == "double";
+            let is_bool_signal = layout.size == 1 && signal.signal_value_enum_idx.is_none();
 
             let return_type = if let Some(idx) = signal.signal_value_enum_idx {
                 let enum_name = file.signal_value_enums[idx.0].name.upper_camel();
@@ -470,6 +471,8 @@ impl CppGen {
                 } else {
                     enum_name
                 }
+            } else if is_bool_signal {
+                "bool".to_string()
             } else {
                 phys_type.to_string()
             };
@@ -482,7 +485,19 @@ impl CppGen {
             );
             let data_expr = "data_.data()";
 
-            if signal.signal_value_enum_idx.is_some() {
+            if is_bool_signal {
+                let raw_name = format!("raw_{}", field_name);
+                line!(
+                    out,
+                    "const uint8_t {} = detail::{}<uint8_t>({}, {}, {});",
+                    raw_name,
+                    extract_fn,
+                    data_expr,
+                    layout.bitvec_start,
+                    layout.bitvec_end
+                );
+                line!(out, "return {} != 0;", raw_name);
+            } else if signal.signal_value_enum_idx.is_some() {
                 let raw_type = signal.raw_type.as_cpp_type();
                 let raw_name = format!("raw_{}", field_name);
                 line!(
@@ -597,6 +612,9 @@ impl CppGen {
         }
 
         let layout = &file.signal_layouts[signal.layout.0];
+        if layout.size == 1 {
+            return;
+        }
         let min = layout.min;
         let max = layout.max;
 
@@ -644,9 +662,12 @@ impl CppGen {
             };
             let is_raw_float = matches!(signal.raw_type, RawType::Float32 | RawType::Float64);
             let is_phys_float = phys_type == "float" || phys_type == "double";
+            let is_bool_signal = layout.size == 1 && signal.signal_value_enum_idx.is_none();
 
             let param_type = if let Some(idx) = signal.signal_value_enum_idx {
                 file.signal_value_enums[idx.0].name.upper_camel()
+            } else if is_bool_signal {
+                "bool".to_string()
             } else {
                 phys_type.to_string()
             };
@@ -662,7 +683,17 @@ impl CppGen {
 
             let data_expr = "data_.data()";
 
-            if signal.signal_value_enum_idx.is_some() {
+            if is_bool_signal {
+                line!(
+                    out,
+                    "detail::{}<uint8_t>({}, {}, {}, static_cast<uint8_t>({}));",
+                    insert_fn,
+                    data_expr,
+                    layout.bitvec_start,
+                    layout.bitvec_end,
+                    field_name
+                );
+            } else if signal.signal_value_enum_idx.is_some() {
                 let raw_type = signal.raw_type.as_cpp_type();
                 let encode_expr = if config.no_enum_other {
                     format!("static_cast<{}>({})", raw_type, field_name)
@@ -764,6 +795,8 @@ impl CppGen {
                         file.signal_value_enums[idx.0].name.upper_camel(),
                         s.name.raw.to_snake_case()
                     )
+                } else if file.signal_layouts[s.layout.0].size == 1 {
+                    format!("bool {}", s.name.raw.to_snake_case())
                 } else {
                     format!(
                         "{} {}",
@@ -963,6 +996,8 @@ impl CppGen {
                                 file.signal_value_enums[idx.0].name.upper_camel(),
                                 s.name.raw.to_snake_case()
                             )
+                        } else if file.signal_layouts[s.layout.0].size == 1 {
+                            format!("bool {}", s.name.raw.to_snake_case())
                         } else {
                             format!(
                                 "{} {}",

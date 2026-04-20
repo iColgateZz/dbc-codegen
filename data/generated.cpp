@@ -451,7 +451,7 @@ class MotorStatusMsg {
   static constexpr std::size_t LEN = 3;
   
   [[nodiscard]] static std::expected<MotorStatusMsg, CanError> create(
-            uint8_t motor_status_wheel_error,
+            bool motor_status_wheel_error,
             float motor_status_speed_kph
         ) noexcept {
     MotorStatusMsg msg{};
@@ -480,9 +480,9 @@ class MotorStatusMsg {
    * - Byte order: LittleEndian
    * - Type: unsigned
    */
-  [[nodiscard]] uint8_t motor_status_wheel_error() const noexcept {
+  [[nodiscard]] bool motor_status_wheel_error() const noexcept {
     const uint8_t raw_motor_status_wheel_error = detail::extract_le<uint8_t>(data_.data(), 0, 1);
-    return static_cast<uint8_t>(raw_motor_status_wheel_error) * 1 + 0;
+    return raw_motor_status_wheel_error != 0;
   };
   
   /**
@@ -503,9 +503,8 @@ class MotorStatusMsg {
     return static_cast<float>(raw_motor_status_speed_kph) * 0.001f + 0.0f;
   };
   
-  std::expected<void, CanError> set_motor_status_wheel_error(uint8_t motor_status_wheel_error) noexcept {
-    if (motor_status_wheel_error < 0 || motor_status_wheel_error > 0) return std::unexpected(CanError::ValueOutOfRange);
-    detail::insert_le<uint8_t>(data_.data(), 0, 1, static_cast<uint8_t>((motor_status_wheel_error - 0) / 1));
+  std::expected<void, CanError> set_motor_status_wheel_error(bool motor_status_wheel_error) noexcept {
+    detail::insert_le<uint8_t>(data_.data(), 0, 1, static_cast<uint8_t>(motor_status_wheel_error));
     return {};
   };
   
