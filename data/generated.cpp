@@ -89,45 +89,25 @@ constexpr void insert_be(uint8_t* data, std::size_t start, std::size_t end, T va
 
 } // namespace detail
 
-struct DriverHeartbeatCmdEnum {
-  enum class Kind : uint8_t {
-    Reboot = 2,
-    Sync = 1,
-    Noop = 0,
-    _other,
-  };
-  
-  Kind kind;
-  uint8_t raw; // only meaningful when kind == Kind::_other
-  
-  static constexpr DriverHeartbeatCmdEnum Reboot() noexcept { return {Kind::Reboot, {}}; }
-  static constexpr DriverHeartbeatCmdEnum Sync() noexcept { return {Kind::Sync, {}}; }
-  static constexpr DriverHeartbeatCmdEnum Noop() noexcept { return {Kind::Noop, {}}; }
-  static constexpr DriverHeartbeatCmdEnum _other(uint8_t v) noexcept { return {Kind::_other, v}; }
-  
-  constexpr bool is_other() const noexcept { return kind == Kind::_other; }
-  constexpr uint8_t raw_value() const noexcept { return raw; }
-  
-  constexpr uint8_t to_raw() const noexcept {
-    switch (kind) {
-      case Kind::Reboot: return 2;
-      case Kind::Sync: return 1;
-      case Kind::Noop: return 0;
-      default: return raw;
-    };
-  };
-  
-  constexpr bool operator==(const DriverHeartbeatCmdEnum& other) const noexcept = default;
+enum class DriverHeartbeatCmdEnum : uint8_t {
+  Reboot = 2,
+  Sync = 1,
+  Noop = 0,
 };
 
 [[nodiscard]] constexpr DriverHeartbeatCmdEnum
 driver_heartbeat_cmd_enum_from_raw(uint8_t v) noexcept {
-  switch (v) {
-    case 2: return DriverHeartbeatCmdEnum::Reboot();
-    case 1: return DriverHeartbeatCmdEnum::Sync();
-    case 0: return DriverHeartbeatCmdEnum::Noop();
-    default: return DriverHeartbeatCmdEnum::_other(v);
-  };
+  return static_cast<DriverHeartbeatCmdEnum>(v);
+};
+
+enum class IoDebugTestEnumEnum : uint8_t {
+  Two = 2,
+  One = 1,
+};
+
+[[nodiscard]] constexpr IoDebugTestEnumEnum
+io_debug_test_enum_enum_from_raw(uint8_t v) noexcept {
+  return static_cast<IoDebugTestEnumEnum>(v);
 };
 
 /**
@@ -177,7 +157,7 @@ class DriverHeartbeatMsg {
   };
   
   std::expected<void, CanError> set_driver_heartbeat_cmd(DriverHeartbeatCmdEnum driver_heartbeat_cmd) noexcept {
-    detail::insert_le<uint8_t>(data_.data(), 0, 8, static_cast<uint8_t>(driver_heartbeat_cmd.to_raw()));
+    detail::insert_le<uint8_t>(data_.data(), 0, 8, static_cast<uint8_t>(driver_heartbeat_cmd));
     return {};
   };
   
@@ -185,43 +165,6 @@ class DriverHeartbeatMsg {
   
   private:
   std::array<uint8_t, LEN> data_{};
-};
-
-struct IoDebugTestEnumEnum {
-  enum class Kind : uint8_t {
-    Two = 2,
-    One = 1,
-    _other,
-  };
-  
-  Kind kind;
-  uint8_t raw; // only meaningful when kind == Kind::_other
-  
-  static constexpr IoDebugTestEnumEnum Two() noexcept { return {Kind::Two, {}}; }
-  static constexpr IoDebugTestEnumEnum One() noexcept { return {Kind::One, {}}; }
-  static constexpr IoDebugTestEnumEnum _other(uint8_t v) noexcept { return {Kind::_other, v}; }
-  
-  constexpr bool is_other() const noexcept { return kind == Kind::_other; }
-  constexpr uint8_t raw_value() const noexcept { return raw; }
-  
-  constexpr uint8_t to_raw() const noexcept {
-    switch (kind) {
-      case Kind::Two: return 2;
-      case Kind::One: return 1;
-      default: return raw;
-    };
-  };
-  
-  constexpr bool operator==(const IoDebugTestEnumEnum& other) const noexcept = default;
-};
-
-[[nodiscard]] constexpr IoDebugTestEnumEnum
-io_debug_test_enum_enum_from_raw(uint8_t v) noexcept {
-  switch (v) {
-    case 2: return IoDebugTestEnumEnum::Two();
-    case 1: return IoDebugTestEnumEnum::One();
-    default: return IoDebugTestEnumEnum::_other(v);
-  };
 };
 
 /**
@@ -335,7 +278,7 @@ class IoDebugMsg {
   };
   
   std::expected<void, CanError> set_io_debug_test_enum(IoDebugTestEnumEnum io_debug_test_enum) noexcept {
-    detail::insert_le<uint8_t>(data_.data(), 8, 16, static_cast<uint8_t>(io_debug_test_enum.to_raw()));
+    detail::insert_le<uint8_t>(data_.data(), 8, 16, static_cast<uint8_t>(io_debug_test_enum));
     return {};
   };
   

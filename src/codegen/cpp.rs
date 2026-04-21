@@ -31,6 +31,15 @@ impl CppGen {
         Self::errors(&mut out);
         Self::endian_read_and_write(&mut out);
 
+        let mut emitted_enum_idxs = std::collections::BTreeSet::new();
+        for signal in &file.signals {
+            if let Some(idx) = signal.signal_value_enum_idx {
+                if emitted_enum_idxs.insert(idx.0) {
+                    Self::signal_value_enum(&mut out, signal, &file.signal_value_enums[idx.0], config);
+                }
+            }
+        }
+
         for message in &file.messages {
             Self::message(&mut out, message, file, config);
         }
@@ -795,21 +804,6 @@ impl CppGen {
     }
 
     fn message(out: &mut Generator, msg: &Message, file: &DbcFile, config: &CodegenConfig) {
-        let all_signals: Vec<&Signal> = msg
-            .signal_idxs
-            .iter()
-            .map(|idx| &file.signals[idx.0])
-            .collect();
-
-        let mut emitted_enum_idxs = std::collections::BTreeSet::new();
-        for signal in &all_signals {
-            if let Some(idx) = signal.signal_value_enum_idx {
-                if emitted_enum_idxs.insert(idx.0) {
-                    Self::signal_value_enum(out, signal, &file.signal_value_enums[idx.0], config);
-                }
-            }
-        }
-
         match msg.classify_signals(&file.signals) {
             MessageSignalClassification::Plain { signals } => {
                 let sigs: Vec<&Signal> = signals.iter().map(|idx| &file.signals[idx.0]).collect();
