@@ -25,7 +25,6 @@ impl CheckNode for CheckMessageSignalUsage {
             match msg.classify_signals(&file.signals) {
                 MessageSignalClassification::Plain { signals } => {
                     let spans = collect_spans(file, &signals);
-                    check_signal_fits_in_message(msg.name.raw(), msg.size, &spans, diagnostics);
                     check_overlaps(msg.name.raw(), None, &spans, diagnostics);
                     check_sum_of_sizes(msg.name.raw(), None, msg.size, &spans, diagnostics);
                     warn_unused_bits(msg.name.raw(), None, msg.size, &spans, diagnostics);
@@ -40,7 +39,6 @@ impl CheckNode for CheckMessageSignalUsage {
                     base_signal_idxs.push(mux_signal);
 
                     let base_spans = collect_spans(file, &base_signal_idxs);
-                    check_signal_fits_in_message(msg.name.raw(), msg.size, &base_spans, diagnostics);
                     check_overlaps(msg.name.raw(), Some("base"), &base_spans, diagnostics);
                     check_sum_of_sizes(msg.name.raw(), Some("base"), msg.size, &base_spans, diagnostics);
                     warn_unused_bits(msg.name.raw(), Some("base"), msg.size, &base_spans, diagnostics);
@@ -52,7 +50,6 @@ impl CheckNode for CheckMessageSignalUsage {
                         let spans = collect_spans(file, &active);
                         let ctx = format!("mux={mux_val}");
 
-                        check_signal_fits_in_message(msg.name.raw(), msg.size, &spans, diagnostics);
                         check_overlaps(msg.name.raw(), Some(&ctx), &spans, diagnostics);
                         check_sum_of_sizes(msg.name.raw(), Some(&ctx), msg.size, &spans, diagnostics);
                         warn_unused_bits(msg.name.raw(), Some(&ctx), msg.size, &spans, diagnostics);
@@ -80,28 +77,6 @@ fn collect_spans<'a>(file: &'a crate::DbcFile, signal_idxs: &[SignalIdx]) -> Vec
 
     spans.sort_by_key(|s| (s.start, s.end));
     spans
-}
-
-fn check_signal_fits_in_message(
-    msg_name: &str,
-    msg_size_bytes: u64,
-    spans: &[SpanInfo<'_>],
-    diagnostics: &mut Diagnostics,
-) {
-    let msg_bits = msg_size_bytes as usize * 8;
-
-    for span in spans {
-        if span.end > msg_bits {
-            diagnostics.error(format!(
-                "Signal '{}' in message '{}' occupies bits [{}..{}), which exceeds message size of {} bits",
-                span.sig_name,
-                msg_name,
-                span.start,
-                span.end,
-                msg_bits
-            ));
-        }
-    }
 }
 
 fn check_overlaps(
