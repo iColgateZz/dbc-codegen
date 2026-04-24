@@ -529,7 +529,7 @@ impl MessageDef<'_> {
         signals.iter().map(|s| {
             let field = s.field_ident();
             let ty = s.rust_type();
-            let doc = signal_doc(&s);
+            let doc = getter_doc(&s);
 
             let read = s.decode_read();
             let expr = s.decode_expr();
@@ -562,8 +562,10 @@ impl MessageDef<'_> {
             let ty = s.rust_type();
             let check = s.range_check();
             let write = s.encode_write();
+            let doc = setter_doc(s);
 
             quote! {
+                #doc
                 pub fn #setter(&mut self, value: #ty) -> Result<(), CanError> {
                     #check
 
@@ -986,7 +988,7 @@ fn message_doc(msg: &Message) -> TokenStream {
     }
 }
 
-fn signal_doc(sig: &SignalCtx) -> TokenStream {
+fn getter_doc(sig: &SignalCtx) -> TokenStream {
     let s = sig.signal;
     let layout = sig.layout;
 
@@ -1036,6 +1038,30 @@ fn signal_doc(sig: &SignalCtx) -> TokenStream {
         format!("- Type: {}", signed),
     ];
 
+    if let Some(comment) = &s.comment {
+        lines.push("".into());
+        lines.extend(comment.lines().map(|l| l.to_string()));
+    }
+
+    quote! {
+        #( #[doc = #lines] )*
+    }
+}
+
+fn setter_doc(sig: &SignalCtx) -> TokenStream {
+    let s = sig.signal;
+    let layout = sig.layout;
+
+    let name = &s.name;
+    let min = layout.min;
+    let max = layout.max;
+
+    let mut lines = vec![
+        format!("Set value of {}", name.raw()),
+        format!("- Min: {}", min),
+        format!("- Max: {}", max),
+    ];
+    
     if let Some(comment) = &s.comment {
         lines.push("".into());
         lines.extend(comment.lines().map(|l| l.to_string()));

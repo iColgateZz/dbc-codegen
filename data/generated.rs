@@ -129,6 +129,9 @@ impl DriverHeartbeatMsg {
             .load_le::<u8>();
         DriverHeartbeatCmdEnum::from(raw_driver_heartbeat_cmd as u8)
     }
+    ///Set value of DRIVER_HEARTBEAT_cmd
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_driver_heartbeat_cmd(
         &mut self,
         value: DriverHeartbeatCmdEnum,
@@ -249,15 +252,18 @@ impl IoDebugMsg {
             .load_le::<u8>();
         (raw_io_debug_test_float as f32) * (0.5f32) + (0f32)
     }
+    ///Set value of IO_DEBUG_test_unsigned
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_io_debug_test_unsigned(&mut self, value: u8) -> Result<(), CanError> {
-        if value > 0u8 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[0usize..8usize]
             .store_le((value - (0u8)) / (1u8));
         Ok(())
     }
+    ///Set value of IO_DEBUG_test_enum
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_io_debug_test_enum(
         &mut self,
         value: IoDebugTestEnumEnum,
@@ -265,19 +271,19 @@ impl IoDebugMsg {
         self.data.view_bits_mut::<Lsb0>()[8usize..16usize].store_le(u8::from(value));
         Ok(())
     }
+    ///Set value of IO_DEBUG_test_signed
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_io_debug_test_signed(&mut self, value: i8) -> Result<(), CanError> {
-        if value < 0i8 || value > 0i8 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[16usize..24usize]
             .store_le((value - (0i8)) / (1i8));
         Ok(())
     }
+    ///Set value of IO_DEBUG_test_float
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_io_debug_test_float(&mut self, value: f32) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[24usize..32usize]
             .store_le(((value - (0f32)) / (0.5f32)) as u8);
@@ -353,6 +359,9 @@ impl MotorCmdMsg {
             .load_le::<u8>();
         (raw_motor_cmd_drive) * (1u8) + (0u8)
     }
+    ///Set value of MOTOR_CMD_steer
+    ///- Min: -5
+    ///- Max: 5
     pub fn set_motor_cmd_steer(&mut self, value: i8) -> Result<(), CanError> {
         if value < -5i8 || value > 5i8 {
             return Err(CanError::ValueOutOfRange);
@@ -362,6 +371,9 @@ impl MotorCmdMsg {
             .store_le((value - (-5i8)) / (1i8));
         Ok(())
     }
+    ///Set value of MOTOR_CMD_drive
+    ///- Min: 0
+    ///- Max: 9
     pub fn set_motor_cmd_drive(&mut self, value: u8) -> Result<(), CanError> {
         if value > 9u8 {
             return Err(CanError::ValueOutOfRange);
@@ -444,19 +456,19 @@ impl MotorStatusMsg {
             .load_le::<u16>();
         (raw_motor_status_speed_kph as f32) * (0.001f32) + (0f32)
     }
+    ///Set value of MOTOR_STATUS_wheel_error
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_motor_status_wheel_error(&mut self, value: u8) -> Result<(), CanError> {
-        if value > 0u8 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[0usize..1usize]
             .store_le((value - (0u8)) / (1u8));
         Ok(())
     }
+    ///Set value of MOTOR_STATUS_speed_kph
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_motor_status_speed_kph(&mut self, value: f32) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[8usize..24usize]
             .store_le(((value - (0f32)) / (0.001f32)) as u16);
@@ -574,37 +586,37 @@ impl SensorSonarsMsgMux0 {
             .load_le::<u16>();
         (raw_sensor_sonars_rear as f32) * (0.1f32) + (0f32)
     }
+    ///Set value of SENSOR_SONARS_left
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_left(&mut self, value: f32) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[16usize..28usize]
             .store_le(((value - (0f32)) / (0.1f32)) as u16);
         Ok(())
     }
+    ///Set value of SENSOR_SONARS_middle
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_middle(&mut self, value: f32) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[28usize..40usize]
             .store_le(((value - (0f32)) / (0.1f32)) as u16);
         Ok(())
     }
+    ///Set value of SENSOR_SONARS_right
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_right(&mut self, value: f32) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[40usize..52usize]
             .store_le(((value - (0f32)) / (0.1f32)) as u16);
         Ok(())
     }
+    ///Set value of SENSOR_SONARS_rear
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_rear(&mut self, value: f32) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[52usize..64usize]
             .store_le(((value - (0f32)) / (0.1f32)) as u16);
@@ -701,49 +713,49 @@ impl SensorSonarsMsgMux1 {
             .load_le::<u16>();
         (raw_sensor_sonars_no_filt_rear as f32) * (0.1f32) + (0f32)
     }
+    ///Set value of SENSOR_SONARS_no_filt_left
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_no_filt_left(
         &mut self,
         value: f32,
     ) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[16usize..28usize]
             .store_le(((value - (0f32)) / (0.1f32)) as u16);
         Ok(())
     }
+    ///Set value of SENSOR_SONARS_no_filt_middle
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_no_filt_middle(
         &mut self,
         value: f32,
     ) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[28usize..40usize]
             .store_le(((value - (0f32)) / (0.1f32)) as u16);
         Ok(())
     }
+    ///Set value of SENSOR_SONARS_no_filt_right
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_no_filt_right(
         &mut self,
         value: f32,
     ) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[40usize..52usize]
             .store_le(((value - (0f32)) / (0.1f32)) as u16);
         Ok(())
     }
+    ///Set value of SENSOR_SONARS_no_filt_rear
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_no_filt_rear(
         &mut self,
         value: f32,
     ) -> Result<(), CanError> {
-        if value < 0f32 || value > 0f32 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[52usize..64usize]
             .store_le(((value - (0f32)) / (0.1f32)) as u16);
@@ -832,10 +844,10 @@ impl SensorSonarsMsg {
             .load_le::<u16>();
         (raw_sensor_sonars_err_count) * (1u16) + (0u16)
     }
+    ///Set value of SENSOR_SONARS_err_count
+    ///- Min: 0
+    ///- Max: 0
     pub fn set_sensor_sonars_err_count(&mut self, value: u16) -> Result<(), CanError> {
-        if value > 0u16 {
-            return Err(CanError::ValueOutOfRange);
-        }
         self.data
             .view_bits_mut::<Lsb0>()[4usize..16usize]
             .store_le((value - (0u16)) / (1u16));
