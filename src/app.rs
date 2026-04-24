@@ -36,6 +36,10 @@ impl App {
         });
         let mut dbc = IRBuilder::to_ir(merged_parsed_dbc);
 
+        TransformationPipeline::new()
+            .add(ComputeBitvecPositions)
+            .run(&mut dbc);
+
         let mut diagnostics = Diagnostics::default();
         CheckPipeline::new()
             .add(CheckZeroZeroRanges {zero_zero_range_allows_all: config.zero_zero_range_allows_all})
@@ -51,7 +55,6 @@ impl App {
 
         //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
-            .add(ComputeBitvecPositions)
             .add(SanitizeSignalEnumVariantNames)
             .add(InferSignalTypes)
             .add(DeduplicateSignalValueEnums {dedup_enabled: !config.no_enum_dedup})

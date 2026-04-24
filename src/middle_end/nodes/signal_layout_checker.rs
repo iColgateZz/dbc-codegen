@@ -39,6 +39,16 @@ impl CheckNode for CheckSignalLayoutValidity {
                     ));
                 }
 
+                if layout.bitvec_end as u64 > msg_bits {
+                    diagnostics.error(format!(
+                        "Signal '{}' in message '{}' does not fit: signal ends at bit {} but valid range is 1..={}",
+                        sig.name.raw(),
+                        msg.name.raw(),
+                        layout.bitvec_end,
+                        msg_bits,
+                    ));
+                }
+
                 if layout.factor == 0.0 {
                     diagnostics.error(format!(
                         "Signal '{}' in message '{}' has factor 0",
