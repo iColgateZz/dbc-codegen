@@ -98,7 +98,6 @@ fn is_bool_signal(sig_layout: &SignalLayout) -> bool {
         && sig_layout.offset == 0.0
 }
 
-//TODO: maybe use epsilon comparison
 fn is_float_scaled(sig_layout: &SignalLayout) -> bool {
     sig_layout.factor.fract() != 0.0 || sig_layout.offset.fract() != 0.0
 }

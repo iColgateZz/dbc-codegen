@@ -906,8 +906,6 @@ impl<'a> SignalCtx<'a> {
 
     //TODO: add a checker node that ensures that */+- operations
     //      are safe. dbc-codegen uses saturating_*, checked_*
-    //TODO: do not perform multiplication when factor is 1
-    //      do not perform addition when offset is 0
     fn decode_expr(&self) -> TokenStream {
         let raw = self.raw_ident();
 
@@ -934,8 +932,6 @@ impl<'a> SignalCtx<'a> {
         }
     }
 
-    //TODO: do not perform division when factor is 1
-    //      do not perform subtraction when offset is 0
     fn encode_write(&self) -> TokenStream {
         let (start, end) = self.start_end_bit();
         let order = self.bitvec_order();

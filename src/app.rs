@@ -55,7 +55,6 @@ impl App {
             anyhow::bail!("En error was found during validation phase!");
         }
 
-        //TODO: give user options to add new nodes/remove nodes
         TransformationPipeline::new()
             .add(SanitizeSignalEnumVariantNames)
             .add(InferSignalTypes)

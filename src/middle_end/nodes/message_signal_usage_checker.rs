@@ -16,8 +16,6 @@ struct SpanInfo<'a> {
     size: u64,
 }
 
-//TODO: add another node to ensure there is only 1 multiplexor per message
-//      give errors on MultiplexorAndMultiplexed signals?
 impl CheckNode for CheckMessageSignalUsage {
     fn check(&self, file: &crate::DbcFile, diagnostics: &mut Diagnostics) {
         for msg in &file.messages {
