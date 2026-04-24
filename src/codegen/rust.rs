@@ -99,6 +99,7 @@ impl ToTokens for ErrorEnum<'_> {
                 UnknownFrameId,
                 UnknownMuxValue,
                 InvalidPayloadSize,
+                InvalidFrameId,
                 ValueOutOfRange,
                 InvalidEnumValue,
             }
@@ -287,14 +288,16 @@ impl MessageDef<'_> {
         quote! {
             impl GeneratedCanMessage<{ Self::LEN }> for #name {
                 fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
-                    let data = frame.data();
-
-                    if data.len() < Self::LEN {
+                    if frame.data().len() < Self::LEN {
                         return Err(CanError::InvalidPayloadSize);
                     }
 
+                    if frame.id() != Self::ID {
+                        return Err(CanError::InvalidFrameId);
+                    }
+
                     let mut buf = [0u8; Self::LEN];
-                    buf.copy_from_slice(&data[..Self::LEN]);
+                    buf.copy_from_slice(&frame.data()[..Self::LEN]);
 
                     Ok(Self { data: buf })
                 }
