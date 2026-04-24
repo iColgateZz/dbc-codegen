@@ -61,7 +61,7 @@ impl From<IoDebugTestEnumEnum> for u8 {
         }
     }
 }
-pub trait CanMessageTrait<const LEN: usize>: Sized {
+pub trait GeneratedCanMessage<const LEN: usize>: Sized {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;
     fn encode(&self) -> [u8; LEN];
 }
@@ -136,14 +136,14 @@ impl DriverHeartbeatMsg {
         Ok(())
     }
 }
-impl CanMessageTrait<{ Self::LEN }> for DriverHeartbeatMsg {
+impl GeneratedCanMessage<{ Self::LEN }> for DriverHeartbeatMsg {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let mut buf = [0u8; 1usize];
-        buf.copy_from_slice(&data[..1usize]);
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&data[..Self::LEN]);
         Ok(Self { data: buf })
     }
     fn encode(&self) -> [u8; Self::LEN] {
@@ -281,14 +281,14 @@ impl IoDebugMsg {
         Ok(())
     }
 }
-impl CanMessageTrait<{ Self::LEN }> for IoDebugMsg {
+impl GeneratedCanMessage<{ Self::LEN }> for IoDebugMsg {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let mut buf = [0u8; 4usize];
-        buf.copy_from_slice(&data[..4usize]);
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&data[..Self::LEN]);
         Ok(Self { data: buf })
     }
     fn encode(&self) -> [u8; Self::LEN] {
@@ -367,14 +367,14 @@ impl MotorCmdMsg {
         Ok(())
     }
 }
-impl CanMessageTrait<{ Self::LEN }> for MotorCmdMsg {
+impl GeneratedCanMessage<{ Self::LEN }> for MotorCmdMsg {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let mut buf = [0u8; 1usize];
-        buf.copy_from_slice(&data[..1usize]);
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&data[..Self::LEN]);
         Ok(Self { data: buf })
     }
     fn encode(&self) -> [u8; Self::LEN] {
@@ -456,14 +456,14 @@ impl MotorStatusMsg {
         Ok(())
     }
 }
-impl CanMessageTrait<{ Self::LEN }> for MotorStatusMsg {
+impl GeneratedCanMessage<{ Self::LEN }> for MotorStatusMsg {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let mut buf = [0u8; 3usize];
-        buf.copy_from_slice(&data[..3usize]);
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&data[..Self::LEN]);
         Ok(Self { data: buf })
     }
     fn encode(&self) -> [u8; Self::LEN] {
@@ -833,17 +833,17 @@ impl SensorSonarsMsg {
         Ok(())
     }
 }
-impl CanMessageTrait<{ Self::LEN }> for SensorSonarsMsg {
+impl GeneratedCanMessage<{ Self::LEN }> for SensorSonarsMsg {
     fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
         let data = frame.data();
         if data.len() < Self::LEN {
             return Err(CanError::InvalidPayloadSize);
         }
-        let mut buf = [0u8; 8usize];
-        buf.copy_from_slice(&data[..8usize]);
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&data[..Self::LEN]);
         Ok(Self { data: buf })
     }
-    fn encode(&self) -> [u8; 8usize] {
+    fn encode(&self) -> [u8; Self::LEN] {
         self.data
     }
 }

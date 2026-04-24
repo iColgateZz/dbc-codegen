@@ -112,7 +112,7 @@ struct MsgTrait;
 impl ToTokens for MsgTrait {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         quote! {
-            pub trait CanMessageTrait<const LEN: usize>: Sized {
+            pub trait GeneratedCanMessage<const LEN: usize>: Sized {
                 fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;
                 fn encode(&self) -> [u8; LEN];
             }
@@ -247,6 +247,7 @@ impl MessageDef<'_> {
             self.config,
             RustCodeInjectionPoint::MessageStruct,
         );
+        let can_msg_impl = Self::gen_can_message_impl(&name);
 
         quote! {
             #doc
@@ -277,8 +278,14 @@ impl MessageDef<'_> {
                 #( #setters )*
             }
 
-            impl CanMessageTrait<{ Self::LEN }> for #name {
+            #can_msg_impl
+        }
+        .to_tokens(tokens);
+    }
 
+    fn gen_can_message_impl(name: &Ident) -> TokenStream {
+        quote! {
+            impl GeneratedCanMessage<{ Self::LEN }> for #name {
                 fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
                     let data = frame.data();
 
@@ -286,8 +293,8 @@ impl MessageDef<'_> {
                         return Err(CanError::InvalidPayloadSize);
                     }
 
-                    let mut buf = [0u8; #len];
-                    buf.copy_from_slice(&data[..#len]);
+                    let mut buf = [0u8; Self::LEN];
+                    buf.copy_from_slice(&data[..Self::LEN]);
 
                     Ok(Self { data: buf })
                 }
@@ -297,7 +304,6 @@ impl MessageDef<'_> {
                 }
             }
         }
-        .to_tokens(tokens);
     }
 
     fn gen_constructor_body(signals: &[&SignalCtx]) -> TokenStream {
@@ -456,6 +462,8 @@ impl MessageDef<'_> {
             RustCodeInjectionPoint::MessageStruct,
         );
 
+        let can_msg_impl = Self::gen_can_message_impl(&name);
+
         quote! {
             #mux_enum_injected
             #[derive(Debug, Clone)]
@@ -501,24 +509,7 @@ impl MessageDef<'_> {
                 #( #plain_setters )*
             }
 
-            impl CanMessageTrait<{ Self::LEN }> for #name {
-                fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
-                    let data = frame.data();
-
-                    if data.len() < Self::LEN {
-                        return Err(CanError::InvalidPayloadSize);
-                    }
-
-                    let mut buf = [0u8; #len];
-                    buf.copy_from_slice(&data[..#len]);
-
-                    Ok(Self { data: buf })
-                }
-
-                fn encode(&self) -> [u8; #len] {
-                    self.data
-                }
-            }
+            #can_msg_impl
         }
         .to_tokens(tokens);
     }
