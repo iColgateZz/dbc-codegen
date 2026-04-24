@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::codegen;
 use crate::codegen::config::CodegenConfig;
-use crate::middle_end::nodes::{AttachSignalValueEnumType, CheckSignalLayoutValidity, CheckUniqueMessageIds, CheckZeroZeroRanges, ComputeBitvecPositions, DeduplicateSignalValueEnums, Diagnostics, InferSignalTypes, PrefixSignalValueEnumName, SanitizeMessageNames, SanitizeSVENames, SanitizeSignalNames};
+use crate::middle_end::nodes::{AttachSignalValueEnumType, CheckMessageSignalUsage, CheckSignalLayoutValidity, CheckUniqueMessageIds, CheckZeroZeroRanges, ComputeBitvecPositions, DeduplicateSignalValueEnums, Diagnostics, InferSignalTypes, PrefixSignalValueEnumName, SanitizeMessageNames, SanitizeSVENames, SanitizeSignalNames};
 use crate::middle_end::pipeline::check_pipeline::CheckPipeline;
 use crate::utils::Language;
 use crate::{
@@ -45,6 +45,7 @@ impl App {
             .add(CheckZeroZeroRanges {zero_zero_range_allows_all: config.zero_zero_range_allows_all})
             .add(CheckUniqueMessageIds)
             .add(CheckSignalLayoutValidity)
+            .add(CheckMessageSignalUsage)
             .run(&dbc, &mut diagnostics);
 
         diagnostics.emit();
