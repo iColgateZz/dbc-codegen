@@ -1,6 +1,7 @@
 use embedded_can::{Frame, Id, StandardId, ExtendedId};
 use bitvec::prelude::*;
 use core::ops::BitOr;
+use core::convert::TryFrom;
 #[derive(Debug, Clone)]
 pub enum CanError {
     UnknownFrameId,
@@ -66,29 +67,25 @@ pub trait CanMessageTrait<const LEN: usize>: Sized {
 }
 #[derive(Debug, Clone)]
 pub enum Msg {
-    DriverHeartbeatMsg(DriverHeartbeatMsg),
-    IoDebugMsg(IoDebugMsg),
-    MotorCmdMsg(MotorCmdMsg),
-    MotorStatusMsg(MotorStatusMsg),
-    SensorSonarsMsg(SensorSonarsMsg),
-    DriverHeartbeatMsg1(DriverHeartbeatMsg1),
+    DriverHeartbeat(DriverHeartbeatMsg),
+    IoDebug(IoDebugMsg),
+    MotorCmd(MotorCmdMsg),
+    MotorStatus(MotorStatusMsg),
+    SensorSonars(SensorSonarsMsg),
 }
 impl Msg {
     fn try_from(frame: &impl Frame) -> Result<Self, CanError> {
         let result = match frame.id() {
             DriverHeartbeatMsg::ID => {
-                Msg::DriverHeartbeatMsg(DriverHeartbeatMsg::try_from_frame(frame)?)
+                Msg::DriverHeartbeat(DriverHeartbeatMsg::try_from_frame(frame)?)
             }
-            IoDebugMsg::ID => Msg::IoDebugMsg(IoDebugMsg::try_from_frame(frame)?),
-            MotorCmdMsg::ID => Msg::MotorCmdMsg(MotorCmdMsg::try_from_frame(frame)?),
+            IoDebugMsg::ID => Msg::IoDebug(IoDebugMsg::try_from_frame(frame)?),
+            MotorCmdMsg::ID => Msg::MotorCmd(MotorCmdMsg::try_from_frame(frame)?),
             MotorStatusMsg::ID => {
-                Msg::MotorStatusMsg(MotorStatusMsg::try_from_frame(frame)?)
+                Msg::MotorStatus(MotorStatusMsg::try_from_frame(frame)?)
             }
             SensorSonarsMsg::ID => {
-                Msg::SensorSonarsMsg(SensorSonarsMsg::try_from_frame(frame)?)
-            }
-            DriverHeartbeatMsg1::ID => {
-                Msg::DriverHeartbeatMsg1(DriverHeartbeatMsg1::try_from_frame(frame)?)
+                Msg::SensorSonars(SensorSonarsMsg::try_from_frame(frame)?)
             }
             _ => return Err(CanError::UnknownFrameId),
         };
@@ -798,14 +795,14 @@ impl SensorSonarsMsg {
         let b0 = BitArray::<_, LocalBits>::new(self.data);
         let b1 = BitArray::<_, LocalBits>::new(value.data);
         self.data = b0.bitor(b1).into_inner();
-        self.data.view_bits_mut::<Lsb0>()[0usize..4usize].store_le(0u64 as u8);
+        self.data.view_bits_mut::<Lsb0>()[0usize..4usize].store_le(0u64);
         Ok(())
     }
     pub fn set_mux1(&mut self, value: SensorSonarsMsgMux1) -> Result<(), CanError> {
         let b0 = BitArray::<_, LocalBits>::new(self.data);
         let b1 = BitArray::<_, LocalBits>::new(value.data);
         self.data = b0.bitor(b1).into_inner();
-        self.data.view_bits_mut::<Lsb0>()[0usize..4usize].store_le(1u64 as u8);
+        self.data.view_bits_mut::<Lsb0>()[0usize..4usize].store_le(1u64);
         Ok(())
     }
     ///SENSOR_SONARS_err_count
@@ -847,64 +844,6 @@ impl CanMessageTrait<{ Self::LEN }> for SensorSonarsMsg {
         Ok(Self { data: buf })
     }
     fn encode(&self) -> [u8; 8usize] {
-        self.data
-    }
-}
-///DRIVER_HEARTBEAT
-///- ID: Standard 100 (0x64)
-///- Size: 1 bytes
-///- Transmitter: DRIVER
-#[derive(Debug, Clone)]
-pub struct DriverHeartbeatMsg1 {
-    data: [u8; 1usize],
-}
-impl DriverHeartbeatMsg1 {
-    pub const ID: Id = Id::Standard(unsafe { StandardId::new_unchecked(100u16) });
-    pub const LEN: usize = 1usize;
-    pub fn new(driver_heartbeat_cmd: u8) -> Result<Self, CanError> {
-        let mut msg = Self { data: [0u8; Self::LEN] };
-        msg.set_driver_heartbeat_cmd(driver_heartbeat_cmd)?;
-        Ok(msg)
-    }
-    ///DRIVER_HEARTBEAT_cmd
-    ///- Min: 0
-    ///- Max: 0
-    ///- Unit:
-    ///- Receivers: SENSOR, MOTOR
-    ///- Start bit: 0
-    ///- Size: 8 bits
-    ///- Factor: 1
-    ///- Offset: 0
-    ///- Byte order: LittleEndian
-    ///- Type: unsigned
-    pub fn driver_heartbeat_cmd(&self) -> u8 {
-        let raw_driver_heartbeat_cmd = self
-            .data
-            .view_bits::<Lsb0>()[0usize..8usize]
-            .load_le::<u8>();
-        (raw_driver_heartbeat_cmd) * (1u8) + (0u8)
-    }
-    pub fn set_driver_heartbeat_cmd(&mut self, value: u8) -> Result<(), CanError> {
-        if value > 0u8 {
-            return Err(CanError::ValueOutOfRange);
-        }
-        self.data
-            .view_bits_mut::<Lsb0>()[0usize..8usize]
-            .store_le((value - (0u8)) / (1u8));
-        Ok(())
-    }
-}
-impl CanMessageTrait<{ Self::LEN }> for DriverHeartbeatMsg1 {
-    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
-        let data = frame.data();
-        if data.len() < Self::LEN {
-            return Err(CanError::InvalidPayloadSize);
-        }
-        let mut buf = [0u8; 1usize];
-        buf.copy_from_slice(&data[..1usize]);
-        Ok(Self { data: buf })
-    }
-    fn encode(&self) -> [u8; Self::LEN] {
         self.data
     }
 }

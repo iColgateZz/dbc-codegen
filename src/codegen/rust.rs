@@ -9,7 +9,6 @@ use crate::ir::signal::{MultiplexIndicator, Receiver, Signal};
 use crate::ir::signal_layout::{ByteOrder, SignalLayout};
 use crate::ir::signal_value_enum::SignalValueEnum;
 use crate::ir::signal_value_type::{IntReprType, RustFloatLiteral, RustIntegerLiteral, RustType};
-use heck::ToUpperCamelCase;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
@@ -135,8 +134,9 @@ impl ToTokens for MsgEnum<'_> {
         );
 
         let variants = self.messages.iter().map(|msg| {
-            let name = format_ident!("{}", msg.name.upper_camel());
-            quote! { #name(#name) }
+            let variant_name = format_ident!("{}", msg.name.upper_camel_with_numeric_postfix());
+            let struct_name = format_ident!("{}", msg.name.upper_camel());
+            quote! { #variant_name(#struct_name) }
         });
 
         quote! {
@@ -150,7 +150,8 @@ impl ToTokens for MsgEnum<'_> {
 
         let arms = self.messages.iter().map(|msg| {
             let name = format_ident!("{}", msg.name.upper_camel());
-            quote! { #name::ID => Msg::#name(#name::try_from_frame(frame)?) }
+            let variant_name = format_ident!("{}", msg.name.upper_camel_with_numeric_postfix());
+            quote! { #name::ID => Msg::#variant_name(#name::try_from_frame(frame)?) }
         });
 
         quote! {

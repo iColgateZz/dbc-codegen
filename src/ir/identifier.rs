@@ -42,6 +42,16 @@ impl Identifier {
             self.prefix = format!("x{}", self.prefix);
         }
     }
+
+    pub fn upper_camel_with_numeric_postfix(&self) -> String {
+        let numeric_postfix: String = self
+            .postfix
+            .chars()
+            .filter(|ch| ch.is_ascii_digit())
+            .collect();
+
+        format!("{}{}{}", self.prefix, self.raw, numeric_postfix).to_upper_camel_case()
+    }
 }
 
 pub fn is_valid_identifier(candidate: &str) -> bool {
