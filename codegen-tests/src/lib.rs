@@ -40,7 +40,7 @@ impl Drop for GeneratedFileGuard {
 
 const DBC_DIR: &str = "./shared-test-files";
 const GENERATED_FILE: &str = "../data/generated.rs";
-const VALIDATOR_CRATE: &str = "codegen-validator";
+const VALIDATOR_CRATE: &str = "data";
 
 fn _dbc_files() -> Vec<PathBuf> {
     let base = Path::new(DBC_DIR);
@@ -77,6 +77,7 @@ fn _run_codegen(input: &Path) -> Result<()> {
         no_enum_dedup: false,
         zero_zero_range_allows_all: false,
         rust_code_injections: HashMap::new(),
+        generate_tests: false,
     };
 
     App::run(config).context("codegen failed")?;

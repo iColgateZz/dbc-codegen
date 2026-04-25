@@ -21,6 +21,7 @@ pub struct CodegenConfig {
     pub no_enum_dedup: bool,
     pub zero_zero_range_allows_all: bool,
     pub rust_code_injections: HashMap<RustCodeInjectionPoint, Vec<String>>,
+    pub generate_tests: bool,
 }
 
 impl CodegenConfig {

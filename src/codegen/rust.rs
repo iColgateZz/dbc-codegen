@@ -8,7 +8,7 @@ use crate::ir::message::{Message, MessageId};
 use crate::ir::signal::{MultiplexIndicator, Receiver, Signal};
 use crate::ir::signal_layout::{ByteOrder, SignalLayout};
 use crate::ir::signal_value_enum::SignalValueEnum;
-use crate::ir::signal_value_type::{IntReprType, RustFloatLiteral, RustIntegerLiteral, RustType, PhysicalType};
+use crate::ir::signal_value_type::{IntReprType, PhysicalType, RustFloatLiteral, RustIntegerLiteral, RustType};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
@@ -62,6 +62,8 @@ impl RustGen {
             })
             .collect();
 
+        let tests = config.generate_tests.then_some(RustTestModule { file, config });
+
         let tokens = quote! {
             #imports
 
@@ -74,6 +76,8 @@ impl RustGen {
             #msg_enum
 
             #( #message_defs )*
+
+            #tests
         };
 
         let file: File = syn::parse2(tokens).unwrap();
@@ -777,6 +781,24 @@ impl<'a> SignalCtx<'a> {
         self.signal.physical_type.is_float()
     }
 
+    fn is_signed(&self) -> bool {
+        matches!(self.signal.physical_type, 
+            PhysicalType::Integer(IntReprType::I8) | 
+            PhysicalType::Integer(IntReprType::I16) | 
+            PhysicalType::Integer(IntReprType::I32) | 
+            PhysicalType::Integer(IntReprType::I64))
+    }
+
+    fn unsigned_rust_type_for_signed_int(&self) -> &str {
+        match self.signal.physical_type {
+            PhysicalType::Integer(IntReprType::I8) => "u8",
+            PhysicalType::Integer(IntReprType::I16) => "u16",
+            PhysicalType::Integer(IntReprType::I32) => "u32",
+            PhysicalType::Integer(IntReprType::I64) => "u64",
+            _ => panic!("only works on signed intergers"),
+        }
+    }
+
     fn is_bool(&self) -> bool {
         matches!(self.signal.physical_type, PhysicalType::Bool)
     }
@@ -893,7 +915,14 @@ impl<'a> SignalCtx<'a> {
         let order = self.bitvec_order();
         let load = self.load_fn();
 
-        if self.is_enum() || !self.is_float() {
+        if self.is_enum() {
+            let raw_ty = self.raw_rust_type();
+            quote! { let #raw = self.data.view_bits::<#order>()[#start..#end].#load::<#raw_ty>(); }
+        } else if self.is_signed() {
+            let ty = self.unsigned_rust_type_for_signed_int();
+            let ty = format_ident!("{ty}");
+            quote! { let #raw = self.data.view_bits::<#order>()[#start..#end].#load::<#ty>(); }
+        } else if !self.is_float() {
             let raw_ty = self.raw_rust_type();
             quote! { let #raw = self.data.view_bits::<#order>()[#start..#end].#load::<#raw_ty>(); }
         } else {
@@ -924,6 +953,11 @@ impl<'a> SignalCtx<'a> {
             let factor = self.factor_literal();
             let offset = self.offset_literal();
             let ty = format_ident!("{}", self.signal.physical_type.as_rust_type());
+            quote! { (#raw as #ty) * (#factor) + (#offset) }
+        } else if self.is_signed() {
+            let factor = self.factor_literal();
+            let offset = self.offset_literal();
+            let ty = self.rust_type();
             quote! { (#raw as #ty) * (#factor) + (#offset) }
         } else {
             let factor = self.factor_literal();
@@ -1074,5 +1108,319 @@ fn setter_doc(sig: &SignalCtx) -> TokenStream {
 
     quote! {
         #( #[doc = #lines] )*
+    }
+}
+
+struct RustTestModule<'a> {
+    file: &'a DbcFile,
+    config: &'a CodegenConfig,
+}
+
+impl ToTokens for RustTestModule<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let tests = self.file.messages.iter().filter_map(|msg| {
+            let signals: Vec<SignalCtx> = msg
+                .signal_idxs
+                .iter()
+                .map(|idx| SignalCtx::new(&self.file.signals[idx.0], self.file, self.config))
+                .collect();
+
+            let has_mux = signals.iter().any(|s| {
+                !matches!(s.signal.multiplexer, MultiplexIndicator::Plain)
+            });
+
+            if has_mux {
+                return None;
+            }
+
+            Some(PlainMessageTest {
+                msg,
+                signals,
+                config: self.config,
+            })
+        });
+
+        quote! {
+            #[cfg(test)]
+            mod generated_tests {
+                use super::*;
+                use arbitrary::Unstructured;
+
+                #( #tests )*
+            }
+        }
+        .to_tokens(tokens);
+    }
+}
+
+struct PlainMessageTest<'a> {
+    msg: &'a Message,
+    signals: Vec<SignalCtx<'a>>,
+    config: &'a CodegenConfig,
+}
+
+impl ToTokens for PlainMessageTest<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let msg_name = format_ident!("{}", self.msg.name.upper_camel());
+        let test_name = format_ident!("test_{}", self.msg.name.snake_case());
+
+        let first_values = self.signals.iter().map(|s| {
+            let var = format_ident!("{}_value", s.signal.name.snake_case());
+            s.test_value_statement(&var, format_ident!("u"))
+        });
+
+        let second_values = self.signals.iter().map(|s| {
+            let var = format_ident!("{}_next_value", s.signal.name.snake_case());
+            s.test_value_statement(&var, format_ident!("u"))
+        });
+
+        let constructor_args = self.signals.iter().map(|s| {
+            format_ident!("{}_value", s.signal.name.snake_case())
+        });
+
+        let first_getter_assertions = self.signals.iter().map(|s| {
+            let expected = format_ident!("{}_value", s.signal.name.snake_case());
+            s.test_getter_assertion(&expected)
+        });
+
+        let setter_calls = self.signals.iter().map(|s| {
+            let setter = s.setter_ident();
+            let value = format_ident!("{}_next_value", s.signal.name.snake_case());
+
+            quote! {
+                msg.#setter(#value).expect("setter should accept generated test value");
+            }
+        });
+
+        let second_getter_assertions = self.signals.iter().map(|s| {
+            let expected = format_ident!("{}_next_value", s.signal.name.snake_case());
+            s.test_getter_assertion(&expected)
+        });
+
+        quote! {
+            #[test]
+            fn #test_name(){
+                const SEEDS: &[&[u8]] = &[
+                    &[0u8; 128],
+                    &[1u8; 128],
+                    &[2u8; 128],
+                    &[3u8; 128],
+                    &[5u8; 128],
+                    &[8u8; 128],
+                    &[13u8; 128],
+                    &[21u8; 128],
+                    &[34u8; 128],
+                    &[55u8; 128],
+                ];
+
+                for seed in SEEDS {
+                    let mut u = Unstructured::new(seed);
+
+                    #( #first_values )*
+
+                    let mut msg = #msg_name::new(
+                        #( #constructor_args ),*
+                    ).expect("constructor should accept generated test values");
+
+                    #( #first_getter_assertions )*
+
+                    #( #second_values )*
+
+                    #( #setter_calls )*
+
+                    #( #second_getter_assertions )*
+                }
+            }
+        }
+        .to_tokens(tokens);
+    }
+}
+
+impl <'a> SignalCtx<'a> {
+    fn test_value_statement(&self, var: &Ident, arbitrary: Ident) -> TokenStream {
+        if self.is_enum() {
+            let enum_name = self.enum_ident();
+
+            if let Some(sve) = self.sve {
+                if let Some(first_variant) = sve.variants.first() {
+                    let variant = format_ident!("{}", first_variant.description);
+
+                    return quote! {
+                        let #var = #enum_name::#variant;
+                    };
+                }
+            }
+
+            return quote! {
+                let #var = unreachable!("signal value enum has no variants");
+            };
+        }
+
+        if self.is_bool() {
+            return quote! {
+                let #var: bool = #arbitrary.arbitrary().expect("failed to generate bool");
+            };
+        }
+
+        if self.is_float() {
+            return self.test_float_value_statement(var, arbitrary);
+        }
+
+        self.test_integer_value_statement(var, arbitrary)
+    }
+
+    fn test_getter_assertion(&self, expected: &Ident) -> TokenStream {
+        let getter = self.field_ident();
+
+        if self.is_enum() && self.config.no_enum_other {
+            quote! {
+                assert_eq!(
+                    msg.#getter().expect("enum getter should decode generated enum value"),
+                    #expected
+                );
+            }
+        } else if self.is_float() {
+            quote! {
+                let actual = msg.#getter();
+                let expected = #expected;
+                let tolerance = (expected.abs() * 0.0001).max(0.0001);
+                assert!(
+                    (actual - expected).abs() <= tolerance,
+                    "getter `{}` returned {:?}, expected {:?}",
+                    stringify!(#getter),
+                    actual,
+                    expected,
+                );
+            }
+        } else {
+            quote! {
+                assert_eq!(
+                    msg.#getter(),
+                    #expected,
+                    "getter `{}` returned unexpected value",
+                    stringify!(#getter),
+                );
+            }
+        }
+    }
+
+    fn test_integer_value_statement(&self, var: &Ident, arbitrary: Ident) -> TokenStream {
+        let ty = self.rust_type();
+
+        let min = self.f64_to_correct_literal_with_type(self.layout.min);
+        let max = self.f64_to_correct_literal_with_type(self.layout.max);
+
+        quote! {
+            let #var: #ty = {
+                let raw = #arbitrary
+                    .int_in_range(#min..=#max)
+                    .expect("failed to generate physical interger value");
+                raw
+            };
+        }
+    }
+
+    fn test_float_value_statement(&self, var: &Ident, arbitrary: Ident) -> TokenStream {
+        let ty = self.rust_type();
+
+        let raw_ty = self.int_repr_for_float();
+        let raw_min = self.raw_min_literal_for_unsigned_storage();
+        let raw_max = self.raw_max_literal_for_unsigned_storage();
+
+        let factor = self.factor_literal();
+        let offset = self.offset_literal();
+
+        let min = self.f64_to_correct_literal_with_type(self.layout.min);
+        let max = self.f64_to_correct_literal_with_type(self.layout.max);
+
+        let enforce_range = !(self.config.zero_zero_range_allows_all
+            && self.layout.min == 0.0
+            && self.layout.max == 0.0);
+
+        let range_guard = if enforce_range {
+            quote! {
+                if value >= #min && value <= #max {
+                    selected = Some(value);
+                    break;
+                }
+            }
+        } else {
+            quote! {
+                selected = Some(value);
+                break;
+            }
+        };
+
+        quote! {
+            let #var: #ty = {
+                let mut selected: Option<#ty> = None;
+
+                loop {
+                    let raw: #raw_ty = #arbitrary
+                        .int_in_range(#raw_min..=#raw_max)
+                        .expect("failed to generate raw float-backed signal value");
+
+                    let value: #ty = (raw as #ty) * (#factor) + (#offset);
+
+                    #range_guard
+                }
+
+                selected.expect("could not generate encodable float signal value")
+            };
+        }
+    }
+
+    fn raw_min_literal(&self) -> TokenStream {
+        let signed = matches!(
+            self.layout.value_type,
+            crate::ir::signal_layout::ValueType::Signed
+        );
+
+        let min = if signed {
+            if self.layout.size == 0 {
+                0i128
+            } else {
+                -(1i128 << (self.layout.size - 1))
+            }
+        } else {
+            0i128
+        };
+
+        TokenStream::from_str(&min.to_string()).unwrap()
+    }
+
+    fn raw_max_literal(&self) -> TokenStream {
+        let signed = matches!(
+            self.layout.value_type,
+            crate::ir::signal_layout::ValueType::Signed
+        );
+
+        let max = if signed {
+            if self.layout.size == 0 {
+                0i128
+            } else {
+                (1i128 << (self.layout.size - 1)) - 1
+            }
+        } else if self.layout.size >= 128 {
+            i128::MAX
+        } else {
+            (1i128 << self.layout.size) - 1
+        };
+
+        TokenStream::from_str(&max.to_string()).unwrap()
+    }
+
+    fn raw_min_literal_for_unsigned_storage(&self) -> TokenStream {
+        TokenStream::from_str("0").unwrap()
+    }
+
+    fn raw_max_literal_for_unsigned_storage(&self) -> TokenStream {
+        let max = if self.layout.size >= 128 {
+            i128::MAX
+        } else {
+            (1i128 << self.layout.size) - 1
+        };
+
+        TokenStream::from_str(&max.to_string()).unwrap()
     }
 }

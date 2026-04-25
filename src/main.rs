@@ -68,6 +68,9 @@ pub enum Command {
         /// allows all values representable by the signal encoding.
         #[arg(long, default_value = "false")]
         zero_zero_range_allows_all: bool,
+        /// Generate tests for messages
+        #[arg(long = "test", default_value = "false")]
+        generate_tests: bool,
     },
 }
 
@@ -97,6 +100,7 @@ fn main() {
             no_enum_other,
             no_enum_dedup,
             zero_zero_range_allows_all,
+            generate_tests,
         } => {
             let mut config = CodegenConfig {
                 inputs,
@@ -106,6 +110,7 @@ fn main() {
                 no_enum_dedup,
                 zero_zero_range_allows_all,
                 rust_code_injections: HashMap::new(),
+                generate_tests, 
             };
 
             // config.add_rust_code_injection(
