@@ -14,7 +14,7 @@ repository = "https://github.com/iColgateZz/dbc-codegen2"
 readme = "README.md"
 keywords = ["can", "dbc", "codegen", "embedded", "automotive"]
 categories = ["embedded", "automotive"]
-exclude = ["codegen-tests/*", "data/*", "resources/*"]
+exclude = ["codegen-tests/*", "data/*"]
 
 [dependencies]
 anyhow = "1"

@@ -28,6 +28,10 @@ impl CheckNode for CheckSignalLayoutValidity {
                     ));
                 }
 
+                if msg_bits == 0 {
+                    continue;
+                }
+
                 let max_start_bit = msg_bits - 1;
                 if layout.start_bit > max_start_bit {
                     diagnostics.error(format!(
