@@ -1,0 +1,4 @@
+utf8-problems -> files have invalid utf8 that cannot be parsed
+comptime-problems -> checker nodes find problems in dbc files and do not continue
+test-problems -> generated code does not pass the tests
+currently-work -> files that pass all tests
