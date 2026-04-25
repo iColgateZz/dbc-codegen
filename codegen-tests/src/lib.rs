@@ -77,7 +77,7 @@ fn _run_codegen(input: &Path) -> Result<()> {
         no_enum_dedup: false,
         zero_zero_range_allows_all: false,
         rust_code_injections: HashMap::new(),
-        generate_tests: false,
+        generate_tests: true,
     };
 
     App::run(config).context("codegen failed")?;
@@ -92,6 +92,19 @@ fn _cargo_check_data_crate() -> Result<()> {
 
     if !status.success() {
         anyhow::bail!("cargo check failed");
+    }
+
+    Ok(())
+}
+
+fn _cargo_test_data_crate() -> Result<()> {
+    let status = Command::new("cargo")
+        .args(["test", "-p", VALIDATOR_CRATE])
+        .status()
+        .context("failed to run cargo test")?;
+
+    if !status.success() {
+        anyhow::bail!("cargo test failed");
     }
 
     Ok(())
@@ -115,13 +128,11 @@ fn test_all_dbc_files() -> Result<()> {
                 _run_codegen(&file)
                     .with_context(|| format!("Codegen failed for {:?}", file))?;
 
-                Command::new("cargo")
-                    .args(["clean", "-p", VALIDATOR_CRATE])
-                    .status()
-                    .ok();
-
                 _cargo_check_data_crate()
                     .with_context(|| format!("Compilation failed for {:?}", file))?;
+
+                _cargo_test_data_crate()
+                    .with_context(|| format!("Test failed for {:?}", file))?;
 
                 Ok(())
             })()
