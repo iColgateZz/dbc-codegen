@@ -188,6 +188,30 @@ impl IntReprType {
     pub fn is_unsigned(&self) -> bool {
         matches!(self, Self::U8 | Self::U16 | Self::U32 | Self::U64)
     }
+
+    pub fn from_min_max(min: i128, max: i128) -> Self {
+        if min < 0 {
+            if min >= i8::MIN as i128 && max <= i8::MAX as i128 {
+                IntReprType::I8
+            } else if min >= i16::MIN as i128 && max <= i16::MAX as i128 {
+                IntReprType::I16
+            } else if min >= i32::MIN as i128 && max <= i32::MAX as i128 {
+                IntReprType::I32
+            } else {
+                IntReprType::I64
+            }
+        } else {
+            if max <= u8::MAX as i128 {
+                IntReprType::U8
+            } else if max <= u16::MAX as i128 {
+                IntReprType::U16
+            } else if max <= u32::MAX as i128 {
+                IntReprType::U32
+            } else {
+                IntReprType::U64
+            }
+        }
+    }
 }
 
 impl RustType for IntReprType {

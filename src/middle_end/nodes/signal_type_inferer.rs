@@ -80,13 +80,15 @@ fn infer_physical_type(sig: &Signal, sig_layout: &SignalLayout, sve_option: Opti
     match &sig.raw_type {
         RawType::Float32 => PhysicalType::Float32,
         RawType::Float64 => PhysicalType::Float64,
-        RawType::Integer(int_repr) => {
+        RawType::Integer(_int_repr) => {
             if is_bool_signal(sig_layout) {
                 PhysicalType::Bool
             } else if is_float_scaled(sig_layout) {
                 PhysicalType::Float32
             } else {
-                PhysicalType::Integer(*int_repr)
+                let min = sig_layout.min as i128;
+                let max = sig_layout.max as i128;
+                PhysicalType::Integer(IntReprType::from_min_max(min, max))
             }
         }
     }
