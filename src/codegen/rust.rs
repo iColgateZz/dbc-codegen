@@ -790,6 +790,7 @@ impl<'a> SignalCtx<'a> {
     }
 
     fn unsigned_rust_type_for_signed_int(&self) -> &str {
+        //TODO: should probably match on raw type
         match self.signal.physical_type {
             PhysicalType::Integer(IntReprType::I8) => "u8",
             PhysicalType::Integer(IntReprType::I16) => "u16",

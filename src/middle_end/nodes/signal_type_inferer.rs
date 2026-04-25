@@ -86,8 +86,7 @@ fn infer_physical_type(sig: &Signal, sig_layout: &SignalLayout, sve_option: Opti
             } else if is_float_scaled(sig_layout) {
                 PhysicalType::Float32
             } else {
-                let min = sig_layout.min as i128;
-                let max = sig_layout.max as i128;
+                let (min, max) = physical_integer_range(sig_layout);
                 PhysicalType::Integer(IntReprType::from_min_max(min, max))
             }
         }
@@ -102,4 +101,49 @@ fn is_bool_signal(sig_layout: &SignalLayout) -> bool {
 
 fn is_float_scaled(sig_layout: &SignalLayout) -> bool {
     sig_layout.factor.fract() != 0.0 || sig_layout.offset.fract() != 0.0
+}
+
+fn physical_integer_range(
+    sig_layout: &SignalLayout,
+) -> (i128, i128) {
+    let dbc_range_is_unspecified = sig_layout.min == 0.0 && sig_layout.max == 0.0;
+
+    if !dbc_range_is_unspecified {
+        return (sig_layout.min as i128, sig_layout.max as i128);
+    }
+
+    let (raw_min, raw_max) = raw_integer_range(sig_layout);
+
+    let factor = sig_layout.factor as i128;
+    let offset = sig_layout.offset as i128;
+
+    let a = raw_min * factor + offset;
+    let b = raw_max * factor + offset;
+
+    if a <= b {
+        (a, b)
+    } else {
+        (b, a)
+    }
+}
+
+fn raw_integer_range(
+    sig_layout: &SignalLayout,
+) -> (i128, i128) {
+    let signed = matches!(sig_layout.value_type, ValueType::Signed);
+    let size = sig_layout.size;
+
+    if size == 0 {
+        return (0, 0);
+    }
+
+    if signed {
+        let min = -(1i128 << (size - 1));
+        let max = (1i128 << (size - 1)) - 1;
+        (min, max)
+    } else {
+        let min = 0;
+        let max = (1i128 << size) - 1;
+        (min, max)
+    }
 }
