@@ -1,0 +1,45 @@
+VERSION ""
+
+
+NS_ :
+
+BS_:
+
+BU_: Vector__XXX
+
+BO_ 0 Test_input: 8 Vector__XXX
+SG_ Test_input_Mux M : 56|4@1+ (1,0) [0|0] "" Vector__XXX
+SG_ Var1 m0 : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+SG_ Var2 m1 : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+SG_ Var3 m2 : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+SG_ Var4 m3 : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+
+BO_ 1 Test_output: 8 Vector__XXX
+SG_ Test_output_Mux M : 56|4@1+ (1,0) [0|0] "" Vector__XXX
+SG_ Var5 m0 : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+SG_ Var6 m1 : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+SG_ Var7 m2 : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+SG_ Var8 m3 : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+
+BA_DEF_  "BusType" STRING ;
+BA_DEF_ SG_  "GenSigStartValue" FLOAT -3.4E+038 3.4E+038;
+
+BA_DEF_DEF_  "BusType" "CAN";
+BA_DEF_DEF_  "GenSigStartValue" 0;
+
+BA_ "BusType" "CAN";
+
+BA_ "GenSigStartValue" SG_ 0 Var1 0;
+BA_ "GenSigStartValue" SG_ 0 Var2 0;
+BA_ "GenSigStartValue" SG_ 0 Var3 0;
+BA_ "GenSigStartValue" SG_ 0 Var4 0;
+BA_ "GenSigStartValue" SG_ 1 Var5 0;
+BA_ "GenSigStartValue" SG_ 1 Var6 0;
+BA_ "GenSigStartValue" SG_ 1 Var7 0;
+BA_ "GenSigStartValue" SG_ 1 Var8 0;
+
+VAL_ 0 Test_input_Mux 0 "Multiplexer1" 1 "Multiplexer2" 2 "Multiplexer3" 3 "Multiplexer4" ;
+VAL_ 1 Test_output_Mux 0 "Multiplexer1_out" 1 "Multiplexer2_out" 2 "Multiplexer3_out" 3 "Multiplexer4_out" ;
+

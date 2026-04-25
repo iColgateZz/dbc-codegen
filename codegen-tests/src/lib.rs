@@ -38,7 +38,7 @@ impl Drop for GeneratedFileGuard {
     }
 }
 
-const DBC_DIR: &str = "./shared-test-files";
+const DBC_DIR: &str = "./test-files";
 const GENERATED_FILE: &str = "../data/generated.rs";
 const VALIDATOR_CRATE: &str = "data";
 
