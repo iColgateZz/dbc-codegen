@@ -59,13 +59,16 @@ impl DriverHeartbeatMsg {
     ///- Type: unsigned
     pub fn temp(&self) -> i8 {
         let raw_temp = self.data.view_bits::<Lsb0>()[0usize..8usize].load_le::<u8>();
-        (raw_temp as i8) * (1i8) + (-128i8)
+        (raw_temp as i8).saturating_mul(1i8).saturating_add(-128i8)
     }
     ///Set value of temp
     ///- Min: -128
     ///- Max: 127
     pub fn set_temp(&mut self, value: i8) -> Result<(), CanError> {
-        let raw_value = ((value - (-128i8)) / (1i8)) as u8;
+        let raw_value = value
+            .checked_sub(-128i8)
+            .and_then(|v| v.checked_div(1i8))
+            .ok_or(CanError::ValueOutOfRange)? as u8;
         let storage_value = raw_value as u8;
         self.data.view_bits_mut::<Lsb0>()[0usize..8usize].store_le(storage_value);
         Ok(())
@@ -102,6 +105,10 @@ mod generated_tests {
         &[21u8; 128],
         &[34u8; 128],
         &[55u8; 128],
+        &[89u8; 128],
+        &[134u8; 128],
+        &[223u8; 128],
+        &[255u8; 128],
     ];
     #[test]
     fn test_driver_heartbeat_msg() {
