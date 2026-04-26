@@ -17,7 +17,8 @@ impl CheckNode for CheckSignalPhysicalRangeRepresentable {
                 let sig = &file.signals[sig_idx.0];
                 let layout = &file.signal_layouts[sig.layout.0];
 
-                //checking does not make much sense when range is [0|0]
+                //TODO: checking does not make much sense when range is [0|0].
+                //      use inferred type bounds instead?
                 if self.zero_zero_range_allows_all
                     && layout.min == 0.0
                     && layout.max == 0.0
