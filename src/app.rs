@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::codegen;
 use crate::codegen::config::CodegenConfig;
-use crate::middle_end::nodes::{AttachSignalValueEnumType, CheckEnumVariants, CheckMessageSignalUsage, CheckSignalLayoutValidity, CheckSignalPhysicalRangeRepresentable, CheckUniqueMessageIds, CheckUnsupportedMultiplexing, CheckZeroZeroRanges, ComputeBitvecPositions, DeduplicateSignalValueEnums, Diagnostics, InferSignalTypes, PrefixSignalValueEnumName, SanitizeMessageNames, SanitizeSVENames, SanitizeSignalNames};
+use crate::middle_end::nodes::{AttachSignalValueEnumType, CheckEnumVariants, CheckMessageSignalUsage, CheckSignalLayoutValidity, CheckSignalScalingArithmeticSafety, CheckSignalPhysicalRangeRepresentable, CheckUniqueMessageIds, CheckUnsupportedMultiplexing, CheckZeroZeroRanges, ComputeBitvecPositions, DeduplicateSignalValueEnums, Diagnostics, InferSignalTypes, PrefixSignalValueEnumName, SanitizeMessageNames, SanitizeSVENames, SanitizeSignalNames};
 use crate::middle_end::pipeline::check_pipeline::CheckPipeline;
 use crate::utils::Language;
 use crate::{
@@ -38,6 +38,7 @@ impl App {
 
         TransformationPipeline::new()
             .add(ComputeBitvecPositions)
+            .add(InferSignalTypes)
             .run(&mut dbc);
 
         let mut diagnostics = Diagnostics::default();
@@ -49,6 +50,7 @@ impl App {
             .add(CheckUnsupportedMultiplexing)
             .add(CheckEnumVariants)
             .add(CheckSignalPhysicalRangeRepresentable {zero_zero_range_allows_all: config.zero_zero_range_allows_all})
+            .add(CheckSignalScalingArithmeticSafety)
             .run(&dbc, &mut diagnostics);
 
         diagnostics.emit();
@@ -59,7 +61,6 @@ impl App {
 
         TransformationPipeline::new()
             .add(SanitizeSignalEnumVariantNames)
-            .add(InferSignalTypes)
             .add(DeduplicateSignalValueEnums {dedup_enabled: !config.no_enum_dedup})
             .add(PrefixSignalValueEnumName {dedup_enabled: !config.no_enum_dedup})
             .add(AttachSignalValueEnumType)

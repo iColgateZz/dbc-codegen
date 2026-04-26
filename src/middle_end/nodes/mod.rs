@@ -16,6 +16,7 @@ pub mod message_signal_usage_checker;
 pub mod unsupported_multiplexing_checker;
 pub mod sve_variant_checker;
 pub mod signal_range_checker;
+pub mod signal_scaling_safety_checker;
 
 pub use sve_variant_sanitizer::*;
 pub use signal_type_inferer::*;
@@ -35,3 +36,4 @@ pub use message_signal_usage_checker::*;
 pub use unsupported_multiplexing_checker::*;
 pub use sve_variant_checker::*;
 pub use signal_range_checker::*;
+pub use signal_scaling_safety_checker::*;
