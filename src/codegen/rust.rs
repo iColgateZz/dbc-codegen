@@ -1324,10 +1324,23 @@ impl ToTokens for MultiplexedMessageTest<'_> {
             s.test_getter_assertion(&expected)
         }).collect();
 
-        let variant_tests = self.muxed.iter().map(|(idx, sigs)| {
+        let mux_entries: Vec<_> = self.muxed.iter().collect();
+
+        let variant_tests = mux_entries.iter().enumerate().map(|(entry_idx, &(idx, sigs))| {
+            let next_entry_idx = if mux_entries.len() > 1 {
+                (entry_idx + 1) % mux_entries.len()
+            } else {
+                entry_idx
+            };
+
+            let (next_idx, next_sigs) = mux_entries[next_entry_idx];
+
             let variant = format_ident!("V{}", idx);
             let variant_struct_name = format_ident!("{}Mux{}", msg_name, idx);
-            let mux_setter = format_ident!("set_mux{}", idx);
+
+            let next_variant = format_ident!("V{}", next_idx);
+            let next_variant_struct_name = format_ident!("{}Mux{}", msg_name, next_idx);
+            let next_mux_setter = format_ident!("set_mux{}", next_idx);
 
             let first_values = sigs.iter().map(|s| {
                 let var = format_ident!("{}_value", s.signal.name.snake_case());
@@ -1363,9 +1376,43 @@ impl ToTokens for MultiplexedMessageTest<'_> {
                 s.test_getter_assertion_on(&format_ident!("mux_msg"), &expected)
             });
 
-            let remux_getter_assertions = sigs.iter().map(|s| {
-                let expected = format_ident!("{}_next_value", s.signal.name.snake_case());
-                s.test_getter_assertion_on(&format_ident!("mux_msg"), &expected)
+            let next_first_values = next_sigs.iter().map(|s| {
+                let var = format_ident!("{}_switch_value", s.signal.name.snake_case());
+                s.test_value_statement(&var, format_ident!("u"))
+            });
+
+            let next_second_values = next_sigs.iter().map(|s| {
+                let var = format_ident!("{}_switch_next_value", s.signal.name.snake_case());
+                s.test_value_statement(&var, format_ident!("u"))
+            });
+
+            let next_constructor_args = next_sigs.iter().map(|s| {
+                format_ident!("{}_switch_value", s.signal.name.snake_case())
+            });
+
+            let next_first_getter_assertions = next_sigs.iter().map(|s| {
+                let expected = format_ident!("{}_switch_value", s.signal.name.snake_case());
+                s.test_getter_assertion_on(&format_ident!("next_mux_msg"), &expected)
+            });
+
+            let next_setter_calls = next_sigs.iter().map(|s| {
+                let setter = s.setter_ident();
+                let value = format_ident!("{}_switch_next_value", s.signal.name.snake_case());
+
+                quote! {
+                    next_mux_msg.#setter(#value)
+                        .expect("next mux variant setter should accept generated test value");
+                }
+            });
+
+            let next_second_getter_assertions = next_sigs.iter().map(|s| {
+                let expected = format_ident!("{}_switch_next_value", s.signal.name.snake_case());
+                s.test_getter_assertion_on(&format_ident!("next_mux_msg"), &expected)
+            });
+
+            let next_remux_getter_assertions = next_sigs.iter().map(|s| {
+                let expected = format_ident!("{}_switch_next_value", s.signal.name.snake_case());
+                s.test_getter_assertion_on(&format_ident!("next_mux_msg"), &expected)
             });
 
             quote! {
@@ -1398,15 +1445,36 @@ impl ToTokens for MultiplexedMessageTest<'_> {
                     #( #setter_calls )*
                     #( #second_getter_assertions )*
 
-                    msg.#mux_setter(mux_msg)
-                        .expect("mux setter should accept generated mux variant");
+                    #( #next_first_values )*
 
-                    let mux_msg = match msg.mux().expect("mux getter should decode updated mux value") {
-                        #mux_enum_name::#variant(v) => v,
-                        _ => panic!("mux getter returned wrong variant after update"),
+                    let next_mux_msg = #next_variant_struct_name::new(
+                        #( #next_constructor_args ),*
+                    ).expect("next mux variant constructor should accept generated test values");
+
+                    msg.#next_mux_setter(next_mux_msg)
+                        .expect("mux setter should accept generated next mux variant");
+
+                    let mut next_mux_msg = match msg.mux().expect("mux getter should decode switched mux value") {
+                        #mux_enum_name::#next_variant(v) => v,
+                        _ => panic!("mux getter returned wrong variant after switching mux value"),
                     };
 
-                    #( #remux_getter_assertions )*
+                    #( #next_first_getter_assertions )*
+
+                    #( #next_second_values )*
+                    #( #next_setter_calls )*
+                    #( #next_second_getter_assertions )*
+
+                    msg.#next_mux_setter(next_mux_msg)
+                        .expect("mux setter should accept updated next mux variant");
+
+                    let next_mux_msg = match msg.mux().expect("mux getter should decode updated switched mux value") {
+                        #mux_enum_name::#next_variant(v) => v,
+                        _ => panic!("mux getter returned wrong variant after updating switched mux value"),
+                    };
+
+                    #( #next_remux_getter_assertions )*
+                    #( #plain_second_getter_assertions )*
                 }
             }
         });
