@@ -1167,7 +1167,6 @@ impl ToTokens for RustTestModule<'_> {
                 PlainMessageTest {
                     msg,
                     signals: plain,
-                    config: self.config,
                 }
                 .to_token_stream()
             } else {
@@ -1213,7 +1212,6 @@ impl ToTokens for RustTestModule<'_> {
 struct PlainMessageTest<'a> {
     msg: &'a Message,
     signals: Vec<SignalCtx<'a>>,
-    config: &'a CodegenConfig,
 }
 
 impl ToTokens for PlainMessageTest<'_> {
