@@ -29,6 +29,7 @@ impl CppGen {
 
         Self::includes(&mut out);
         Self::errors(&mut out);
+        Self::message_interface(&mut out);
         Self::endian_read_and_write(&mut out);
 
         let mut emitted_enum_idxs = std::collections::BTreeSet::new();
@@ -225,12 +226,16 @@ impl CppGen {
     fn emit_try_from_frame(out: &mut Generator, msg_name: &str) {
         start_block!(
             out,
-            "[[nodiscard]] static std::expected<{}, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept",
+            "[[nodiscard]] static std::expected<{}, CanError> try_from_frame(uint32_t id, std::span<const uint8_t> frame) noexcept",
             msg_name
         );
         line!(
             out,
             "if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);"
+        );
+        line!(
+            out,
+            "if (id != static_cast<uint32_t>(ID)) return std::unexpected(CanError::InvalidFrameId);"
         );
         line!(out, "{} msg{{}};", msg_name);
         line!(out, "std::memcpy(msg.data_.data(), frame.data(), LEN);");
@@ -283,6 +288,7 @@ impl CppGen {
             "UnknownFrameId",
             "UnknownMuxValue",
             "InvalidPayloadSize",
+            "InvalidFrameId",
             "ValueOutOfRange",
             "InvalidEnumValue",
         ];
@@ -292,6 +298,20 @@ impl CppGen {
             line!(out, "{},", error);
         }
         end_block!(out, "");
+        empty!(out);
+    }
+
+    fn message_interface(out: &mut Generator) {
+        line!(out, "template <typename Msg>");
+        line!(
+            out,
+            "concept GeneratedCanMessage = requires(uint32_t id, std::span<const uint8_t> frame, const Msg& msg) {{"
+        );
+        line!(out, "  Msg::ID;");
+        line!(out, "  Msg::LEN;");
+        line!(out, "  {{ Msg::try_from_frame(id, frame) }};");
+        line!(out, "  {{ msg.encode() }};");
+        line!(out, "}};");
         empty!(out);
     }
 
@@ -952,6 +972,7 @@ impl CppGen {
                 Self::emit_data_storage(out, None);
 
                 end_block!(out, "");
+                line!(out, "static_assert(GeneratedCanMessage<{}>);", msg_name);
                 empty!(out);
             }
 
@@ -1100,6 +1121,7 @@ impl CppGen {
                 Self::emit_data_storage(out, None);
 
                 end_block!(out, "");
+                line!(out, "static_assert(GeneratedCanMessage<{}>);", msg_name);
                 empty!(out);
             }
         }
@@ -1127,7 +1149,7 @@ impl CppGen {
             let name = msg.name.upper_camel();
             line!(out, "case {}::ID:", name);
             start_block!(out, "");
-            line!(out, "auto r = {}::try_from_frame(frame);", name);
+            line!(out, "auto r = {}::try_from_frame(id, frame);", name);
             line!(out, "if (!r) return std::unexpected(r.error());");
             line!(out, "return CanMsg{{std::move(*r)}};");
             end_block!(out, "");

@@ -13,8 +13,17 @@ enum class CanError : uint8_t {
   UnknownFrameId,
   UnknownMuxValue,
   InvalidPayloadSize,
+  InvalidFrameId,
   ValueOutOfRange,
   InvalidEnumValue,
+};
+
+template <typename Msg>
+concept GeneratedCanMessage = requires(uint32_t id, std::span<const uint8_t> frame, const Msg& msg) {
+  Msg::ID;
+  Msg::LEN;
+  { Msg::try_from_frame(id, frame) };
+  { msg.encode() };
 };
 
 namespace detail {
@@ -149,8 +158,9 @@ class DriverHeartbeatMsg {
     return msg;
   };
   
-  [[nodiscard]] static std::expected<DriverHeartbeatMsg, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept {
+  [[nodiscard]] static std::expected<DriverHeartbeatMsg, CanError> try_from_frame(uint32_t id, std::span<const uint8_t> frame) noexcept {
     if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != static_cast<uint32_t>(ID)) return std::unexpected(CanError::InvalidFrameId);
     DriverHeartbeatMsg msg{};
     std::memcpy(msg.data_.data(), frame.data(), LEN);
     return msg;
@@ -184,6 +194,7 @@ class DriverHeartbeatMsg {
   private:
   std::array<uint8_t, LEN> data_{};
 };
+static_assert(GeneratedCanMessage<DriverHeartbeatMsg>);
 
 /**
  * IO_DEBUG
@@ -210,8 +221,9 @@ class IoDebugMsg {
     return msg;
   };
   
-  [[nodiscard]] static std::expected<IoDebugMsg, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept {
+  [[nodiscard]] static std::expected<IoDebugMsg, CanError> try_from_frame(uint32_t id, std::span<const uint8_t> frame) noexcept {
     if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != static_cast<uint32_t>(ID)) return std::unexpected(CanError::InvalidFrameId);
     IoDebugMsg msg{};
     std::memcpy(msg.data_.data(), frame.data(), LEN);
     return msg;
@@ -317,6 +329,7 @@ class IoDebugMsg {
   private:
   std::array<uint8_t, LEN> data_{};
 };
+static_assert(GeneratedCanMessage<IoDebugMsg>);
 
 /**
  * MOTOR_CMD
@@ -339,8 +352,9 @@ class MotorCmdMsg {
     return msg;
   };
   
-  [[nodiscard]] static std::expected<MotorCmdMsg, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept {
+  [[nodiscard]] static std::expected<MotorCmdMsg, CanError> try_from_frame(uint32_t id, std::span<const uint8_t> frame) noexcept {
     if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != static_cast<uint32_t>(ID)) return std::unexpected(CanError::InvalidFrameId);
     MotorCmdMsg msg{};
     std::memcpy(msg.data_.data(), frame.data(), LEN);
     return msg;
@@ -399,6 +413,7 @@ class MotorCmdMsg {
   private:
   std::array<uint8_t, LEN> data_{};
 };
+static_assert(GeneratedCanMessage<MotorCmdMsg>);
 
 /**
  * MOTOR_STATUS
@@ -421,8 +436,9 @@ class MotorStatusMsg {
     return msg;
   };
   
-  [[nodiscard]] static std::expected<MotorStatusMsg, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept {
+  [[nodiscard]] static std::expected<MotorStatusMsg, CanError> try_from_frame(uint32_t id, std::span<const uint8_t> frame) noexcept {
     if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != static_cast<uint32_t>(ID)) return std::unexpected(CanError::InvalidFrameId);
     MotorStatusMsg msg{};
     std::memcpy(msg.data_.data(), frame.data(), LEN);
     return msg;
@@ -480,6 +496,7 @@ class MotorStatusMsg {
   private:
   std::array<uint8_t, LEN> data_{};
 };
+static_assert(GeneratedCanMessage<MotorStatusMsg>);
 
 class SensorSonarsMsgMux0 {
   public:
@@ -752,8 +769,9 @@ class SensorSonarsMsg {
     return msg;
   };
   
-  [[nodiscard]] static std::expected<SensorSonarsMsg, CanError> try_from_frame(std::span<const uint8_t> frame) noexcept {
+  [[nodiscard]] static std::expected<SensorSonarsMsg, CanError> try_from_frame(uint32_t id, std::span<const uint8_t> frame) noexcept {
     if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != static_cast<uint32_t>(ID)) return std::unexpected(CanError::InvalidFrameId);
     SensorSonarsMsg msg{};
     std::memcpy(msg.data_.data(), frame.data(), LEN);
     return msg;
@@ -820,6 +838,7 @@ class SensorSonarsMsg {
   private:
   std::array<uint8_t, LEN> data_{};
 };
+static_assert(GeneratedCanMessage<SensorSonarsMsg>);
 
 using CanMsg = std::variant<DriverHeartbeatMsg, IoDebugMsg, MotorCmdMsg, MotorStatusMsg, SensorSonarsMsg>;
 
@@ -829,31 +848,31 @@ parse_can(uint32_t id, std::span<const uint8_t> frame) noexcept {
   switch (id) {
     case DriverHeartbeatMsg::ID:
      {
-      auto r = DriverHeartbeatMsg::try_from_frame(frame);
+      auto r = DriverHeartbeatMsg::try_from_frame(id, frame);
       if (!r) return std::unexpected(r.error());
       return CanMsg{std::move(*r)};
     };
     case IoDebugMsg::ID:
      {
-      auto r = IoDebugMsg::try_from_frame(frame);
+      auto r = IoDebugMsg::try_from_frame(id, frame);
       if (!r) return std::unexpected(r.error());
       return CanMsg{std::move(*r)};
     };
     case MotorCmdMsg::ID:
      {
-      auto r = MotorCmdMsg::try_from_frame(frame);
+      auto r = MotorCmdMsg::try_from_frame(id, frame);
       if (!r) return std::unexpected(r.error());
       return CanMsg{std::move(*r)};
     };
     case MotorStatusMsg::ID:
      {
-      auto r = MotorStatusMsg::try_from_frame(frame);
+      auto r = MotorStatusMsg::try_from_frame(id, frame);
       if (!r) return std::unexpected(r.error());
       return CanMsg{std::move(*r)};
     };
     case SensorSonarsMsg::ID:
      {
-      auto r = SensorSonarsMsg::try_from_frame(frame);
+      auto r = SensorSonarsMsg::try_from_frame(id, frame);
       if (!r) return std::unexpected(r.error());
       return CanMsg{std::move(*r)};
     };
