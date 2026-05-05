@@ -1,0 +1,53 @@
+VERSION ""
+
+NS_ :
+	BA_
+	BA_DEF_
+	BA_DEF_DEF_
+	BA_DEF_DEF_REL_
+	BA_DEF_REL_
+	BA_DEF_SGTYPE_
+	BA_REL_
+	BA_SGTYPE_
+	BO_TX_BU_
+	BU_BO_REL_
+	BU_EV_REL_
+	BU_SG_REL_
+	CAT_
+	CAT_DEF_
+	CM_
+	ENVVAR_DATA_
+	EV_DATA_
+	FILTER
+	NS_DESC_
+	SGTYPE_
+	SGTYPE_VAL_
+	SG_MUL_VAL_
+	SIGTYPE_VALTYPE_
+	SIG_GROUP_
+	SIG_TYPE_REF_
+	SIG_VALTYPE_
+	VAL_
+	VAL_TABLE_
+
+BS_:
+
+BU_: DBG DRIVER IO MOTOR SENSOR
+
+BO_ 200 SENSOR_SONARS: 8 SENSOR
+ SG_ SENSOR_SONARS_mux M : 0|4@1+ (1,0) [0|15] "" DRIVER,IO
+ SG_ SENSOR_SONARS_err_count : 4|12@1+ (1,0) [0|4095] "" DRIVER,IO
+ SG_ SENSOR_SONARS_left m0 : 16|12@1+ (0.1,0) [0|409.5] "" DRIVER,IO
+ SG_ SENSOR_SONARS_middle m0 : 28|12@1+ (0.1,0) [0|409.5] "" DRIVER,IO
+ SG_ SENSOR_SONARS_right m0 : 40|12@1+ (0.1,0) [0|409.5] "" DRIVER,IO
+ SG_ SENSOR_SONARS_rear m0 : 52|12@1+ (0.1,0) [0|409.5] "" DRIVER,IO
+ SG_ SENSOR_SONARS_no_filt_left m1 : 16|12@1+ (0.1,0) [0|409.5] "" DBG
+ SG_ SENSOR_SONARS_no_filt_middle m1 : 28|12@1+ (0.1,0) [0|409.5] "" DBG
+ SG_ SENSOR_SONARS_no_filt_right m1 : 40|12@1+ (0.1,0) [0|409.5] "" DBG
+ SG_ SENSOR_SONARS_no_filt_rear m1 : 52|12@1+ (0.1,0) [0|409.5] "" DBG
+
+
+CM_ BU_ DRIVER "The driver controller driving the car";
+CM_ BU_ MOTOR "The motor controller of the car";
+CM_ BU_ SENSOR "The sensor controller of the car";
+CM_ BO_ 100 "Sync message used to synchronize the controllers";
