@@ -11,4 +11,5 @@ pub mod utils;
 
 pub use app::CodegenPipeline;
 pub use codegen::config::CodegenConfig;
+pub use codegen::config::RustCodeInjectionPoint;
 pub use utils::Language;

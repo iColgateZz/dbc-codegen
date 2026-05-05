@@ -140,14 +140,10 @@ dbc-codegen2 gen network_a.dbc network_b.dbc -o generated/network
 
 ## Library usage
 
-Library entry point is `App::run`, using `CodegenConfig`.
+Library entry point is `CodegenPipeline::run`, using `CodegenConfig`.
 
 ```rust
-use dbc_codegen2::{
-    app::App,
-    codegen::config::CodegenConfig,
-    utils::Language,
-};
+use dbc_codegen2::{CodegenPipeline, CodegenConfig, Language};
 use std::collections::HashMap;
 
 fn main() -> anyhow::Result<()> {
@@ -162,7 +158,7 @@ fn main() -> anyhow::Result<()> {
         generate_tests: true,
     };
 
-    App::run(config)
+    CodegenPipeline::run(config)
 }
 ```
 
@@ -184,11 +180,7 @@ Available injection points are:
 Example:
 
 ```rust
-use dbc_codegen2::{
-    app::App,
-    codegen::config::{CodegenConfig, RustCodeInjectionPoint},
-    utils::Language,
-};
+use dbc_codegen2::{CodegenPipeline, CodegenConfig, Language, RustCodeInjectionPoint};
 use std::collections::HashMap;
 
 fn main() -> anyhow::Result<()> {
@@ -213,7 +205,7 @@ fn main() -> anyhow::Result<()> {
         "#[cfg_attr(feature = \"defmt\", derive(defmt::Format))]",
     );
 
-    App::run(config)
+    CodegenPipeline::run(config)
 }
 ```
 
