@@ -2,6 +2,7 @@ use can_dbc::Dbc as ParsedDbc;
 use std::fs;
 use std::path::PathBuf;
 
+use anyhow::Context;
 use crate::codegen;
 use crate::codegen::config::CodegenConfig;
 use crate::middle_end::nodes::{
@@ -27,20 +28,22 @@ impl App {
     pub fn run(config: CodegenConfig) -> anyhow::Result<()> {
         let mut parsed_dbcs = config.inputs.iter().map(|input| {
             let data = fs::read_to_string(input)
-                .unwrap_or_else(|e| panic!("Unable to read input file `{input}`: {e}"));
+                    .with_context(|| format!("Unable to read input file `{input}`"))?;
 
-            ParsedDbc::try_from(data.as_str())
-                .unwrap_or_else(|e| panic!("Unable to parse input file `{input}`: {e}"))
+                ParsedDbc::try_from(data.as_str())
+                    .with_context(|| format!("Unable to parse input file `{input}`"))
         });
 
         let first = parsed_dbcs
             .next()
-            .expect("At least one input file is required");
+            .transpose()?
+            .context("At least one input file is required")?;
 
-        let merged_parsed_dbc = parsed_dbcs.fold(first, |mut acc, dbc| {
-            merge_parsed_dbcs(&mut acc, dbc);
-            acc
-        });
+        let merged_parsed_dbc = parsed_dbcs.try_fold(first, |mut acc, dbc| {
+            merge_parsed_dbcs(&mut acc, dbc?);
+            Ok::<_, anyhow::Error>(acc)
+        })?;
+
         let mut dbc = IRBuilder::to_ir(merged_parsed_dbc);
 
         TransformationPipeline::new()

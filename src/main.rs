@@ -1,7 +1,7 @@
 use can_dbc::Dbc as ParsedDbc;
 use clap::{Parser, Subcommand};
 use dbc_codegen2::{
-    DbcFile, app::App, codegen::config::CodegenConfig, codegen::config::RustCodeInjectionPoint,
+    DbcFile, app::App, codegen::config::CodegenConfig,
     ir::IRBuilder, utils::Language,
 };
 use std::{
@@ -98,7 +98,7 @@ fn main() {
             zero_zero_range_allows_all,
             generate_tests,
         } => {
-            let mut config = CodegenConfig {
+            let config = CodegenConfig {
                 inputs,
                 output,
                 lang,
@@ -108,16 +108,6 @@ fn main() {
                 rust_code_injections: HashMap::new(),
                 generate_tests,
             };
-
-            // config.add_rust_code_injection(
-            //     RustCodeInjectionPoint::SignalValueEnum,
-            //     "#[derive(serde::Serialize, serde::Deserialize)]",
-            // );
-
-            // config.add_rust_code_injection(
-            //     RustCodeInjectionPoint::MessageStruct,
-            //     "#[cfg_attr(feature = \"defmt\", derive(defmt::Format))]",
-            // );
 
             if let Err(err) = App::run(config) {
                 eprintln!("{:#}", err);
