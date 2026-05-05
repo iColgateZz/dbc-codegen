@@ -8,11 +8,12 @@ The generator currently supports:
 
 - Rust output (`.rs`)
 - C++ output (`.hpp`)
+- no-std compatible output
 - plain CAN messages
 - simple multiplexed messages with one multiplexor signal per message
 - enum generation from DBC value descriptions
 - generating tests for generated Rust code
-- Rust code injection at selected generated-item locations
+- Rust code injection at selected locations
 
 Unsupported DBC features currently include:
 
