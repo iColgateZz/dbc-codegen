@@ -6,7 +6,7 @@ use std::process::Command;
 use anyhow::{Context, Result};
 
 use dbc_codegen2::utils::Language;
-use dbc_codegen2::{app::App, codegen::config::CodegenConfig};
+use dbc_codegen2::{app::CodegenPipeline, codegen::config::CodegenConfig};
 
 struct GeneratedFileGuard {
     path: PathBuf,
@@ -80,7 +80,7 @@ fn _run_codegen(input: &Path) -> Result<()> {
         generate_tests: true,
     };
 
-    App::run(config).context("codegen failed")?;
+    CodegenPipeline::run(config).context("codegen failed")?;
     Ok(())
 }
 

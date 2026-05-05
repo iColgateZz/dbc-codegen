@@ -1,8 +1,8 @@
 use can_dbc::Dbc as ParsedDbc;
 use clap::{Parser, Subcommand};
 use dbc_codegen2::{
-    DbcFile, app::App, codegen::config::CodegenConfig,
-    ir::IRBuilder, utils::Language,
+    DbcFile, CodegenPipeline, CodegenConfig,
+    ir::IRBuilder, Language,
 };
 use std::{
     collections::HashMap,
@@ -109,7 +109,7 @@ fn main() {
                 generate_tests,
             };
 
-            if let Err(err) = App::run(config) {
+            if let Err(err) = CodegenPipeline::run(config) {
                 eprintln!("{:#}", err);
                 std::process::exit(1);
             }

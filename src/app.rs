@@ -22,9 +22,9 @@ use crate::{
     },
 };
 
-pub struct App;
+pub struct CodegenPipeline;
 
-impl App {
+impl CodegenPipeline {
     pub fn run(config: CodegenConfig) -> anyhow::Result<()> {
         let mut parsed_dbcs = config.inputs.iter().map(|input| {
             let data = fs::read_to_string(input)
