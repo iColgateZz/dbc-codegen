@@ -975,6 +975,8 @@ parse_can(CanId id, std::span<const uint8_t> frame) noexcept {
 
 namespace generated_tests {
 
+inline constexpr CanId UNKNOWN_FRAME_ID = CanId::standard(0);
+
 inline void expect(bool condition) {
   if (!condition) {
     std::abort();
@@ -995,6 +997,18 @@ inline void expect_near(Actual actual, Expected expected) {
   expect(std::fabs(a - e) <= tolerance);
 };
 
+template <typename T>
+inline void expect_error(const std::expected<T, CanError>& result, CanError expected) {
+  expect(!result.has_value());
+  expect_equal(result.error(), expected);
+};
+
+inline void test_parse_can_errors() {
+  const std::array<uint8_t, 8> frame{};
+  auto unknown_id_result = parse_can(UNKNOWN_FRAME_ID, frame);
+  expect_error(unknown_id_result, CanError::UnknownFrameId);
+};
+
 inline void test_driver_heartbeat_msg() {
   const auto driver_heartbeat_cmd_value = DriverHeartbeatCmdEnum::Reboot;
   auto msg_result = DriverHeartbeatMsg::create(driver_heartbeat_cmd_value);
@@ -1013,6 +1027,15 @@ inline void test_driver_heartbeat_msg() {
   auto parsed_result = parse_can(DriverHeartbeatMsg::ID, encoded);
   expect(parsed_result.has_value());
   expect(std::get_if<DriverHeartbeatMsg>(&*parsed_result) != nullptr);
+  auto wrong_id_result = DriverHeartbeatMsg::try_from_frame(UNKNOWN_FRAME_ID, encoded);
+  expect_error(wrong_id_result, CanError::InvalidFrameId);
+  if constexpr (DriverHeartbeatMsg::LEN > 0) {
+    const std::span<const uint8_t> short_frame{encoded.data(), DriverHeartbeatMsg::LEN - 1};
+    auto short_frame_result = DriverHeartbeatMsg::try_from_frame(DriverHeartbeatMsg::ID, short_frame);
+    expect_error(short_frame_result, CanError::InvalidPayloadSize);
+    auto short_parse_result = parse_can(DriverHeartbeatMsg::ID, short_frame);
+    expect_error(short_parse_result, CanError::InvalidPayloadSize);
+  };
 };
 
 inline void test_io_debug_msg() {
@@ -1043,6 +1066,16 @@ inline void test_io_debug_msg() {
   expect_equal(msg.io_debug_test_enum(), io_debug_test_enum_next_value);
   expect_equal(msg.io_debug_test_signed(), io_debug_test_signed_next_value);
   expect_near(msg.io_debug_test_float(), io_debug_test_float_next_value);
+   {
+    const auto io_debug_test_float_out_of_range = 191.25f;
+    auto create_io_debug_test_float_out_of_range_result = IoDebugMsg::create(io_debug_test_unsigned_next_value, io_debug_test_enum_next_value, io_debug_test_signed_next_value, io_debug_test_float_out_of_range);
+    expect_error(create_io_debug_test_float_out_of_range_result, CanError::ValueOutOfRange);
+  };
+   {
+    const auto io_debug_test_float_out_of_range = 191.25f;
+    auto set_io_debug_test_float_out_of_range_result = msg.set_io_debug_test_float(io_debug_test_float_out_of_range);
+    expect_error(set_io_debug_test_float_out_of_range_result, CanError::ValueOutOfRange);
+  };
   const auto encoded = msg.encode();
   auto frame_result = IoDebugMsg::try_from_frame(IoDebugMsg::ID, encoded);
   expect(frame_result.has_value());
@@ -1054,6 +1087,15 @@ inline void test_io_debug_msg() {
   auto parsed_result = parse_can(IoDebugMsg::ID, encoded);
   expect(parsed_result.has_value());
   expect(std::get_if<IoDebugMsg>(&*parsed_result) != nullptr);
+  auto wrong_id_result = IoDebugMsg::try_from_frame(UNKNOWN_FRAME_ID, encoded);
+  expect_error(wrong_id_result, CanError::InvalidFrameId);
+  if constexpr (IoDebugMsg::LEN > 0) {
+    const std::span<const uint8_t> short_frame{encoded.data(), IoDebugMsg::LEN - 1};
+    auto short_frame_result = IoDebugMsg::try_from_frame(IoDebugMsg::ID, short_frame);
+    expect_error(short_frame_result, CanError::InvalidPayloadSize);
+    auto short_parse_result = parse_can(IoDebugMsg::ID, short_frame);
+    expect_error(short_parse_result, CanError::InvalidPayloadSize);
+  };
 };
 
 inline void test_motor_cmd_msg() {
@@ -1072,6 +1114,26 @@ inline void test_motor_cmd_msg() {
   expect(set_motor_cmd_drive_next_value_result.has_value());
   expect_equal(msg.motor_cmd_steer(), motor_cmd_steer_next_value);
   expect_equal(msg.motor_cmd_drive(), motor_cmd_drive_next_value);
+   {
+    const auto motor_cmd_steer_out_of_range = static_cast<int8_t>(6);
+    auto create_motor_cmd_steer_out_of_range_result = MotorCmdMsg::create(motor_cmd_steer_out_of_range, motor_cmd_drive_next_value);
+    expect_error(create_motor_cmd_steer_out_of_range_result, CanError::ValueOutOfRange);
+  };
+   {
+    const auto motor_cmd_drive_out_of_range = static_cast<uint8_t>(10);
+    auto create_motor_cmd_drive_out_of_range_result = MotorCmdMsg::create(motor_cmd_steer_next_value, motor_cmd_drive_out_of_range);
+    expect_error(create_motor_cmd_drive_out_of_range_result, CanError::ValueOutOfRange);
+  };
+   {
+    const auto motor_cmd_steer_out_of_range = static_cast<int8_t>(6);
+    auto set_motor_cmd_steer_out_of_range_result = msg.set_motor_cmd_steer(motor_cmd_steer_out_of_range);
+    expect_error(set_motor_cmd_steer_out_of_range_result, CanError::ValueOutOfRange);
+  };
+   {
+    const auto motor_cmd_drive_out_of_range = static_cast<uint8_t>(10);
+    auto set_motor_cmd_drive_out_of_range_result = msg.set_motor_cmd_drive(motor_cmd_drive_out_of_range);
+    expect_error(set_motor_cmd_drive_out_of_range_result, CanError::ValueOutOfRange);
+  };
   const auto encoded = msg.encode();
   auto frame_result = MotorCmdMsg::try_from_frame(MotorCmdMsg::ID, encoded);
   expect(frame_result.has_value());
@@ -1081,6 +1143,15 @@ inline void test_motor_cmd_msg() {
   auto parsed_result = parse_can(MotorCmdMsg::ID, encoded);
   expect(parsed_result.has_value());
   expect(std::get_if<MotorCmdMsg>(&*parsed_result) != nullptr);
+  auto wrong_id_result = MotorCmdMsg::try_from_frame(UNKNOWN_FRAME_ID, encoded);
+  expect_error(wrong_id_result, CanError::InvalidFrameId);
+  if constexpr (MotorCmdMsg::LEN > 0) {
+    const std::span<const uint8_t> short_frame{encoded.data(), MotorCmdMsg::LEN - 1};
+    auto short_frame_result = MotorCmdMsg::try_from_frame(MotorCmdMsg::ID, short_frame);
+    expect_error(short_frame_result, CanError::InvalidPayloadSize);
+    auto short_parse_result = parse_can(MotorCmdMsg::ID, short_frame);
+    expect_error(short_parse_result, CanError::InvalidPayloadSize);
+  };
 };
 
 inline void test_motor_status_msg() {
@@ -1099,6 +1170,16 @@ inline void test_motor_status_msg() {
   expect(set_motor_status_speed_kph_next_value_result.has_value());
   expect_equal(msg.motor_status_wheel_error(), motor_status_wheel_error_next_value);
   expect_near(msg.motor_status_speed_kph(), motor_status_speed_kph_next_value);
+   {
+    const auto motor_status_speed_kph_out_of_range = 97.5f;
+    auto create_motor_status_speed_kph_out_of_range_result = MotorStatusMsg::create(motor_status_wheel_error_next_value, motor_status_speed_kph_out_of_range);
+    expect_error(create_motor_status_speed_kph_out_of_range_result, CanError::ValueOutOfRange);
+  };
+   {
+    const auto motor_status_speed_kph_out_of_range = 97.5f;
+    auto set_motor_status_speed_kph_out_of_range_result = msg.set_motor_status_speed_kph(motor_status_speed_kph_out_of_range);
+    expect_error(set_motor_status_speed_kph_out_of_range_result, CanError::ValueOutOfRange);
+  };
   const auto encoded = msg.encode();
   auto frame_result = MotorStatusMsg::try_from_frame(MotorStatusMsg::ID, encoded);
   expect(frame_result.has_value());
@@ -1108,6 +1189,15 @@ inline void test_motor_status_msg() {
   auto parsed_result = parse_can(MotorStatusMsg::ID, encoded);
   expect(parsed_result.has_value());
   expect(std::get_if<MotorStatusMsg>(&*parsed_result) != nullptr);
+  auto wrong_id_result = MotorStatusMsg::try_from_frame(UNKNOWN_FRAME_ID, encoded);
+  expect_error(wrong_id_result, CanError::InvalidFrameId);
+  if constexpr (MotorStatusMsg::LEN > 0) {
+    const std::span<const uint8_t> short_frame{encoded.data(), MotorStatusMsg::LEN - 1};
+    auto short_frame_result = MotorStatusMsg::try_from_frame(MotorStatusMsg::ID, short_frame);
+    expect_error(short_frame_result, CanError::InvalidPayloadSize);
+    auto short_parse_result = parse_can(MotorStatusMsg::ID, short_frame);
+    expect_error(short_parse_result, CanError::InvalidPayloadSize);
+  };
 };
 
 inline void test_sensor_sonars_msg() {
@@ -1137,6 +1227,16 @@ inline void test_sensor_sonars_msg() {
     auto set_sensor_sonars_err_count_next_value_result = msg.set_sensor_sonars_err_count(sensor_sonars_err_count_next_value);
     expect(set_sensor_sonars_err_count_next_value_result.has_value());
     expect_equal(msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value);
+     {
+      const auto sensor_sonars_err_count_out_of_range = static_cast<uint16_t>(4096);
+      auto create_sensor_sonars_err_count_out_of_range_result = SensorSonarsMsg::create(sensor_sonars_err_count_out_of_range, SensorSonarsMsgMux{mux_value});
+      expect_error(create_sensor_sonars_err_count_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_err_count_out_of_range = static_cast<uint16_t>(4096);
+      auto set_sensor_sonars_err_count_out_of_range_result = msg.set_sensor_sonars_err_count(sensor_sonars_err_count_out_of_range);
+      expect_error(set_sensor_sonars_err_count_out_of_range_result, CanError::ValueOutOfRange);
+    };
     const auto sensor_sonars_left_next_value = 409.5f;
     const auto sensor_sonars_middle_next_value = 409.5f;
     const auto sensor_sonars_right_next_value = 409.5f;
@@ -1153,6 +1253,46 @@ inline void test_sensor_sonars_msg() {
     expect_near(mux_msg.sensor_sonars_middle(), sensor_sonars_middle_next_value);
     expect_near(mux_msg.sensor_sonars_right(), sensor_sonars_right_next_value);
     expect_near(mux_msg.sensor_sonars_rear(), sensor_sonars_rear_next_value);
+     {
+      const auto sensor_sonars_left_out_of_range = 614.25f;
+      auto create_sensor_sonars_left_out_of_range_result = SensorSonarsMsgMux0::create(sensor_sonars_left_out_of_range, sensor_sonars_middle_next_value, sensor_sonars_right_next_value, sensor_sonars_rear_next_value);
+      expect_error(create_sensor_sonars_left_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_middle_out_of_range = 614.25f;
+      auto create_sensor_sonars_middle_out_of_range_result = SensorSonarsMsgMux0::create(sensor_sonars_left_next_value, sensor_sonars_middle_out_of_range, sensor_sonars_right_next_value, sensor_sonars_rear_next_value);
+      expect_error(create_sensor_sonars_middle_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_right_out_of_range = 614.25f;
+      auto create_sensor_sonars_right_out_of_range_result = SensorSonarsMsgMux0::create(sensor_sonars_left_next_value, sensor_sonars_middle_next_value, sensor_sonars_right_out_of_range, sensor_sonars_rear_next_value);
+      expect_error(create_sensor_sonars_right_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_rear_out_of_range = 614.25f;
+      auto create_sensor_sonars_rear_out_of_range_result = SensorSonarsMsgMux0::create(sensor_sonars_left_next_value, sensor_sonars_middle_next_value, sensor_sonars_right_next_value, sensor_sonars_rear_out_of_range);
+      expect_error(create_sensor_sonars_rear_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_left_out_of_range = 614.25f;
+      auto set_sensor_sonars_left_out_of_range_result = mux_msg.set_sensor_sonars_left(sensor_sonars_left_out_of_range);
+      expect_error(set_sensor_sonars_left_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_middle_out_of_range = 614.25f;
+      auto set_sensor_sonars_middle_out_of_range_result = mux_msg.set_sensor_sonars_middle(sensor_sonars_middle_out_of_range);
+      expect_error(set_sensor_sonars_middle_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_right_out_of_range = 614.25f;
+      auto set_sensor_sonars_right_out_of_range_result = mux_msg.set_sensor_sonars_right(sensor_sonars_right_out_of_range);
+      expect_error(set_sensor_sonars_right_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_rear_out_of_range = 614.25f;
+      auto set_sensor_sonars_rear_out_of_range_result = mux_msg.set_sensor_sonars_rear(sensor_sonars_rear_out_of_range);
+      expect_error(set_sensor_sonars_rear_out_of_range_result, CanError::ValueOutOfRange);
+    };
     const auto sensor_sonars_no_filt_left_switch_value = 204.70000000000002f;
     const auto sensor_sonars_no_filt_middle_switch_value = 204.70000000000002f;
     const auto sensor_sonars_no_filt_right_switch_value = 204.70000000000002f;
@@ -1214,6 +1354,30 @@ inline void test_sensor_sonars_msg() {
     auto parsed_result = parse_can(SensorSonarsMsg::ID, encoded);
     expect(parsed_result.has_value());
     expect(std::get_if<SensorSonarsMsg>(&*parsed_result) != nullptr);
+    auto wrong_id_result = SensorSonarsMsg::try_from_frame(UNKNOWN_FRAME_ID, encoded);
+    expect_error(wrong_id_result, CanError::InvalidFrameId);
+    if constexpr (SensorSonarsMsg::LEN > 0) {
+      const std::span<const uint8_t> short_frame{encoded.data(), SensorSonarsMsg::LEN - 1};
+      auto short_frame_result = SensorSonarsMsg::try_from_frame(SensorSonarsMsg::ID, short_frame);
+      expect_error(short_frame_result, CanError::InvalidPayloadSize);
+      auto short_parse_result = parse_can(SensorSonarsMsg::ID, short_frame);
+      expect_error(short_parse_result, CanError::InvalidPayloadSize);
+    };
+     {
+      auto invalid_mux_frame = encoded;
+      detail::insert_le<uint8_t>(invalid_mux_frame.data(), 0, 4, static_cast<uint8_t>(15));
+      auto invalid_mux_frame_result = SensorSonarsMsg::try_from_frame(SensorSonarsMsg::ID, invalid_mux_frame);
+      expect(invalid_mux_frame_result.has_value());
+      auto invalid_mux_msg = *invalid_mux_frame_result;
+      auto invalid_mux_result = invalid_mux_msg.mux();
+      expect_error(invalid_mux_result, CanError::UnknownMuxValue);
+      auto invalid_mux_parsed_result = parse_can(SensorSonarsMsg::ID, invalid_mux_frame);
+      expect(invalid_mux_parsed_result.has_value());
+      const auto* invalid_mux_parsed_msg = std::get_if<SensorSonarsMsg>(&*invalid_mux_parsed_result);
+      expect(invalid_mux_parsed_msg != nullptr);
+      auto invalid_mux_parsed_mux_result = invalid_mux_parsed_msg->mux();
+      expect_error(invalid_mux_parsed_mux_result, CanError::UnknownMuxValue);
+    };
   };
    {
     const auto sensor_sonars_no_filt_left_value = 0.0f;
@@ -1256,6 +1420,46 @@ inline void test_sensor_sonars_msg() {
     expect_near(mux_msg.sensor_sonars_no_filt_middle(), sensor_sonars_no_filt_middle_next_value);
     expect_near(mux_msg.sensor_sonars_no_filt_right(), sensor_sonars_no_filt_right_next_value);
     expect_near(mux_msg.sensor_sonars_no_filt_rear(), sensor_sonars_no_filt_rear_next_value);
+     {
+      const auto sensor_sonars_no_filt_left_out_of_range = 614.25f;
+      auto create_sensor_sonars_no_filt_left_out_of_range_result = SensorSonarsMsgMux1::create(sensor_sonars_no_filt_left_out_of_range, sensor_sonars_no_filt_middle_next_value, sensor_sonars_no_filt_right_next_value, sensor_sonars_no_filt_rear_next_value);
+      expect_error(create_sensor_sonars_no_filt_left_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_no_filt_middle_out_of_range = 614.25f;
+      auto create_sensor_sonars_no_filt_middle_out_of_range_result = SensorSonarsMsgMux1::create(sensor_sonars_no_filt_left_next_value, sensor_sonars_no_filt_middle_out_of_range, sensor_sonars_no_filt_right_next_value, sensor_sonars_no_filt_rear_next_value);
+      expect_error(create_sensor_sonars_no_filt_middle_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_no_filt_right_out_of_range = 614.25f;
+      auto create_sensor_sonars_no_filt_right_out_of_range_result = SensorSonarsMsgMux1::create(sensor_sonars_no_filt_left_next_value, sensor_sonars_no_filt_middle_next_value, sensor_sonars_no_filt_right_out_of_range, sensor_sonars_no_filt_rear_next_value);
+      expect_error(create_sensor_sonars_no_filt_right_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_no_filt_rear_out_of_range = 614.25f;
+      auto create_sensor_sonars_no_filt_rear_out_of_range_result = SensorSonarsMsgMux1::create(sensor_sonars_no_filt_left_next_value, sensor_sonars_no_filt_middle_next_value, sensor_sonars_no_filt_right_next_value, sensor_sonars_no_filt_rear_out_of_range);
+      expect_error(create_sensor_sonars_no_filt_rear_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_no_filt_left_out_of_range = 614.25f;
+      auto set_sensor_sonars_no_filt_left_out_of_range_result = mux_msg.set_sensor_sonars_no_filt_left(sensor_sonars_no_filt_left_out_of_range);
+      expect_error(set_sensor_sonars_no_filt_left_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_no_filt_middle_out_of_range = 614.25f;
+      auto set_sensor_sonars_no_filt_middle_out_of_range_result = mux_msg.set_sensor_sonars_no_filt_middle(sensor_sonars_no_filt_middle_out_of_range);
+      expect_error(set_sensor_sonars_no_filt_middle_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_no_filt_right_out_of_range = 614.25f;
+      auto set_sensor_sonars_no_filt_right_out_of_range_result = mux_msg.set_sensor_sonars_no_filt_right(sensor_sonars_no_filt_right_out_of_range);
+      expect_error(set_sensor_sonars_no_filt_right_out_of_range_result, CanError::ValueOutOfRange);
+    };
+     {
+      const auto sensor_sonars_no_filt_rear_out_of_range = 614.25f;
+      auto set_sensor_sonars_no_filt_rear_out_of_range_result = mux_msg.set_sensor_sonars_no_filt_rear(sensor_sonars_no_filt_rear_out_of_range);
+      expect_error(set_sensor_sonars_no_filt_rear_out_of_range_result, CanError::ValueOutOfRange);
+    };
     const auto sensor_sonars_left_switch_value = 204.70000000000002f;
     const auto sensor_sonars_middle_switch_value = 204.70000000000002f;
     const auto sensor_sonars_right_switch_value = 204.70000000000002f;
@@ -1317,10 +1521,35 @@ inline void test_sensor_sonars_msg() {
     auto parsed_result = parse_can(SensorSonarsMsg::ID, encoded);
     expect(parsed_result.has_value());
     expect(std::get_if<SensorSonarsMsg>(&*parsed_result) != nullptr);
+    auto wrong_id_result = SensorSonarsMsg::try_from_frame(UNKNOWN_FRAME_ID, encoded);
+    expect_error(wrong_id_result, CanError::InvalidFrameId);
+    if constexpr (SensorSonarsMsg::LEN > 0) {
+      const std::span<const uint8_t> short_frame{encoded.data(), SensorSonarsMsg::LEN - 1};
+      auto short_frame_result = SensorSonarsMsg::try_from_frame(SensorSonarsMsg::ID, short_frame);
+      expect_error(short_frame_result, CanError::InvalidPayloadSize);
+      auto short_parse_result = parse_can(SensorSonarsMsg::ID, short_frame);
+      expect_error(short_parse_result, CanError::InvalidPayloadSize);
+    };
+     {
+      auto invalid_mux_frame = encoded;
+      detail::insert_le<uint8_t>(invalid_mux_frame.data(), 0, 4, static_cast<uint8_t>(15));
+      auto invalid_mux_frame_result = SensorSonarsMsg::try_from_frame(SensorSonarsMsg::ID, invalid_mux_frame);
+      expect(invalid_mux_frame_result.has_value());
+      auto invalid_mux_msg = *invalid_mux_frame_result;
+      auto invalid_mux_result = invalid_mux_msg.mux();
+      expect_error(invalid_mux_result, CanError::UnknownMuxValue);
+      auto invalid_mux_parsed_result = parse_can(SensorSonarsMsg::ID, invalid_mux_frame);
+      expect(invalid_mux_parsed_result.has_value());
+      const auto* invalid_mux_parsed_msg = std::get_if<SensorSonarsMsg>(&*invalid_mux_parsed_result);
+      expect(invalid_mux_parsed_msg != nullptr);
+      auto invalid_mux_parsed_mux_result = invalid_mux_parsed_msg->mux();
+      expect_error(invalid_mux_parsed_mux_result, CanError::UnknownMuxValue);
+    };
   };
 };
 
 inline void run_all() {
+  test_parse_can_errors();
   test_driver_heartbeat_msg();
   test_io_debug_msg();
   test_motor_cmd_msg();

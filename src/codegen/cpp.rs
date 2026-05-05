@@ -1,8 +1,9 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use heck::ToSnakeCase;
 
 use crate::{
+    DbcFile,
     codegen::Generator,
     empty, end_block, end_block_no_close,
     ir::{
@@ -12,7 +13,7 @@ use crate::{
         signal_value_enum::SignalValueEnum,
         signal_value_type::{CppType, RawType},
     },
-    line, start_block, DbcFile,
+    line, start_block,
 };
 
 use crate::codegen::config::CodegenConfig;
@@ -1284,7 +1285,9 @@ impl CppGen {
         line!(out, "namespace generated_tests {{");
         empty!(out);
 
+        Self::emit_test_constants(out, file);
         Self::emit_test_helpers(out);
+        Self::parse_can_error_test(out);
 
         for msg in &file.messages {
             match msg.classify_signals(&file.signals) {
@@ -1293,9 +1296,14 @@ impl CppGen {
                         signals.iter().map(|idx| &file.signals[idx.0]).collect();
                     Self::plain_message_test(out, msg, &sigs, file, config);
                 }
-                MessageSignalClassification::Multiplexed { plain, muxed, .. } => {
+                MessageSignalClassification::Multiplexed {
+                    plain,
+                    mux_signal,
+                    muxed,
+                } => {
                     let plain_sigs: Vec<&Signal> =
                         plain.iter().map(|idx| &file.signals[idx.0]).collect();
+                    let mux_sig = &file.signals[mux_signal.0];
                     let muxed_sigs: BTreeMap<u64, Vec<&Signal>> = muxed
                         .iter()
                         .map(|(v, idxs)| {
@@ -1306,6 +1314,7 @@ impl CppGen {
                         out,
                         msg,
                         &plain_sigs,
+                        mux_sig,
                         &muxed_sigs,
                         file,
                         config,
@@ -1315,6 +1324,7 @@ impl CppGen {
         }
 
         start_block!(out, "inline void run_all()");
+        line!(out, "test_parse_can_errors();");
         for msg in &file.messages {
             line!(out, "{}();", Self::test_fn_name(msg));
         }
@@ -1322,6 +1332,15 @@ impl CppGen {
         empty!(out);
 
         line!(out, "}} // namespace generated_tests");
+    }
+
+    fn emit_test_constants(out: &mut Generator, file: &DbcFile) {
+        line!(
+            out,
+            "inline constexpr CanId UNKNOWN_FRAME_ID = {};",
+            Self::format_can_id_expr(&Self::test_unknown_frame_id(&file.messages))
+        );
+        empty!(out);
     }
 
     fn emit_test_helpers(out: &mut Generator) {
@@ -1353,6 +1372,31 @@ impl CppGen {
         line!(out, "expect(std::fabs(a - e) <= tolerance);");
         end_block!(out, "");
         empty!(out);
+
+        line!(out, "template <typename T>");
+        start_block!(
+            out,
+            "inline void expect_error(const std::expected<T, CanError>& result, CanError expected)"
+        );
+        line!(out, "expect(!result.has_value());");
+        line!(out, "expect_equal(result.error(), expected);");
+        end_block!(out, "");
+        empty!(out);
+    }
+
+    fn parse_can_error_test(out: &mut Generator) {
+        start_block!(out, "inline void test_parse_can_errors()");
+        line!(out, "const std::array<uint8_t, 8> frame{{}};");
+        line!(
+            out,
+            "auto unknown_id_result = parse_can(UNKNOWN_FRAME_ID, frame);"
+        );
+        line!(
+            out,
+            "expect_error(unknown_id_result, CanError::UnknownFrameId);"
+        );
+        end_block!(out, "");
+        empty!(out);
     }
 
     fn plain_message_test(
@@ -1382,6 +1426,16 @@ impl CppGen {
         Self::emit_test_value_decls(out, signals, file, config, "next_value", 1);
         Self::emit_test_setter_calls(out, "msg", signals, "next_value");
         Self::emit_test_getter_assertions(out, "msg", signals, "next_value", file, config);
+        Self::emit_test_create_range_error_assertions(
+            out,
+            &msg_name,
+            signals,
+            file,
+            config,
+            "next_value",
+            &[],
+        );
+        Self::emit_test_setter_range_error_assertions(out, "msg", signals, file, config);
 
         line!(out, "const auto encoded = msg.encode();");
         line!(
@@ -1405,6 +1459,8 @@ impl CppGen {
             "expect(std::get_if<{}>(&*parsed_result) != nullptr);",
             msg_name
         );
+        Self::emit_test_frame_error_assertions(out, &msg_name);
+        Self::emit_test_invalid_enum_payload_assertions(out, &msg_name, signals, file, config);
 
         end_block!(out, "");
         empty!(out);
@@ -1414,6 +1470,7 @@ impl CppGen {
         out: &mut Generator,
         msg: &Message,
         plain: &[&Signal],
+        mux_signal: &Signal,
         muxed: &BTreeMap<u64, Vec<&Signal>>,
         file: &DbcFile,
         config: &CodegenConfig,
@@ -1477,10 +1534,32 @@ impl CppGen {
             Self::emit_test_value_decls(out, plain, file, config, "next_value", 1);
             Self::emit_test_setter_calls(out, "msg", plain, "next_value");
             Self::emit_test_getter_assertions(out, "msg", plain, "next_value", file, config);
+            if entry_idx == 0 {
+                Self::emit_test_create_range_error_assertions(
+                    out,
+                    &msg_name,
+                    plain,
+                    file,
+                    config,
+                    "next_value",
+                    &[format!("{}{{mux_value}}", mux_enum_name)],
+                );
+                Self::emit_test_setter_range_error_assertions(out, "msg", plain, file, config);
+            }
 
             Self::emit_test_value_decls(out, sigs, file, config, "next_value", 1);
             Self::emit_test_setter_calls(out, "mux_msg", sigs, "next_value");
             Self::emit_test_getter_assertions(out, "mux_msg", sigs, "next_value", file, config);
+            Self::emit_test_create_range_error_assertions(
+                out,
+                &variant_class,
+                sigs,
+                file,
+                config,
+                "next_value",
+                &[],
+            );
+            Self::emit_test_setter_range_error_assertions(out, "mux_msg", sigs, file, config);
 
             Self::emit_test_value_decls(out, next_sigs, file, config, "switch_value", 2);
             let next_mux_constructor_args = Self::test_vars(next_sigs, "switch_value").join(", ");
@@ -1582,12 +1661,365 @@ impl CppGen {
                 "expect(std::get_if<{}>(&*parsed_result) != nullptr);",
                 msg_name
             );
+            Self::emit_test_frame_error_assertions(out, &msg_name);
+            Self::emit_test_invalid_mux_payload_assertion(out, &msg_name, mux_signal, muxed, file);
+            Self::emit_test_invalid_enum_payload_assertions(out, &msg_name, plain, file, config);
+            Self::emit_test_invalid_mux_enum_payload_assertions(
+                out,
+                &msg_name,
+                &next_variant_class,
+                next_sigs,
+                file,
+                config,
+            );
 
             end_block!(out, "");
         }
 
         end_block!(out, "");
         empty!(out);
+    }
+
+    fn emit_test_frame_error_assertions(out: &mut Generator, msg_name: &str) {
+        line!(
+            out,
+            "auto wrong_id_result = {}::try_from_frame(UNKNOWN_FRAME_ID, encoded);",
+            msg_name
+        );
+        line!(
+            out,
+            "expect_error(wrong_id_result, CanError::InvalidFrameId);"
+        );
+        start_block!(out, "if constexpr ({}::LEN > 0)", msg_name);
+        line!(
+            out,
+            "const std::span<const uint8_t> short_frame{{encoded.data(), {}::LEN - 1}};",
+            msg_name
+        );
+        line!(
+            out,
+            "auto short_frame_result = {}::try_from_frame({}::ID, short_frame);",
+            msg_name,
+            msg_name
+        );
+        line!(
+            out,
+            "expect_error(short_frame_result, CanError::InvalidPayloadSize);"
+        );
+        line!(
+            out,
+            "auto short_parse_result = parse_can({}::ID, short_frame);",
+            msg_name
+        );
+        line!(
+            out,
+            "expect_error(short_parse_result, CanError::InvalidPayloadSize);"
+        );
+        end_block!(out, "");
+    }
+
+    fn emit_test_create_range_error_assertions(
+        out: &mut Generator,
+        type_name: &str,
+        signals: &[&Signal],
+        file: &DbcFile,
+        config: &CodegenConfig,
+        valid_suffix: &str,
+        trailing_args: &[String],
+    ) {
+        for (bad_idx, signal) in signals.iter().enumerate() {
+            let Some(invalid_value) = Self::out_of_range_test_value_expr(signal, file, config)
+            else {
+                continue;
+            };
+
+            let field_name = signal.name.raw.to_snake_case();
+            let invalid_var = format!("{}_out_of_range", field_name);
+            let mut constructor_args = Self::test_vars(signals, valid_suffix);
+            constructor_args[bad_idx] = invalid_var.clone();
+            constructor_args.extend(trailing_args.iter().cloned());
+
+            start_block!(out, "");
+            line!(out, "const auto {} = {};", invalid_var, invalid_value);
+            line!(
+                out,
+                "auto create_{}_out_of_range_result = {}::create({});",
+                field_name,
+                type_name,
+                constructor_args.join(", ")
+            );
+            line!(
+                out,
+                "expect_error(create_{}_out_of_range_result, CanError::ValueOutOfRange);",
+                field_name
+            );
+            end_block!(out, "");
+        }
+    }
+
+    fn emit_test_setter_range_error_assertions(
+        out: &mut Generator,
+        receiver: &str,
+        signals: &[&Signal],
+        file: &DbcFile,
+        config: &CodegenConfig,
+    ) {
+        for signal in signals {
+            let Some(invalid_value) = Self::out_of_range_test_value_expr(signal, file, config)
+            else {
+                continue;
+            };
+
+            let field_name = signal.name.raw.to_snake_case();
+            let invalid_var = format!("{}_out_of_range", field_name);
+
+            start_block!(out, "");
+            line!(out, "const auto {} = {};", invalid_var, invalid_value);
+            line!(
+                out,
+                "auto set_{}_out_of_range_result = {}.set_{}({});",
+                field_name,
+                receiver,
+                field_name,
+                invalid_var
+            );
+            line!(
+                out,
+                "expect_error(set_{}_out_of_range_result, CanError::ValueOutOfRange);",
+                field_name
+            );
+            end_block!(out, "");
+        }
+    }
+
+    fn emit_test_invalid_enum_payload_assertions(
+        out: &mut Generator,
+        msg_name: &str,
+        signals: &[&Signal],
+        file: &DbcFile,
+        config: &CodegenConfig,
+    ) {
+        if !config.no_enum_other {
+            return;
+        }
+
+        for signal in signals {
+            let Some(invalid_raw) = Self::invalid_enum_raw_value(signal, file) else {
+                continue;
+            };
+
+            let layout = &file.signal_layouts[signal.layout.0];
+            let raw_type = signal.raw_type.as_cpp_type();
+            let insert_fn = Self::detail_insert_fn(layout.byte_order);
+            let field_name = signal.name.raw.to_snake_case();
+
+            start_block!(out, "");
+            line!(out, "auto invalid_enum_frame = encoded;");
+            Self::emit_detail_insert(
+                out,
+                raw_type,
+                insert_fn,
+                "invalid_enum_frame.data()",
+                layout,
+                &format!("static_cast<{}>({})", raw_type, invalid_raw),
+            );
+            line!(
+                out,
+                "auto invalid_enum_frame_result = {}::try_from_frame({}::ID, invalid_enum_frame);",
+                msg_name,
+                msg_name
+            );
+            line!(out, "expect(invalid_enum_frame_result.has_value());");
+            line!(out, "auto invalid_enum_msg = *invalid_enum_frame_result;");
+            line!(
+                out,
+                "const auto invalid_enum_result = invalid_enum_msg.{}();",
+                field_name
+            );
+            line!(
+                out,
+                "expect_error(invalid_enum_result, CanError::InvalidEnumValue);"
+            );
+            line!(
+                out,
+                "auto invalid_enum_parsed_result = parse_can({}::ID, invalid_enum_frame);",
+                msg_name
+            );
+            line!(out, "expect(invalid_enum_parsed_result.has_value());");
+            line!(
+                out,
+                "const auto* invalid_enum_parsed_msg = std::get_if<{}>(&*invalid_enum_parsed_result);",
+                msg_name
+            );
+            line!(out, "expect(invalid_enum_parsed_msg != nullptr);");
+            line!(
+                out,
+                "const auto invalid_enum_parsed_signal_result = invalid_enum_parsed_msg->{}();",
+                field_name
+            );
+            line!(
+                out,
+                "expect_error(invalid_enum_parsed_signal_result, CanError::InvalidEnumValue);"
+            );
+            end_block!(out, "");
+        }
+    }
+
+    fn emit_test_invalid_mux_enum_payload_assertions(
+        out: &mut Generator,
+        msg_name: &str,
+        variant_class: &str,
+        signals: &[&Signal],
+        file: &DbcFile,
+        config: &CodegenConfig,
+    ) {
+        if !config.no_enum_other {
+            return;
+        }
+
+        for signal in signals {
+            let Some(invalid_raw) = Self::invalid_enum_raw_value(signal, file) else {
+                continue;
+            };
+
+            let layout = &file.signal_layouts[signal.layout.0];
+            let raw_type = signal.raw_type.as_cpp_type();
+            let insert_fn = Self::detail_insert_fn(layout.byte_order);
+            let field_name = signal.name.raw.to_snake_case();
+
+            start_block!(out, "");
+            line!(out, "auto invalid_enum_frame = encoded;");
+            Self::emit_detail_insert(
+                out,
+                raw_type,
+                insert_fn,
+                "invalid_enum_frame.data()",
+                layout,
+                &format!("static_cast<{}>({})", raw_type, invalid_raw),
+            );
+            line!(
+                out,
+                "auto invalid_enum_frame_result = {}::try_from_frame({}::ID, invalid_enum_frame);",
+                msg_name,
+                msg_name
+            );
+            line!(out, "expect(invalid_enum_frame_result.has_value());");
+            line!(out, "auto invalid_enum_msg = *invalid_enum_frame_result;");
+            line!(
+                out,
+                "auto invalid_enum_mux_result = invalid_enum_msg.mux();"
+            );
+            line!(out, "expect(invalid_enum_mux_result.has_value());");
+            line!(
+                out,
+                "const auto* invalid_enum_mux_msg = std::get_if<{}>(&*invalid_enum_mux_result);",
+                variant_class
+            );
+            line!(out, "expect(invalid_enum_mux_msg != nullptr);");
+            line!(
+                out,
+                "const auto invalid_enum_result = invalid_enum_mux_msg->{}();",
+                field_name
+            );
+            line!(
+                out,
+                "expect_error(invalid_enum_result, CanError::InvalidEnumValue);"
+            );
+            line!(
+                out,
+                "auto invalid_enum_parsed_result = parse_can({}::ID, invalid_enum_frame);",
+                msg_name
+            );
+            line!(out, "expect(invalid_enum_parsed_result.has_value());");
+            line!(
+                out,
+                "const auto* invalid_enum_parsed_msg = std::get_if<{}>(&*invalid_enum_parsed_result);",
+                msg_name
+            );
+            line!(out, "expect(invalid_enum_parsed_msg != nullptr);");
+            line!(
+                out,
+                "auto invalid_enum_parsed_mux_result = invalid_enum_parsed_msg->mux();"
+            );
+            line!(out, "expect(invalid_enum_parsed_mux_result.has_value());");
+            line!(
+                out,
+                "const auto* invalid_enum_parsed_mux_msg = std::get_if<{}>(&*invalid_enum_parsed_mux_result);",
+                variant_class
+            );
+            line!(out, "expect(invalid_enum_parsed_mux_msg != nullptr);");
+            line!(
+                out,
+                "const auto invalid_enum_parsed_signal_result = invalid_enum_parsed_mux_msg->{}();",
+                field_name
+            );
+            line!(
+                out,
+                "expect_error(invalid_enum_parsed_signal_result, CanError::InvalidEnumValue);"
+            );
+            end_block!(out, "");
+        }
+    }
+
+    fn emit_test_invalid_mux_payload_assertion(
+        out: &mut Generator,
+        msg_name: &str,
+        mux_signal: &Signal,
+        muxed: &BTreeMap<u64, Vec<&Signal>>,
+        file: &DbcFile,
+    ) {
+        let Some(invalid_raw) = Self::invalid_mux_raw_value(mux_signal, muxed, file) else {
+            return;
+        };
+
+        let layout = &file.signal_layouts[mux_signal.layout.0];
+        let raw_type = mux_signal.raw_type.as_cpp_type();
+        let insert_fn = Self::detail_insert_fn(layout.byte_order);
+
+        start_block!(out, "");
+        line!(out, "auto invalid_mux_frame = encoded;");
+        Self::emit_detail_insert(
+            out,
+            raw_type,
+            insert_fn,
+            "invalid_mux_frame.data()",
+            layout,
+            &format!("static_cast<{}>({})", raw_type, invalid_raw),
+        );
+        line!(
+            out,
+            "auto invalid_mux_frame_result = {}::try_from_frame({}::ID, invalid_mux_frame);",
+            msg_name,
+            msg_name
+        );
+        line!(out, "expect(invalid_mux_frame_result.has_value());");
+        line!(out, "auto invalid_mux_msg = *invalid_mux_frame_result;");
+        line!(out, "auto invalid_mux_result = invalid_mux_msg.mux();");
+        line!(
+            out,
+            "expect_error(invalid_mux_result, CanError::UnknownMuxValue);"
+        );
+        line!(
+            out,
+            "auto invalid_mux_parsed_result = parse_can({}::ID, invalid_mux_frame);",
+            msg_name
+        );
+        line!(out, "expect(invalid_mux_parsed_result.has_value());");
+        line!(
+            out,
+            "const auto* invalid_mux_parsed_msg = std::get_if<{}>(&*invalid_mux_parsed_result);",
+            msg_name
+        );
+        line!(out, "expect(invalid_mux_parsed_msg != nullptr);");
+        line!(
+            out,
+            "auto invalid_mux_parsed_mux_result = invalid_mux_parsed_msg->mux();"
+        );
+        line!(
+            out,
+            "expect_error(invalid_mux_parsed_mux_result, CanError::UnknownMuxValue);"
+        );
+        end_block!(out, "");
     }
 
     fn emit_test_value_decls(
@@ -1741,6 +2173,73 @@ impl CppGen {
         }
     }
 
+    fn out_of_range_test_value_expr(
+        signal: &Signal,
+        file: &DbcFile,
+        config: &CodegenConfig,
+    ) -> Option<String> {
+        if signal.signal_value_enum_idx.is_some() || Self::is_bool_signal(signal, file) {
+            return None;
+        }
+
+        if !Self::test_range_check_active(signal, file, config) {
+            return None;
+        }
+
+        let layout = &file.signal_layouts[signal.layout.0];
+        let phys_type = signal.physical_type.as_cpp_type();
+
+        if Self::is_phys_float(phys_type) {
+            let min = layout.min;
+            let max = layout.max;
+            let type_min = if phys_type == "float" {
+                f32::MIN as f64
+            } else {
+                f64::MIN
+            };
+            let type_max = if phys_type == "float" {
+                f32::MAX as f64
+            } else {
+                f64::MAX
+            };
+            let range = (max - min).abs();
+            let step = if range.is_finite() {
+                (range * 0.5).max(1.0)
+            } else {
+                1.0
+            };
+
+            [max + step, min - step, max + 1.0, min - 1.0]
+                .into_iter()
+                .find(|candidate| {
+                    candidate.is_finite()
+                        && *candidate >= type_min
+                        && *candidate <= type_max
+                        && (*candidate < min || *candidate > max)
+                })
+                .map(|candidate| Self::format_cpp_float(candidate, phys_type))
+        } else {
+            let min = layout.min as i128;
+            let max = layout.max as i128;
+            let type_min = signal.physical_type.min_value_f64() as i128;
+            let type_max = signal.physical_type.max_value_f64() as i128;
+
+            let candidate = max
+                .checked_add(1)
+                .filter(|candidate| *candidate <= type_max)
+                .or_else(|| {
+                    min.checked_sub(1)
+                        .filter(|candidate| *candidate >= type_min)
+                })?;
+
+            Some(format!(
+                "static_cast<{}>({})",
+                Self::signal_cpp_param_type(signal, file),
+                candidate
+            ))
+        }
+    }
+
     fn test_range_check_active(signal: &Signal, file: &DbcFile, config: &CodegenConfig) -> bool {
         if signal.signal_value_enum_idx.is_some() {
             return false;
@@ -1811,13 +2310,10 @@ impl CppGen {
             candidates.push(value);
         }
 
-        let midpoint = low.checked_add(high).map(|v| v / 2).or_else(|| {
-            if low <= 0 && high >= 0 {
-                Some(0)
-            } else {
-                None
-            }
-        });
+        let midpoint = low
+            .checked_add(high)
+            .map(|v| v / 2)
+            .or_else(|| if low <= 0 && high >= 0 { Some(0) } else { None });
 
         let mut candidates = Vec::new();
         let ordered = if prefer_bounds {
@@ -1897,6 +2393,128 @@ impl CppGen {
         } else {
             value.floor() as i128
         }
+    }
+
+    fn test_unknown_frame_id(messages: &[Message]) -> MessageId {
+        let mut standard_ids = BTreeSet::new();
+        let mut extended_ids = BTreeSet::new();
+
+        for msg in messages {
+            match msg.id {
+                MessageId::Standard(id) => {
+                    standard_ids.insert(id);
+                }
+                MessageId::Extended(id) => {
+                    extended_ids.insert(id);
+                }
+            }
+        }
+
+        for id in 0..=0x7ffu16 {
+            if !standard_ids.contains(&id) {
+                return MessageId::Standard(id);
+            }
+        }
+
+        for id in 0..=0x1fff_ffffu32 {
+            if !extended_ids.contains(&id) {
+                return MessageId::Extended(id);
+            }
+        }
+
+        MessageId::Extended(0x1fff_ffff)
+    }
+
+    fn format_can_id_expr(id: &MessageId) -> String {
+        match id {
+            MessageId::Standard(id) => format!("CanId::standard({})", id),
+            MessageId::Extended(id) => format!("CanId::extended({})", id),
+        }
+    }
+
+    fn invalid_enum_raw_value(signal: &Signal, file: &DbcFile) -> Option<i128> {
+        let enum_idx = signal.signal_value_enum_idx?;
+        let enum_def = &file.signal_value_enums[enum_idx.0];
+        let used = enum_def
+            .variants
+            .iter()
+            .map(|variant| variant.value as i128)
+            .collect::<BTreeSet<_>>();
+        let layout = &file.signal_layouts[signal.layout.0];
+        let (low, high) = Self::integer_raw_range(layout);
+
+        Self::choose_unused_raw_value(low, high, &used)
+    }
+
+    fn invalid_mux_raw_value(
+        mux_signal: &Signal,
+        muxed: &BTreeMap<u64, Vec<&Signal>>,
+        file: &DbcFile,
+    ) -> Option<i128> {
+        let used = muxed.keys().map(|value| *value as i128).collect();
+        let layout = &file.signal_layouts[mux_signal.layout.0];
+        let (low, high) = Self::integer_raw_range(layout);
+
+        Self::choose_unused_raw_value(low, high, &used)
+    }
+
+    fn choose_unused_raw_value(low: i128, high: i128, used: &BTreeSet<i128>) -> Option<i128> {
+        if low > high {
+            return None;
+        }
+
+        let mut candidates = Vec::new();
+        let mut push_candidate = |value: Option<i128>| {
+            let Some(value) = value else {
+                return;
+            };
+
+            if value >= low
+                && value <= high
+                && !used.contains(&value)
+                && !candidates.contains(&value)
+            {
+                candidates.push(value);
+            }
+        };
+
+        for value in [
+            Some(low),
+            Some(high),
+            Some(0),
+            Some(1),
+            Some(-1),
+            Some(2),
+            Some(-2),
+        ] {
+            push_candidate(value);
+        }
+
+        for value in used {
+            push_candidate(value.checked_sub(1));
+            push_candidate(value.checked_add(1));
+        }
+
+        if let Some(span) = high.checked_sub(low) {
+            if span <= 512 {
+                for value in low..=high {
+                    push_candidate(Some(value));
+                }
+            } else {
+                let limit = used.len().saturating_add(8).min(512);
+                for offset in 0..=limit {
+                    let offset = offset as i128;
+                    push_candidate(low.checked_add(offset));
+                    push_candidate(high.checked_sub(offset));
+                    push_candidate(Some(offset));
+                    if offset != 0 {
+                        push_candidate(Some(-offset));
+                    }
+                }
+            }
+        }
+
+        candidates.into_iter().next()
     }
 
     fn parse_can(out: &mut Generator, messages: &[Message]) {
