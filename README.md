@@ -104,7 +104,7 @@ Arguments and options:
 | `--no-enum-other` | Do not generate the fallback `_Other(...)` variant for signal value enums. Unknown enum values then become errors. | false |
 | `--no-enum-dedup` | Disable signal value enum deduplication. By default, equal enums are shared. | false |
 | `--zero-zero-range-allows-all` | Treat DBC physical ranges written as `[0\|0]` as unconstrained. | false |
-| `--test` | Generate Rust tests for messages. This option is meaningful for Rust output. | false |
+| `--test` | Generate message tests. Rust output emits `#[cfg(test)]` tests; C++ output emits a `generated_tests::run_all()` harness. | false |
 
 Examples:
 
@@ -124,6 +124,12 @@ Generate C++:
 
 ```bash
 dbc-codegen2 gen vehicle.dbc -o include/generated_can --lang cpp
+```
+
+Generate C++ with generated tests:
+
+```bash
+dbc-codegen2 gen vehicle.dbc -o include/generated_can --lang cpp --test
 ```
 
 Generate Rust while rejecting unknown enum values:
