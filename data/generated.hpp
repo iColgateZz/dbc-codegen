@@ -10,6 +10,8 @@
 #include <cstring>
 #include <limits>
 #include <type_traits>
+#include <cmath>
+#include <cstdlib>
 
 enum class CanError : uint8_t {
   UnknownFrameId,
@@ -970,3 +972,360 @@ parse_can(CanId id, std::span<const uint8_t> frame) noexcept {
     default: return std::unexpected(CanError::UnknownFrameId);
   };
 };
+
+namespace generated_tests {
+
+inline void expect(bool condition) {
+  if (!condition) {
+    std::abort();
+  };
+};
+
+template <typename Actual, typename Expected>
+inline void expect_equal(const Actual& actual, const Expected& expected) {
+  expect(actual == expected);
+};
+
+template <typename Actual, typename Expected>
+inline void expect_near(Actual actual, Expected expected) {
+  const double a = static_cast<double>(actual);
+  const double e = static_cast<double>(expected);
+  double tolerance = std::fabs(e) * 0.0001;
+  if (tolerance < 0.0001) tolerance = 0.0001;
+  expect(std::fabs(a - e) <= tolerance);
+};
+
+inline void test_driver_heartbeat_msg() {
+  const auto driver_heartbeat_cmd_value = DriverHeartbeatCmdEnum::Reboot;
+  auto msg_result = DriverHeartbeatMsg::create(driver_heartbeat_cmd_value);
+  expect(msg_result.has_value());
+  auto msg = *msg_result;
+  expect_equal(msg.driver_heartbeat_cmd(), driver_heartbeat_cmd_value);
+  const auto driver_heartbeat_cmd_next_value = DriverHeartbeatCmdEnum::Sync;
+  auto set_driver_heartbeat_cmd_next_value_result = msg.set_driver_heartbeat_cmd(driver_heartbeat_cmd_next_value);
+  expect(set_driver_heartbeat_cmd_next_value_result.has_value());
+  expect_equal(msg.driver_heartbeat_cmd(), driver_heartbeat_cmd_next_value);
+  const auto encoded = msg.encode();
+  auto frame_result = DriverHeartbeatMsg::try_from_frame(DriverHeartbeatMsg::ID, encoded);
+  expect(frame_result.has_value());
+  auto frame_msg = *frame_result;
+  expect_equal(frame_msg.driver_heartbeat_cmd(), driver_heartbeat_cmd_next_value);
+  auto parsed_result = parse_can(DriverHeartbeatMsg::ID, encoded);
+  expect(parsed_result.has_value());
+  expect(std::get_if<DriverHeartbeatMsg>(&*parsed_result) != nullptr);
+};
+
+inline void test_io_debug_msg() {
+  const auto io_debug_test_unsigned_value = static_cast<uint8_t>(0);
+  const auto io_debug_test_enum_value = IoDebugTestEnumEnum::Two;
+  const auto io_debug_test_signed_value = static_cast<int8_t>(-128);
+  const auto io_debug_test_float_value = 0.0f;
+  auto msg_result = IoDebugMsg::create(io_debug_test_unsigned_value, io_debug_test_enum_value, io_debug_test_signed_value, io_debug_test_float_value);
+  expect(msg_result.has_value());
+  auto msg = *msg_result;
+  expect_equal(msg.io_debug_test_unsigned(), io_debug_test_unsigned_value);
+  expect_equal(msg.io_debug_test_enum(), io_debug_test_enum_value);
+  expect_equal(msg.io_debug_test_signed(), io_debug_test_signed_value);
+  expect_near(msg.io_debug_test_float(), io_debug_test_float_value);
+  const auto io_debug_test_unsigned_next_value = static_cast<uint8_t>(255);
+  const auto io_debug_test_enum_next_value = IoDebugTestEnumEnum::One;
+  const auto io_debug_test_signed_next_value = static_cast<int8_t>(127);
+  const auto io_debug_test_float_next_value = 127.5f;
+  auto set_io_debug_test_unsigned_next_value_result = msg.set_io_debug_test_unsigned(io_debug_test_unsigned_next_value);
+  expect(set_io_debug_test_unsigned_next_value_result.has_value());
+  auto set_io_debug_test_enum_next_value_result = msg.set_io_debug_test_enum(io_debug_test_enum_next_value);
+  expect(set_io_debug_test_enum_next_value_result.has_value());
+  auto set_io_debug_test_signed_next_value_result = msg.set_io_debug_test_signed(io_debug_test_signed_next_value);
+  expect(set_io_debug_test_signed_next_value_result.has_value());
+  auto set_io_debug_test_float_next_value_result = msg.set_io_debug_test_float(io_debug_test_float_next_value);
+  expect(set_io_debug_test_float_next_value_result.has_value());
+  expect_equal(msg.io_debug_test_unsigned(), io_debug_test_unsigned_next_value);
+  expect_equal(msg.io_debug_test_enum(), io_debug_test_enum_next_value);
+  expect_equal(msg.io_debug_test_signed(), io_debug_test_signed_next_value);
+  expect_near(msg.io_debug_test_float(), io_debug_test_float_next_value);
+  const auto encoded = msg.encode();
+  auto frame_result = IoDebugMsg::try_from_frame(IoDebugMsg::ID, encoded);
+  expect(frame_result.has_value());
+  auto frame_msg = *frame_result;
+  expect_equal(frame_msg.io_debug_test_unsigned(), io_debug_test_unsigned_next_value);
+  expect_equal(frame_msg.io_debug_test_enum(), io_debug_test_enum_next_value);
+  expect_equal(frame_msg.io_debug_test_signed(), io_debug_test_signed_next_value);
+  expect_near(frame_msg.io_debug_test_float(), io_debug_test_float_next_value);
+  auto parsed_result = parse_can(IoDebugMsg::ID, encoded);
+  expect(parsed_result.has_value());
+  expect(std::get_if<IoDebugMsg>(&*parsed_result) != nullptr);
+};
+
+inline void test_motor_cmd_msg() {
+  const auto motor_cmd_steer_value = static_cast<int8_t>(-5);
+  const auto motor_cmd_drive_value = static_cast<uint8_t>(0);
+  auto msg_result = MotorCmdMsg::create(motor_cmd_steer_value, motor_cmd_drive_value);
+  expect(msg_result.has_value());
+  auto msg = *msg_result;
+  expect_equal(msg.motor_cmd_steer(), motor_cmd_steer_value);
+  expect_equal(msg.motor_cmd_drive(), motor_cmd_drive_value);
+  const auto motor_cmd_steer_next_value = static_cast<int8_t>(5);
+  const auto motor_cmd_drive_next_value = static_cast<uint8_t>(9);
+  auto set_motor_cmd_steer_next_value_result = msg.set_motor_cmd_steer(motor_cmd_steer_next_value);
+  expect(set_motor_cmd_steer_next_value_result.has_value());
+  auto set_motor_cmd_drive_next_value_result = msg.set_motor_cmd_drive(motor_cmd_drive_next_value);
+  expect(set_motor_cmd_drive_next_value_result.has_value());
+  expect_equal(msg.motor_cmd_steer(), motor_cmd_steer_next_value);
+  expect_equal(msg.motor_cmd_drive(), motor_cmd_drive_next_value);
+  const auto encoded = msg.encode();
+  auto frame_result = MotorCmdMsg::try_from_frame(MotorCmdMsg::ID, encoded);
+  expect(frame_result.has_value());
+  auto frame_msg = *frame_result;
+  expect_equal(frame_msg.motor_cmd_steer(), motor_cmd_steer_next_value);
+  expect_equal(frame_msg.motor_cmd_drive(), motor_cmd_drive_next_value);
+  auto parsed_result = parse_can(MotorCmdMsg::ID, encoded);
+  expect(parsed_result.has_value());
+  expect(std::get_if<MotorCmdMsg>(&*parsed_result) != nullptr);
+};
+
+inline void test_motor_status_msg() {
+  const auto motor_status_wheel_error_value = false;
+  const auto motor_status_speed_kph_value = 0.0f;
+  auto msg_result = MotorStatusMsg::create(motor_status_wheel_error_value, motor_status_speed_kph_value);
+  expect(msg_result.has_value());
+  auto msg = *msg_result;
+  expect_equal(msg.motor_status_wheel_error(), motor_status_wheel_error_value);
+  expect_near(msg.motor_status_speed_kph(), motor_status_speed_kph_value);
+  const auto motor_status_wheel_error_next_value = true;
+  const auto motor_status_speed_kph_next_value = 65.0f;
+  auto set_motor_status_wheel_error_next_value_result = msg.set_motor_status_wheel_error(motor_status_wheel_error_next_value);
+  expect(set_motor_status_wheel_error_next_value_result.has_value());
+  auto set_motor_status_speed_kph_next_value_result = msg.set_motor_status_speed_kph(motor_status_speed_kph_next_value);
+  expect(set_motor_status_speed_kph_next_value_result.has_value());
+  expect_equal(msg.motor_status_wheel_error(), motor_status_wheel_error_next_value);
+  expect_near(msg.motor_status_speed_kph(), motor_status_speed_kph_next_value);
+  const auto encoded = msg.encode();
+  auto frame_result = MotorStatusMsg::try_from_frame(MotorStatusMsg::ID, encoded);
+  expect(frame_result.has_value());
+  auto frame_msg = *frame_result;
+  expect_equal(frame_msg.motor_status_wheel_error(), motor_status_wheel_error_next_value);
+  expect_near(frame_msg.motor_status_speed_kph(), motor_status_speed_kph_next_value);
+  auto parsed_result = parse_can(MotorStatusMsg::ID, encoded);
+  expect(parsed_result.has_value());
+  expect(std::get_if<MotorStatusMsg>(&*parsed_result) != nullptr);
+};
+
+inline void test_sensor_sonars_msg() {
+  const auto sensor_sonars_err_count_value = static_cast<uint16_t>(0);
+   {
+    const auto sensor_sonars_left_value = 0.0f;
+    const auto sensor_sonars_middle_value = 0.0f;
+    const auto sensor_sonars_right_value = 0.0f;
+    const auto sensor_sonars_rear_value = 0.0f;
+    auto mux_msg_result = SensorSonarsMsgMux0::create(sensor_sonars_left_value, sensor_sonars_middle_value, sensor_sonars_right_value, sensor_sonars_rear_value);
+    expect(mux_msg_result.has_value());
+    auto mux_value = *mux_msg_result;
+    auto msg_result = SensorSonarsMsg::create(sensor_sonars_err_count_value, SensorSonarsMsgMux{mux_value});
+    expect(msg_result.has_value());
+    auto msg = *msg_result;
+    expect_equal(msg.sensor_sonars_err_count(), sensor_sonars_err_count_value);
+    auto mux_result = msg.mux();
+    expect(mux_result.has_value());
+    const auto* mux_msg_ptr = std::get_if<SensorSonarsMsgMux0>(&*mux_result);
+    expect(mux_msg_ptr != nullptr);
+    auto mux_msg = *mux_msg_ptr;
+    expect_near(mux_msg.sensor_sonars_left(), sensor_sonars_left_value);
+    expect_near(mux_msg.sensor_sonars_middle(), sensor_sonars_middle_value);
+    expect_near(mux_msg.sensor_sonars_right(), sensor_sonars_right_value);
+    expect_near(mux_msg.sensor_sonars_rear(), sensor_sonars_rear_value);
+    const auto sensor_sonars_err_count_next_value = static_cast<uint16_t>(4095);
+    auto set_sensor_sonars_err_count_next_value_result = msg.set_sensor_sonars_err_count(sensor_sonars_err_count_next_value);
+    expect(set_sensor_sonars_err_count_next_value_result.has_value());
+    expect_equal(msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value);
+    const auto sensor_sonars_left_next_value = 409.5f;
+    const auto sensor_sonars_middle_next_value = 409.5f;
+    const auto sensor_sonars_right_next_value = 409.5f;
+    const auto sensor_sonars_rear_next_value = 409.5f;
+    auto set_sensor_sonars_left_next_value_result = mux_msg.set_sensor_sonars_left(sensor_sonars_left_next_value);
+    expect(set_sensor_sonars_left_next_value_result.has_value());
+    auto set_sensor_sonars_middle_next_value_result = mux_msg.set_sensor_sonars_middle(sensor_sonars_middle_next_value);
+    expect(set_sensor_sonars_middle_next_value_result.has_value());
+    auto set_sensor_sonars_right_next_value_result = mux_msg.set_sensor_sonars_right(sensor_sonars_right_next_value);
+    expect(set_sensor_sonars_right_next_value_result.has_value());
+    auto set_sensor_sonars_rear_next_value_result = mux_msg.set_sensor_sonars_rear(sensor_sonars_rear_next_value);
+    expect(set_sensor_sonars_rear_next_value_result.has_value());
+    expect_near(mux_msg.sensor_sonars_left(), sensor_sonars_left_next_value);
+    expect_near(mux_msg.sensor_sonars_middle(), sensor_sonars_middle_next_value);
+    expect_near(mux_msg.sensor_sonars_right(), sensor_sonars_right_next_value);
+    expect_near(mux_msg.sensor_sonars_rear(), sensor_sonars_rear_next_value);
+    const auto sensor_sonars_no_filt_left_switch_value = 204.70000000000002f;
+    const auto sensor_sonars_no_filt_middle_switch_value = 204.70000000000002f;
+    const auto sensor_sonars_no_filt_right_switch_value = 204.70000000000002f;
+    const auto sensor_sonars_no_filt_rear_switch_value = 204.70000000000002f;
+    auto next_mux_msg_result = SensorSonarsMsgMux1::create(sensor_sonars_no_filt_left_switch_value, sensor_sonars_no_filt_middle_switch_value, sensor_sonars_no_filt_right_switch_value, sensor_sonars_no_filt_rear_switch_value);
+    expect(next_mux_msg_result.has_value());
+    auto next_mux_value = *next_mux_msg_result;
+    msg.set_mux_1(next_mux_value);
+    auto switched_mux_result = msg.mux();
+    expect(switched_mux_result.has_value());
+    const auto* switched_mux_ptr = std::get_if<SensorSonarsMsgMux1>(&*switched_mux_result);
+    expect(switched_mux_ptr != nullptr);
+    auto switched_mux_msg = *switched_mux_ptr;
+    expect_near(switched_mux_msg.sensor_sonars_no_filt_left(), sensor_sonars_no_filt_left_switch_value);
+    expect_near(switched_mux_msg.sensor_sonars_no_filt_middle(), sensor_sonars_no_filt_middle_switch_value);
+    expect_near(switched_mux_msg.sensor_sonars_no_filt_right(), sensor_sonars_no_filt_right_switch_value);
+    expect_near(switched_mux_msg.sensor_sonars_no_filt_rear(), sensor_sonars_no_filt_rear_switch_value);
+    const auto sensor_sonars_no_filt_left_switch_next_value = 0.1f;
+    const auto sensor_sonars_no_filt_middle_switch_next_value = 0.1f;
+    const auto sensor_sonars_no_filt_right_switch_next_value = 0.1f;
+    const auto sensor_sonars_no_filt_rear_switch_next_value = 0.1f;
+    auto set_sensor_sonars_no_filt_left_switch_next_value_result = switched_mux_msg.set_sensor_sonars_no_filt_left(sensor_sonars_no_filt_left_switch_next_value);
+    expect(set_sensor_sonars_no_filt_left_switch_next_value_result.has_value());
+    auto set_sensor_sonars_no_filt_middle_switch_next_value_result = switched_mux_msg.set_sensor_sonars_no_filt_middle(sensor_sonars_no_filt_middle_switch_next_value);
+    expect(set_sensor_sonars_no_filt_middle_switch_next_value_result.has_value());
+    auto set_sensor_sonars_no_filt_right_switch_next_value_result = switched_mux_msg.set_sensor_sonars_no_filt_right(sensor_sonars_no_filt_right_switch_next_value);
+    expect(set_sensor_sonars_no_filt_right_switch_next_value_result.has_value());
+    auto set_sensor_sonars_no_filt_rear_switch_next_value_result = switched_mux_msg.set_sensor_sonars_no_filt_rear(sensor_sonars_no_filt_rear_switch_next_value);
+    expect(set_sensor_sonars_no_filt_rear_switch_next_value_result.has_value());
+    expect_near(switched_mux_msg.sensor_sonars_no_filt_left(), sensor_sonars_no_filt_left_switch_next_value);
+    expect_near(switched_mux_msg.sensor_sonars_no_filt_middle(), sensor_sonars_no_filt_middle_switch_next_value);
+    expect_near(switched_mux_msg.sensor_sonars_no_filt_right(), sensor_sonars_no_filt_right_switch_next_value);
+    expect_near(switched_mux_msg.sensor_sonars_no_filt_rear(), sensor_sonars_no_filt_rear_switch_next_value);
+    msg.set_mux_1(switched_mux_msg);
+    auto updated_mux_result = msg.mux();
+    expect(updated_mux_result.has_value());
+    const auto* updated_mux_ptr = std::get_if<SensorSonarsMsgMux1>(&*updated_mux_result);
+    expect(updated_mux_ptr != nullptr);
+    auto updated_mux_msg = *updated_mux_ptr;
+    expect_near(updated_mux_msg.sensor_sonars_no_filt_left(), sensor_sonars_no_filt_left_switch_next_value);
+    expect_near(updated_mux_msg.sensor_sonars_no_filt_middle(), sensor_sonars_no_filt_middle_switch_next_value);
+    expect_near(updated_mux_msg.sensor_sonars_no_filt_right(), sensor_sonars_no_filt_right_switch_next_value);
+    expect_near(updated_mux_msg.sensor_sonars_no_filt_rear(), sensor_sonars_no_filt_rear_switch_next_value);
+    expect_equal(msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value);
+    const auto encoded = msg.encode();
+    auto frame_result = SensorSonarsMsg::try_from_frame(SensorSonarsMsg::ID, encoded);
+    expect(frame_result.has_value());
+    auto frame_msg = *frame_result;
+    expect_equal(frame_msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value);
+    auto frame_mux_result = frame_msg.mux();
+    expect(frame_mux_result.has_value());
+    const auto* frame_mux_ptr = std::get_if<SensorSonarsMsgMux1>(&*frame_mux_result);
+    expect(frame_mux_ptr != nullptr);
+    auto frame_mux_msg = *frame_mux_ptr;
+    expect_near(frame_mux_msg.sensor_sonars_no_filt_left(), sensor_sonars_no_filt_left_switch_next_value);
+    expect_near(frame_mux_msg.sensor_sonars_no_filt_middle(), sensor_sonars_no_filt_middle_switch_next_value);
+    expect_near(frame_mux_msg.sensor_sonars_no_filt_right(), sensor_sonars_no_filt_right_switch_next_value);
+    expect_near(frame_mux_msg.sensor_sonars_no_filt_rear(), sensor_sonars_no_filt_rear_switch_next_value);
+    auto parsed_result = parse_can(SensorSonarsMsg::ID, encoded);
+    expect(parsed_result.has_value());
+    expect(std::get_if<SensorSonarsMsg>(&*parsed_result) != nullptr);
+  };
+   {
+    const auto sensor_sonars_no_filt_left_value = 0.0f;
+    const auto sensor_sonars_no_filt_middle_value = 0.0f;
+    const auto sensor_sonars_no_filt_right_value = 0.0f;
+    const auto sensor_sonars_no_filt_rear_value = 0.0f;
+    auto mux_msg_result = SensorSonarsMsgMux1::create(sensor_sonars_no_filt_left_value, sensor_sonars_no_filt_middle_value, sensor_sonars_no_filt_right_value, sensor_sonars_no_filt_rear_value);
+    expect(mux_msg_result.has_value());
+    auto mux_value = *mux_msg_result;
+    auto msg_result = SensorSonarsMsg::create(sensor_sonars_err_count_value, SensorSonarsMsgMux{mux_value});
+    expect(msg_result.has_value());
+    auto msg = *msg_result;
+    expect_equal(msg.sensor_sonars_err_count(), sensor_sonars_err_count_value);
+    auto mux_result = msg.mux();
+    expect(mux_result.has_value());
+    const auto* mux_msg_ptr = std::get_if<SensorSonarsMsgMux1>(&*mux_result);
+    expect(mux_msg_ptr != nullptr);
+    auto mux_msg = *mux_msg_ptr;
+    expect_near(mux_msg.sensor_sonars_no_filt_left(), sensor_sonars_no_filt_left_value);
+    expect_near(mux_msg.sensor_sonars_no_filt_middle(), sensor_sonars_no_filt_middle_value);
+    expect_near(mux_msg.sensor_sonars_no_filt_right(), sensor_sonars_no_filt_right_value);
+    expect_near(mux_msg.sensor_sonars_no_filt_rear(), sensor_sonars_no_filt_rear_value);
+    const auto sensor_sonars_err_count_next_value = static_cast<uint16_t>(4095);
+    auto set_sensor_sonars_err_count_next_value_result = msg.set_sensor_sonars_err_count(sensor_sonars_err_count_next_value);
+    expect(set_sensor_sonars_err_count_next_value_result.has_value());
+    expect_equal(msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value);
+    const auto sensor_sonars_no_filt_left_next_value = 409.5f;
+    const auto sensor_sonars_no_filt_middle_next_value = 409.5f;
+    const auto sensor_sonars_no_filt_right_next_value = 409.5f;
+    const auto sensor_sonars_no_filt_rear_next_value = 409.5f;
+    auto set_sensor_sonars_no_filt_left_next_value_result = mux_msg.set_sensor_sonars_no_filt_left(sensor_sonars_no_filt_left_next_value);
+    expect(set_sensor_sonars_no_filt_left_next_value_result.has_value());
+    auto set_sensor_sonars_no_filt_middle_next_value_result = mux_msg.set_sensor_sonars_no_filt_middle(sensor_sonars_no_filt_middle_next_value);
+    expect(set_sensor_sonars_no_filt_middle_next_value_result.has_value());
+    auto set_sensor_sonars_no_filt_right_next_value_result = mux_msg.set_sensor_sonars_no_filt_right(sensor_sonars_no_filt_right_next_value);
+    expect(set_sensor_sonars_no_filt_right_next_value_result.has_value());
+    auto set_sensor_sonars_no_filt_rear_next_value_result = mux_msg.set_sensor_sonars_no_filt_rear(sensor_sonars_no_filt_rear_next_value);
+    expect(set_sensor_sonars_no_filt_rear_next_value_result.has_value());
+    expect_near(mux_msg.sensor_sonars_no_filt_left(), sensor_sonars_no_filt_left_next_value);
+    expect_near(mux_msg.sensor_sonars_no_filt_middle(), sensor_sonars_no_filt_middle_next_value);
+    expect_near(mux_msg.sensor_sonars_no_filt_right(), sensor_sonars_no_filt_right_next_value);
+    expect_near(mux_msg.sensor_sonars_no_filt_rear(), sensor_sonars_no_filt_rear_next_value);
+    const auto sensor_sonars_left_switch_value = 204.70000000000002f;
+    const auto sensor_sonars_middle_switch_value = 204.70000000000002f;
+    const auto sensor_sonars_right_switch_value = 204.70000000000002f;
+    const auto sensor_sonars_rear_switch_value = 204.70000000000002f;
+    auto next_mux_msg_result = SensorSonarsMsgMux0::create(sensor_sonars_left_switch_value, sensor_sonars_middle_switch_value, sensor_sonars_right_switch_value, sensor_sonars_rear_switch_value);
+    expect(next_mux_msg_result.has_value());
+    auto next_mux_value = *next_mux_msg_result;
+    msg.set_mux_0(next_mux_value);
+    auto switched_mux_result = msg.mux();
+    expect(switched_mux_result.has_value());
+    const auto* switched_mux_ptr = std::get_if<SensorSonarsMsgMux0>(&*switched_mux_result);
+    expect(switched_mux_ptr != nullptr);
+    auto switched_mux_msg = *switched_mux_ptr;
+    expect_near(switched_mux_msg.sensor_sonars_left(), sensor_sonars_left_switch_value);
+    expect_near(switched_mux_msg.sensor_sonars_middle(), sensor_sonars_middle_switch_value);
+    expect_near(switched_mux_msg.sensor_sonars_right(), sensor_sonars_right_switch_value);
+    expect_near(switched_mux_msg.sensor_sonars_rear(), sensor_sonars_rear_switch_value);
+    const auto sensor_sonars_left_switch_next_value = 0.1f;
+    const auto sensor_sonars_middle_switch_next_value = 0.1f;
+    const auto sensor_sonars_right_switch_next_value = 0.1f;
+    const auto sensor_sonars_rear_switch_next_value = 0.1f;
+    auto set_sensor_sonars_left_switch_next_value_result = switched_mux_msg.set_sensor_sonars_left(sensor_sonars_left_switch_next_value);
+    expect(set_sensor_sonars_left_switch_next_value_result.has_value());
+    auto set_sensor_sonars_middle_switch_next_value_result = switched_mux_msg.set_sensor_sonars_middle(sensor_sonars_middle_switch_next_value);
+    expect(set_sensor_sonars_middle_switch_next_value_result.has_value());
+    auto set_sensor_sonars_right_switch_next_value_result = switched_mux_msg.set_sensor_sonars_right(sensor_sonars_right_switch_next_value);
+    expect(set_sensor_sonars_right_switch_next_value_result.has_value());
+    auto set_sensor_sonars_rear_switch_next_value_result = switched_mux_msg.set_sensor_sonars_rear(sensor_sonars_rear_switch_next_value);
+    expect(set_sensor_sonars_rear_switch_next_value_result.has_value());
+    expect_near(switched_mux_msg.sensor_sonars_left(), sensor_sonars_left_switch_next_value);
+    expect_near(switched_mux_msg.sensor_sonars_middle(), sensor_sonars_middle_switch_next_value);
+    expect_near(switched_mux_msg.sensor_sonars_right(), sensor_sonars_right_switch_next_value);
+    expect_near(switched_mux_msg.sensor_sonars_rear(), sensor_sonars_rear_switch_next_value);
+    msg.set_mux_0(switched_mux_msg);
+    auto updated_mux_result = msg.mux();
+    expect(updated_mux_result.has_value());
+    const auto* updated_mux_ptr = std::get_if<SensorSonarsMsgMux0>(&*updated_mux_result);
+    expect(updated_mux_ptr != nullptr);
+    auto updated_mux_msg = *updated_mux_ptr;
+    expect_near(updated_mux_msg.sensor_sonars_left(), sensor_sonars_left_switch_next_value);
+    expect_near(updated_mux_msg.sensor_sonars_middle(), sensor_sonars_middle_switch_next_value);
+    expect_near(updated_mux_msg.sensor_sonars_right(), sensor_sonars_right_switch_next_value);
+    expect_near(updated_mux_msg.sensor_sonars_rear(), sensor_sonars_rear_switch_next_value);
+    expect_equal(msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value);
+    const auto encoded = msg.encode();
+    auto frame_result = SensorSonarsMsg::try_from_frame(SensorSonarsMsg::ID, encoded);
+    expect(frame_result.has_value());
+    auto frame_msg = *frame_result;
+    expect_equal(frame_msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value);
+    auto frame_mux_result = frame_msg.mux();
+    expect(frame_mux_result.has_value());
+    const auto* frame_mux_ptr = std::get_if<SensorSonarsMsgMux0>(&*frame_mux_result);
+    expect(frame_mux_ptr != nullptr);
+    auto frame_mux_msg = *frame_mux_ptr;
+    expect_near(frame_mux_msg.sensor_sonars_left(), sensor_sonars_left_switch_next_value);
+    expect_near(frame_mux_msg.sensor_sonars_middle(), sensor_sonars_middle_switch_next_value);
+    expect_near(frame_mux_msg.sensor_sonars_right(), sensor_sonars_right_switch_next_value);
+    expect_near(frame_mux_msg.sensor_sonars_rear(), sensor_sonars_rear_switch_next_value);
+    auto parsed_result = parse_can(SensorSonarsMsg::ID, encoded);
+    expect(parsed_result.has_value());
+    expect(std::get_if<SensorSonarsMsg>(&*parsed_result) != nullptr);
+  };
+};
+
+inline void run_all() {
+  test_driver_heartbeat_msg();
+  test_io_debug_msg();
+  test_motor_cmd_msg();
+  test_motor_status_msg();
+  test_sensor_sonars_msg();
+};
+
+} // namespace generated_tests

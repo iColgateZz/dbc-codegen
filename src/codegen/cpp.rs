@@ -3,17 +3,16 @@ use std::collections::BTreeMap;
 use heck::ToSnakeCase;
 
 use crate::{
-    DbcFile,
     codegen::Generator,
     empty, end_block, end_block_no_close,
     ir::{
         message::{Message, MessageId, MessageSignalClassification},
         signal::Signal,
-        signal_layout::{ByteOrder, SignalLayout},
+        signal_layout::{ByteOrder, SignalLayout, ValueType},
         signal_value_enum::SignalValueEnum,
         signal_value_type::{CppType, RawType},
     },
-    line, start_block,
+    line, start_block, DbcFile,
 };
 
 use crate::codegen::config::CodegenConfig;
@@ -27,7 +26,7 @@ impl CppGen {
         line!(out, "#pragma once");
         empty!(out);
 
-        Self::includes(&mut out);
+        Self::includes(&mut out, config.generate_tests);
         Self::errors(&mut out);
         Self::can_id(&mut out);
         Self::message_interface(&mut out);
@@ -52,6 +51,9 @@ impl CppGen {
         }
 
         Self::parse_can(&mut out, &file.messages);
+        if config.generate_tests {
+            Self::test_module(&mut out, file, config);
+        }
 
         out.into_string()
     }
@@ -277,8 +279,8 @@ impl CppGen {
         }
     }
 
-    fn includes(out: &mut Generator) {
-        const INCLUDES: &[&str] = &[
+    fn includes(out: &mut Generator, generate_tests: bool) {
+        let mut includes = vec![
             "array",
             "cstddef",
             "cstdint",
@@ -291,7 +293,11 @@ impl CppGen {
             "type_traits",
         ];
 
-        for include in INCLUDES {
+        if generate_tests {
+            includes.extend(["cmath", "cstdlib"]);
+        }
+
+        for include in includes {
             line!(out, "#include <{}>", include);
         }
         empty!(out);
@@ -1270,6 +1276,626 @@ impl CppGen {
                 line!(out, "static_assert(GeneratedCanMessage<{}>);", msg_name);
                 empty!(out);
             }
+        }
+    }
+
+    fn test_module(out: &mut Generator, file: &DbcFile, config: &CodegenConfig) {
+        empty!(out);
+        line!(out, "namespace generated_tests {{");
+        empty!(out);
+
+        Self::emit_test_helpers(out);
+
+        for msg in &file.messages {
+            match msg.classify_signals(&file.signals) {
+                MessageSignalClassification::Plain { signals } => {
+                    let sigs: Vec<&Signal> =
+                        signals.iter().map(|idx| &file.signals[idx.0]).collect();
+                    Self::plain_message_test(out, msg, &sigs, file, config);
+                }
+                MessageSignalClassification::Multiplexed { plain, muxed, .. } => {
+                    let plain_sigs: Vec<&Signal> =
+                        plain.iter().map(|idx| &file.signals[idx.0]).collect();
+                    let muxed_sigs: BTreeMap<u64, Vec<&Signal>> = muxed
+                        .iter()
+                        .map(|(v, idxs)| {
+                            (*v, idxs.iter().map(|idx| &file.signals[idx.0]).collect())
+                        })
+                        .collect();
+                    Self::multiplexed_message_test(
+                        out,
+                        msg,
+                        &plain_sigs,
+                        &muxed_sigs,
+                        file,
+                        config,
+                    );
+                }
+            }
+        }
+
+        start_block!(out, "inline void run_all()");
+        for msg in &file.messages {
+            line!(out, "{}();", Self::test_fn_name(msg));
+        }
+        end_block!(out, "");
+        empty!(out);
+
+        line!(out, "}} // namespace generated_tests");
+    }
+
+    fn emit_test_helpers(out: &mut Generator) {
+        start_block!(out, "inline void expect(bool condition)");
+        start_block!(out, "if (!condition)");
+        line!(out, "std::abort();");
+        end_block!(out, "");
+        end_block!(out, "");
+        empty!(out);
+
+        line!(out, "template <typename Actual, typename Expected>");
+        start_block!(
+            out,
+            "inline void expect_equal(const Actual& actual, const Expected& expected)"
+        );
+        line!(out, "expect(actual == expected);");
+        end_block!(out, "");
+        empty!(out);
+
+        line!(out, "template <typename Actual, typename Expected>");
+        start_block!(
+            out,
+            "inline void expect_near(Actual actual, Expected expected)"
+        );
+        line!(out, "const double a = static_cast<double>(actual);");
+        line!(out, "const double e = static_cast<double>(expected);");
+        line!(out, "double tolerance = std::fabs(e) * 0.0001;");
+        line!(out, "if (tolerance < 0.0001) tolerance = 0.0001;");
+        line!(out, "expect(std::fabs(a - e) <= tolerance);");
+        end_block!(out, "");
+        empty!(out);
+    }
+
+    fn plain_message_test(
+        out: &mut Generator,
+        msg: &Message,
+        signals: &[&Signal],
+        file: &DbcFile,
+        config: &CodegenConfig,
+    ) {
+        let msg_name = msg.name.upper_camel();
+        let test_name = Self::test_fn_name(msg);
+
+        start_block!(out, "inline void {}()", test_name);
+        Self::emit_test_value_decls(out, signals, file, config, "value", 0);
+
+        let constructor_args = Self::test_vars(signals, "value").join(", ");
+        line!(
+            out,
+            "auto msg_result = {}::create({});",
+            msg_name,
+            constructor_args
+        );
+        line!(out, "expect(msg_result.has_value());");
+        line!(out, "auto msg = *msg_result;");
+        Self::emit_test_getter_assertions(out, "msg", signals, "value", file, config);
+
+        Self::emit_test_value_decls(out, signals, file, config, "next_value", 1);
+        Self::emit_test_setter_calls(out, "msg", signals, "next_value");
+        Self::emit_test_getter_assertions(out, "msg", signals, "next_value", file, config);
+
+        line!(out, "const auto encoded = msg.encode();");
+        line!(
+            out,
+            "auto frame_result = {}::try_from_frame({}::ID, encoded);",
+            msg_name,
+            msg_name
+        );
+        line!(out, "expect(frame_result.has_value());");
+        line!(out, "auto frame_msg = *frame_result;");
+        Self::emit_test_getter_assertions(out, "frame_msg", signals, "next_value", file, config);
+
+        line!(
+            out,
+            "auto parsed_result = parse_can({}::ID, encoded);",
+            msg_name
+        );
+        line!(out, "expect(parsed_result.has_value());");
+        line!(
+            out,
+            "expect(std::get_if<{}>(&*parsed_result) != nullptr);",
+            msg_name
+        );
+
+        end_block!(out, "");
+        empty!(out);
+    }
+
+    fn multiplexed_message_test(
+        out: &mut Generator,
+        msg: &Message,
+        plain: &[&Signal],
+        muxed: &BTreeMap<u64, Vec<&Signal>>,
+        file: &DbcFile,
+        config: &CodegenConfig,
+    ) {
+        let msg_name = msg.name.upper_camel();
+        let mux_enum_name = format!("{}Mux", msg_name);
+        let test_name = Self::test_fn_name(msg);
+        let mux_entries = muxed.iter().collect::<Vec<_>>();
+
+        start_block!(out, "inline void {}()", test_name);
+        Self::emit_test_value_decls(out, plain, file, config, "value", 0);
+
+        for (entry_idx, (mux_value, sigs)) in mux_entries.iter().enumerate() {
+            let next_entry_idx = if mux_entries.len() > 1 {
+                (entry_idx + 1) % mux_entries.len()
+            } else {
+                entry_idx
+            };
+            let (next_mux_value, next_sigs) = mux_entries[next_entry_idx];
+
+            let variant_class = format!("{}Mux{}", msg_name, mux_value);
+            let next_variant_class = format!("{}Mux{}", msg_name, next_mux_value);
+            let mux_setter = format!("set_mux_{}", next_mux_value);
+
+            start_block!(out, "");
+
+            Self::emit_test_value_decls(out, sigs, file, config, "value", 0);
+            let mux_constructor_args = Self::test_vars(sigs, "value").join(", ");
+            line!(
+                out,
+                "auto mux_msg_result = {}::create({});",
+                variant_class,
+                mux_constructor_args
+            );
+            line!(out, "expect(mux_msg_result.has_value());");
+            line!(out, "auto mux_value = *mux_msg_result;");
+
+            let mut msg_constructor_args = Self::test_vars(plain, "value");
+            msg_constructor_args.push(format!("{}{{mux_value}}", mux_enum_name));
+            line!(
+                out,
+                "auto msg_result = {}::create({});",
+                msg_name,
+                msg_constructor_args.join(", ")
+            );
+            line!(out, "expect(msg_result.has_value());");
+            line!(out, "auto msg = *msg_result;");
+            Self::emit_test_getter_assertions(out, "msg", plain, "value", file, config);
+
+            line!(out, "auto mux_result = msg.mux();");
+            line!(out, "expect(mux_result.has_value());");
+            line!(
+                out,
+                "const auto* mux_msg_ptr = std::get_if<{}>(&*mux_result);",
+                variant_class
+            );
+            line!(out, "expect(mux_msg_ptr != nullptr);");
+            line!(out, "auto mux_msg = *mux_msg_ptr;");
+            Self::emit_test_getter_assertions(out, "mux_msg", sigs, "value", file, config);
+
+            Self::emit_test_value_decls(out, plain, file, config, "next_value", 1);
+            Self::emit_test_setter_calls(out, "msg", plain, "next_value");
+            Self::emit_test_getter_assertions(out, "msg", plain, "next_value", file, config);
+
+            Self::emit_test_value_decls(out, sigs, file, config, "next_value", 1);
+            Self::emit_test_setter_calls(out, "mux_msg", sigs, "next_value");
+            Self::emit_test_getter_assertions(out, "mux_msg", sigs, "next_value", file, config);
+
+            Self::emit_test_value_decls(out, next_sigs, file, config, "switch_value", 2);
+            let next_mux_constructor_args = Self::test_vars(next_sigs, "switch_value").join(", ");
+            line!(
+                out,
+                "auto next_mux_msg_result = {}::create({});",
+                next_variant_class,
+                next_mux_constructor_args
+            );
+            line!(out, "expect(next_mux_msg_result.has_value());");
+            line!(out, "auto next_mux_value = *next_mux_msg_result;");
+            line!(out, "msg.{}(next_mux_value);", mux_setter);
+
+            line!(out, "auto switched_mux_result = msg.mux();");
+            line!(out, "expect(switched_mux_result.has_value());");
+            line!(
+                out,
+                "const auto* switched_mux_ptr = std::get_if<{}>(&*switched_mux_result);",
+                next_variant_class
+            );
+            line!(out, "expect(switched_mux_ptr != nullptr);");
+            line!(out, "auto switched_mux_msg = *switched_mux_ptr;");
+            Self::emit_test_getter_assertions(
+                out,
+                "switched_mux_msg",
+                next_sigs,
+                "switch_value",
+                file,
+                config,
+            );
+
+            Self::emit_test_value_decls(out, next_sigs, file, config, "switch_next_value", 3);
+            Self::emit_test_setter_calls(out, "switched_mux_msg", next_sigs, "switch_next_value");
+            Self::emit_test_getter_assertions(
+                out,
+                "switched_mux_msg",
+                next_sigs,
+                "switch_next_value",
+                file,
+                config,
+            );
+
+            line!(out, "msg.{}(switched_mux_msg);", mux_setter);
+            line!(out, "auto updated_mux_result = msg.mux();");
+            line!(out, "expect(updated_mux_result.has_value());");
+            line!(
+                out,
+                "const auto* updated_mux_ptr = std::get_if<{}>(&*updated_mux_result);",
+                next_variant_class
+            );
+            line!(out, "expect(updated_mux_ptr != nullptr);");
+            line!(out, "auto updated_mux_msg = *updated_mux_ptr;");
+            Self::emit_test_getter_assertions(
+                out,
+                "updated_mux_msg",
+                next_sigs,
+                "switch_next_value",
+                file,
+                config,
+            );
+            Self::emit_test_getter_assertions(out, "msg", plain, "next_value", file, config);
+
+            line!(out, "const auto encoded = msg.encode();");
+            line!(
+                out,
+                "auto frame_result = {}::try_from_frame({}::ID, encoded);",
+                msg_name,
+                msg_name
+            );
+            line!(out, "expect(frame_result.has_value());");
+            line!(out, "auto frame_msg = *frame_result;");
+            Self::emit_test_getter_assertions(out, "frame_msg", plain, "next_value", file, config);
+            line!(out, "auto frame_mux_result = frame_msg.mux();");
+            line!(out, "expect(frame_mux_result.has_value());");
+            line!(
+                out,
+                "const auto* frame_mux_ptr = std::get_if<{}>(&*frame_mux_result);",
+                next_variant_class
+            );
+            line!(out, "expect(frame_mux_ptr != nullptr);");
+            line!(out, "auto frame_mux_msg = *frame_mux_ptr;");
+            Self::emit_test_getter_assertions(
+                out,
+                "frame_mux_msg",
+                next_sigs,
+                "switch_next_value",
+                file,
+                config,
+            );
+
+            line!(
+                out,
+                "auto parsed_result = parse_can({}::ID, encoded);",
+                msg_name
+            );
+            line!(out, "expect(parsed_result.has_value());");
+            line!(
+                out,
+                "expect(std::get_if<{}>(&*parsed_result) != nullptr);",
+                msg_name
+            );
+
+            end_block!(out, "");
+        }
+
+        end_block!(out, "");
+        empty!(out);
+    }
+
+    fn emit_test_value_decls(
+        out: &mut Generator,
+        signals: &[&Signal],
+        file: &DbcFile,
+        config: &CodegenConfig,
+        suffix: &str,
+        ordinal: usize,
+    ) {
+        for signal in signals {
+            line!(
+                out,
+                "const auto {} = {};",
+                Self::test_var(signal, suffix),
+                Self::test_value_expr(signal, file, config, ordinal)
+            );
+        }
+    }
+
+    fn emit_test_setter_calls(
+        out: &mut Generator,
+        receiver: &str,
+        signals: &[&Signal],
+        value_suffix: &str,
+    ) {
+        for signal in signals {
+            let field_name = signal.name.raw.to_snake_case();
+            let value = Self::test_var(signal, value_suffix);
+            let result = format!("set_{}_{}_result", field_name, value_suffix);
+            line!(
+                out,
+                "auto {} = {}.set_{}({});",
+                result,
+                receiver,
+                field_name,
+                value
+            );
+            line!(out, "expect({}.has_value());", result);
+        }
+    }
+
+    fn emit_test_getter_assertions(
+        out: &mut Generator,
+        receiver: &str,
+        signals: &[&Signal],
+        expected_suffix: &str,
+        _file: &DbcFile,
+        config: &CodegenConfig,
+    ) {
+        for signal in signals {
+            let field_name = signal.name.raw.to_snake_case();
+            let expected = Self::test_var(signal, expected_suffix);
+            let call = format!("{}.{}()", receiver, field_name);
+
+            if signal.signal_value_enum_idx.is_some() && config.no_enum_other {
+                let actual = format!(
+                    "actual_{}_{}_{}",
+                    Self::test_ident_fragment(receiver),
+                    field_name,
+                    expected_suffix
+                );
+                line!(out, "const auto {} = {};", actual, call);
+                line!(out, "expect({}.has_value());", actual);
+                line!(out, "expect_equal(*{}, {});", actual, expected);
+            } else if Self::is_phys_float(signal.physical_type.as_cpp_type()) {
+                line!(out, "expect_near({}, {});", call, expected);
+            } else {
+                line!(out, "expect_equal({}, {});", call, expected);
+            }
+        }
+    }
+
+    fn test_fn_name(msg: &Message) -> String {
+        format!("test_{}", msg.name.snake_case())
+    }
+
+    fn test_var(signal: &Signal, suffix: &str) -> String {
+        format!("{}_{}", signal.name.raw.to_snake_case(), suffix)
+    }
+
+    fn test_ident_fragment(value: &str) -> String {
+        value
+            .chars()
+            .map(|ch| {
+                if ch == '_' || ch.is_ascii_alphanumeric() {
+                    ch
+                } else {
+                    '_'
+                }
+            })
+            .collect()
+    }
+
+    fn test_vars(signals: &[&Signal], suffix: &str) -> Vec<String> {
+        signals
+            .iter()
+            .map(|signal| Self::test_var(signal, suffix))
+            .collect()
+    }
+
+    fn test_value_expr(
+        signal: &Signal,
+        file: &DbcFile,
+        config: &CodegenConfig,
+        ordinal: usize,
+    ) -> String {
+        if let Some(idx) = signal.signal_value_enum_idx {
+            let enum_def = &file.signal_value_enums[idx.0];
+            let enum_name = enum_def.name.upper_camel();
+            if !enum_def.variants.is_empty() {
+                let variant = &enum_def.variants[ordinal % enum_def.variants.len()];
+                return format!("{}::{}", enum_name, variant.description);
+            }
+
+            return format!("static_cast<{}>(0)", enum_name);
+        }
+
+        if Self::is_bool_signal(signal, file) {
+            return if ordinal % 2 == 0 { "false" } else { "true" }.to_string();
+        }
+
+        let layout = &file.signal_layouts[signal.layout.0];
+        let phys_type = signal.physical_type.as_cpp_type();
+
+        if Self::is_raw_float(&signal.raw_type) {
+            let value = Self::raw_float_test_value(layout, config, ordinal);
+            return Self::format_cpp_float(value, phys_type);
+        }
+
+        let active_range_check = Self::test_range_check_active(signal, file, config);
+        let (low, high) = Self::test_raw_interval(layout, active_range_check);
+        let raw = Self::choose_test_raw(low, high, ordinal, active_range_check);
+        let physical = raw as f64 * layout.factor + layout.offset;
+
+        if Self::is_phys_float(phys_type) {
+            Self::format_cpp_float(physical, phys_type)
+        } else {
+            let value = if layout.factor.fract() == 0.0 && layout.offset.fract() == 0.0 {
+                raw.saturating_mul(layout.factor as i128)
+                    .saturating_add(layout.offset as i128)
+            } else {
+                physical as i128
+            };
+
+            format!(
+                "static_cast<{}>({})",
+                Self::signal_cpp_param_type(signal, file),
+                value
+            )
+        }
+    }
+
+    fn test_range_check_active(signal: &Signal, file: &DbcFile, config: &CodegenConfig) -> bool {
+        if signal.signal_value_enum_idx.is_some() {
+            return false;
+        }
+
+        let layout = &file.signal_layouts[signal.layout.0];
+        if layout.size == 1 {
+            return false;
+        }
+
+        !(config.zero_zero_range_allows_all && layout.min == 0.0 && layout.max == 0.0)
+    }
+
+    fn raw_float_test_value(layout: &SignalLayout, config: &CodegenConfig, ordinal: usize) -> f64 {
+        let active_range_check =
+            !(config.zero_zero_range_allows_all && layout.min == 0.0 && layout.max == 0.0);
+
+        if active_range_check {
+            match ordinal % 3 {
+                0 => layout.min,
+                1 => layout.max,
+                _ => (layout.min + layout.max) / 2.0,
+            }
+        } else {
+            match ordinal % 5 {
+                0 => 0.0,
+                1 => 1.0,
+                2 => -1.0,
+                3 => 2.0,
+                _ => -2.0,
+            }
+        }
+    }
+
+    fn test_raw_interval(layout: &SignalLayout, active_range_check: bool) -> (i128, i128) {
+        let (raw_min, raw_max) = Self::integer_raw_range(layout);
+
+        if !active_range_check {
+            return (raw_min, raw_max);
+        }
+
+        let raw_a = (layout.min - layout.offset) / layout.factor;
+        let raw_b = (layout.max - layout.offset) / layout.factor;
+        let lower = raw_a.min(raw_b);
+        let upper = raw_a.max(raw_b);
+        let eps = lower.abs().max(upper.abs()).max(1.0) * 1e-9;
+
+        let low = Self::ceil_to_i128(lower - eps).clamp(raw_min, raw_max);
+        let high = Self::floor_to_i128(upper + eps).clamp(raw_min, raw_max);
+
+        if low <= high {
+            (low, high)
+        } else {
+            (raw_min, raw_max)
+        }
+    }
+
+    fn choose_test_raw(low: i128, high: i128, ordinal: usize, prefer_bounds: bool) -> i128 {
+        fn push_candidate(candidates: &mut Vec<i128>, value: Option<i128>, low: i128, high: i128) {
+            let Some(value) = value else {
+                return;
+            };
+
+            if value < low || value > high || candidates.contains(&value) {
+                return;
+            }
+
+            candidates.push(value);
+        }
+
+        let midpoint = low.checked_add(high).map(|v| v / 2).or_else(|| {
+            if low <= 0 && high >= 0 {
+                Some(0)
+            } else {
+                None
+            }
+        });
+
+        let mut candidates = Vec::new();
+        let ordered = if prefer_bounds {
+            [
+                Some(low),
+                Some(high),
+                midpoint,
+                low.checked_add(1),
+                high.checked_sub(1),
+                Some(0),
+                Some(1),
+                Some(-1),
+                Some(2),
+                Some(-2),
+            ]
+        } else {
+            [
+                Some(0),
+                Some(1),
+                Some(-1),
+                Some(2),
+                Some(-2),
+                midpoint,
+                Some(low),
+                Some(high),
+                low.checked_add(1),
+                high.checked_sub(1),
+            ]
+        };
+
+        for candidate in ordered {
+            push_candidate(&mut candidates, candidate, low, high);
+        }
+
+        if candidates.is_empty() {
+            low
+        } else {
+            candidates[ordinal % candidates.len()]
+        }
+    }
+
+    fn integer_raw_range(layout: &SignalLayout) -> (i128, i128) {
+        match layout.value_type {
+            ValueType::Signed => {
+                if layout.size >= 128 {
+                    (i128::MIN, i128::MAX)
+                } else {
+                    let magnitude = 1i128 << (layout.size - 1);
+                    (-magnitude, magnitude - 1)
+                }
+            }
+            ValueType::Unsigned => {
+                if layout.size >= 127 {
+                    (0, i128::MAX)
+                } else {
+                    (0, (1i128 << layout.size) - 1)
+                }
+            }
+        }
+    }
+
+    fn ceil_to_i128(value: f64) -> i128 {
+        if value <= i128::MIN as f64 {
+            i128::MIN
+        } else if value >= i128::MAX as f64 {
+            i128::MAX
+        } else {
+            value.ceil() as i128
+        }
+    }
+
+    fn floor_to_i128(value: f64) -> i128 {
+        if value <= i128::MIN as f64 {
+            i128::MIN
+        } else if value >= i128::MAX as f64 {
+            i128::MAX
+        } else {
+            value.floor() as i128
         }
     }
 
