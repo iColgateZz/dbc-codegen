@@ -2,7 +2,6 @@ use can_dbc::Dbc as ParsedDbc;
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::Context;
 use crate::codegen;
 use crate::codegen::config::CodegenConfig;
 use crate::middle_end::nodes::{
@@ -21,6 +20,7 @@ use crate::{
         nodes::SanitizeSignalEnumVariantNames, pipeline::transform_pipeline::TransformationPipeline,
     },
 };
+use anyhow::Context;
 
 pub struct CodegenPipeline;
 
@@ -28,10 +28,10 @@ impl CodegenPipeline {
     pub fn run(config: CodegenConfig) -> anyhow::Result<()> {
         let mut parsed_dbcs = config.inputs.iter().map(|input| {
             let data = fs::read_to_string(input)
-                    .with_context(|| format!("Unable to read input file `{input}`"))?;
+                .with_context(|| format!("Unable to read input file `{input}`"))?;
 
-                ParsedDbc::try_from(data.as_str())
-                    .with_context(|| format!("Unable to parse input file `{input}`"))
+            ParsedDbc::try_from(data.as_str())
+                .with_context(|| format!("Unable to parse input file `{input}`"))
         });
 
         let first = parsed_dbcs

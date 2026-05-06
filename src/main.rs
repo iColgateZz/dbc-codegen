@@ -1,9 +1,6 @@
 use can_dbc::Dbc as ParsedDbc;
 use clap::{Parser, Subcommand};
-use dbc_codegen2::{
-    DbcFile, CodegenPipeline, CodegenConfig,
-    ir::IRBuilder, Language,
-};
+use dbc_codegen2::{CodegenConfig, CodegenPipeline, DbcFile, Language, ir::IRBuilder};
 use std::{
     collections::HashMap,
     fs::{self, File},
