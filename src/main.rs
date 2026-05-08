@@ -103,6 +103,7 @@ fn main() {
                 no_enum_dedup,
                 zero_zero_range_allows_all,
                 rust_code_injections: HashMap::new(),
+                cpp_code_injections: HashMap::new(),
                 generate_tests,
             };
 

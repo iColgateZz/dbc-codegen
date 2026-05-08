@@ -12,6 +12,22 @@ pub enum RustCodeInjectionPoint {
     ErrorEnum,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CppCodeInjectionPoint {
+    Header,
+    Footer,
+    ErrorEnum,
+    MessageVariant,
+    SignalValueEnum,
+    MuxVariant,
+    MuxVariantClass,
+    MuxVariantClassPublic,
+    MuxVariantClassPrivate,
+    MessageClass,
+    MessageClassPublic,
+    MessageClassPrivate,
+}
+
 #[derive(Debug, Clone)]
 pub struct CodegenConfig {
     pub inputs: Vec<String>,
@@ -21,6 +37,7 @@ pub struct CodegenConfig {
     pub no_enum_dedup: bool,
     pub zero_zero_range_allows_all: bool,
     pub rust_code_injections: HashMap<RustCodeInjectionPoint, Vec<String>>,
+    pub cpp_code_injections: HashMap<CppCodeInjectionPoint, Vec<String>>,
     pub generate_tests: bool,
 }
 
@@ -31,6 +48,17 @@ impl CodegenConfig {
         code: impl Into<String>,
     ) {
         self.rust_code_injections
+            .entry(point)
+            .or_default()
+            .push(code.into());
+    }
+
+    pub fn add_cpp_code_injection(
+        &mut self,
+        point: CppCodeInjectionPoint,
+        code: impl Into<String>,
+    ) {
+        self.cpp_code_injections
             .entry(point)
             .or_default()
             .push(code.into());

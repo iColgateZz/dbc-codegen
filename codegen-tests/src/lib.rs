@@ -77,6 +77,7 @@ fn _run_codegen(input: &Path) -> Result<()> {
         no_enum_dedup: false,
         zero_zero_range_allows_all: false,
         rust_code_injections: HashMap::new(),
+        cpp_code_injections: HashMap::new(),
         generate_tests: true,
     };
 

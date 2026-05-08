@@ -161,6 +161,7 @@ fn main() -> anyhow::Result<()> {
         no_enum_dedup: false,
         zero_zero_range_allows_all: false,
         rust_code_injections: HashMap::new(),
+        cpp_code_injections: HashMap::new(),
         generate_tests: true,
     };
 
@@ -198,6 +199,7 @@ fn main() -> anyhow::Result<()> {
         no_enum_dedup: false,
         zero_zero_range_allows_all: false,
         rust_code_injections: HashMap::new(),
+        cpp_code_injections: HashMap::new(),
         generate_tests: false,
     };
 
@@ -209,6 +211,60 @@ fn main() -> anyhow::Result<()> {
     config.add_rust_code_injection(
         RustCodeInjectionPoint::MessageStruct,
         "#[cfg_attr(feature = \"defmt\", derive(defmt::Format))]",
+    );
+
+    CodegenPipeline::run(config)
+}
+```
+
+### C++ code injection
+
+C++ code injection lets library users insert extra C++ before selected generated items or inside generated classes.
+
+Available injection points are:
+
+| Injection point | Inserted at |
+| --- | --- |
+| `CppCodeInjectionPoint::Header` | after generated `#include`s, before generated declarations |
+| `CppCodeInjectionPoint::Footer` | after all generated declarations |
+| `CppCodeInjectionPoint::ErrorEnum` | before the generated `CanError` enum |
+| `CppCodeInjectionPoint::MessageVariant` | before the generated top-level `CanMsg` variant alias |
+| `CppCodeInjectionPoint::SignalValueEnum` | before every generated signal value enum |
+| `CppCodeInjectionPoint::MuxVariant` | before every generated mux variant alias |
+| `CppCodeInjectionPoint::MuxVariantClass` | before every generated mux variant class |
+| `CppCodeInjectionPoint::MuxVariantClassPublic` | inside every generated mux variant class, after `public:` |
+| `CppCodeInjectionPoint::MuxVariantClassPrivate` | inside every generated mux variant class, after `private:` |
+| `CppCodeInjectionPoint::MessageClass` | before every generated message class |
+| `CppCodeInjectionPoint::MessageClassPublic` | inside every generated message class, after `public:` |
+| `CppCodeInjectionPoint::MessageClassPrivate` | inside every generated message class, after `private:` |
+
+Example:
+
+```rust
+use dbc_codegen2::{CodegenPipeline, CodegenConfig, CppCodeInjectionPoint, Language};
+use std::collections::HashMap;
+
+fn main() -> anyhow::Result<()> {
+    let mut config = CodegenConfig {
+        inputs: vec!["vehicle.dbc".to_string()],
+        output: "include/generated_can.hpp".to_string(),
+        lang: Language::Cpp,
+        no_enum_other: false,
+        no_enum_dedup: false,
+        zero_zero_range_allows_all: false,
+        rust_code_injections: HashMap::new(),
+        cpp_code_injections: HashMap::new(),
+        generate_tests: false,
+    };
+
+    config.add_cpp_code_injection(
+        CppCodeInjectionPoint::Header,
+        "#include \"generated_can_extra.hpp\"",
+    );
+
+    config.add_cpp_code_injection(
+        CppCodeInjectionPoint::MessageClassPublic,
+        "using GeneratedMessageMarker = void;",
     );
 
     CodegenPipeline::run(config)

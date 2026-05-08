@@ -16,9 +16,19 @@ use crate::{
     line, start_block,
 };
 
-use crate::codegen::config::CodegenConfig;
+use crate::codegen::config::{CodegenConfig, CppCodeInjectionPoint};
 
 pub struct CppGen;
+
+fn cpp_code_injections(out: &mut Generator, config: &CodegenConfig, point: CppCodeInjectionPoint) {
+    if let Some(injections) = config.cpp_code_injections.get(&point) {
+        for injection in injections {
+            for line in injection.lines() {
+                line!(out, "{}", line);
+            }
+        }
+    }
+}
 
 impl CppGen {
     pub fn generate(file: &DbcFile, config: &CodegenConfig) -> String {
@@ -28,7 +38,8 @@ impl CppGen {
         empty!(out);
 
         Self::includes(&mut out, config.generate_tests);
-        Self::errors(&mut out);
+        cpp_code_injections(&mut out, config, CppCodeInjectionPoint::Header);
+        Self::errors(&mut out, config);
         Self::can_id(&mut out);
         Self::message_interface(&mut out);
         Self::endian_read_and_write(&mut out);
@@ -51,10 +62,11 @@ impl CppGen {
             Self::message(&mut out, message, file, config);
         }
 
-        Self::parse_can(&mut out, &file.messages);
+        Self::parse_can(&mut out, &file.messages, config);
         if config.generate_tests {
             Self::test_module(&mut out, file, config);
         }
+        cpp_code_injections(&mut out, config, CppCodeInjectionPoint::Footer);
 
         out.into_string()
     }
@@ -259,8 +271,14 @@ impl CppGen {
         empty!(out);
     }
 
-    fn emit_data_storage(out: &mut Generator, friend_class: Option<&str>) {
+    fn emit_data_storage(
+        out: &mut Generator,
+        friend_class: Option<&str>,
+        config: &CodegenConfig,
+        private_injection_point: CppCodeInjectionPoint,
+    ) {
         line!(out, "private:");
+        cpp_code_injections(out, config, private_injection_point);
         if let Some(friend_class) = friend_class {
             line!(out, "friend class {};", friend_class);
         }
@@ -304,7 +322,7 @@ impl CppGen {
         empty!(out);
     }
 
-    fn errors(out: &mut Generator) {
+    fn errors(out: &mut Generator, config: &CodegenConfig) {
         const ERRORS: &[&str] = &[
             "UnknownFrameId",
             "UnknownMuxValue",
@@ -314,6 +332,7 @@ impl CppGen {
             "InvalidEnumValue",
         ];
 
+        cpp_code_injections(out, config, CppCodeInjectionPoint::ErrorEnum);
         start_block!(out, "enum class CanError : uint8_t");
         for error in ERRORS {
             line!(out, "{},", error);
@@ -621,6 +640,7 @@ impl CppGen {
         let name = &enum_def.name.upper_camel();
         let cpp_type = &signal.physical_type.as_cpp_type();
 
+        cpp_code_injections(out, config, CppCodeInjectionPoint::SignalValueEnum);
         start_block!(out, "enum class {} : {}", name, cpp_type);
         for variant in &enum_def.variants {
             line!(out, "{} = {},", variant.description, variant.value);
@@ -1078,9 +1098,11 @@ impl CppGen {
     ) {
         let class_name = format!("{}Mux{}", msg.name.upper_camel(), mux_value);
 
+        cpp_code_injections(out, config, CppCodeInjectionPoint::MuxVariantClass);
         start_block!(out, "class {}", class_name);
 
         line!(out, "public:");
+        cpp_code_injections(out, config, CppCodeInjectionPoint::MuxVariantClassPublic);
 
         Self::emit_len_constant(out, msg.size);
         empty!(out);
@@ -1093,7 +1115,12 @@ impl CppGen {
         Self::emit_encode_method(out);
 
         // Required for multiplex setter
-        Self::emit_data_storage(out, Some(&msg.name.upper_camel()));
+        Self::emit_data_storage(
+            out,
+            Some(&msg.name.upper_camel()),
+            config,
+            CppCodeInjectionPoint::MuxVariantClassPrivate,
+        );
 
         end_block!(out, "");
         empty!(out);
@@ -1106,8 +1133,10 @@ impl CppGen {
                 let msg_name = msg.name.upper_camel();
 
                 Self::emit_message_doc(out, msg);
+                cpp_code_injections(out, config, CppCodeInjectionPoint::MessageClass);
                 start_block!(out, "class {}", msg_name);
                 line!(out, "public:");
+                cpp_code_injections(out, config, CppCodeInjectionPoint::MessageClassPublic);
 
                 Self::emit_message_id(out, msg);
                 Self::emit_len_constant(out, msg.size);
@@ -1122,7 +1151,12 @@ impl CppGen {
 
                 Self::emit_encode_method(out);
 
-                Self::emit_data_storage(out, None);
+                Self::emit_data_storage(
+                    out,
+                    None,
+                    config,
+                    CppCodeInjectionPoint::MessageClassPrivate,
+                );
 
                 end_block!(out, "");
                 line!(out, "static_assert(GeneratedCanMessage<{}>);", msg_name);
@@ -1154,6 +1188,7 @@ impl CppGen {
                     .map(|v| format!("{}Mux{}", msg_name, v))
                     .collect::<Vec<_>>()
                     .join(", ");
+                cpp_code_injections(out, config, CppCodeInjectionPoint::MuxVariant);
                 line!(
                     out,
                     "using {} = std::variant<{}>;",
@@ -1163,8 +1198,10 @@ impl CppGen {
                 empty!(out);
 
                 Self::emit_message_doc(out, msg);
+                cpp_code_injections(out, config, CppCodeInjectionPoint::MessageClass);
                 start_block!(out, "class {}", msg_name);
                 line!(out, "public:");
+                cpp_code_injections(out, config, CppCodeInjectionPoint::MessageClassPublic);
 
                 Self::emit_message_id(out, msg);
                 Self::emit_len_constant(out, msg.size);
@@ -1271,7 +1308,12 @@ impl CppGen {
 
                 Self::emit_encode_method(out);
 
-                Self::emit_data_storage(out, None);
+                Self::emit_data_storage(
+                    out,
+                    None,
+                    config,
+                    CppCodeInjectionPoint::MessageClassPrivate,
+                );
 
                 end_block!(out, "");
                 line!(out, "static_assert(GeneratedCanMessage<{}>);", msg_name);
@@ -2517,12 +2559,13 @@ impl CppGen {
         candidates.into_iter().next()
     }
 
-    fn parse_can(out: &mut Generator, messages: &[Message]) {
+    fn parse_can(out: &mut Generator, messages: &[Message], config: &CodegenConfig) {
         let variant_types = messages
             .iter()
             .map(|m| m.name.upper_camel())
             .collect::<Vec<_>>()
             .join(", ");
+        cpp_code_injections(out, config, CppCodeInjectionPoint::MessageVariant);
         line!(out, "using CanMsg = std::variant<{}>;", variant_types);
         empty!(out);
 
