@@ -6,3 +6,11 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 dbc-codegen2 = { path = ".."}
+
+[dev-dependencies]
+insta = "1.47.2"
+tempfile = "3.27.0"
+
+[[test]]
+name = "snapshots"
+path = "snapshot-tests/snapshots.rs"

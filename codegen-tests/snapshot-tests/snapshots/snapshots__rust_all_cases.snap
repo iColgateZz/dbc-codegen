@@ -1,0 +1,1459 @@
+---
+source: codegen-tests/snapshot-tests/snapshots.rs
+expression: "generate_snapshot_fixture(Language::Rust)"
+---
+use embedded_can::{Frame, Id, StandardId, ExtendedId};
+use bitvec::prelude::*;
+use core::convert::TryFrom;
+#[derive(Debug, Clone)]
+pub enum CanError {
+    UnknownFrameId,
+    UnknownMuxValue,
+    InvalidPayloadSize,
+    InvalidFrameId,
+    ValueOutOfRange,
+    InvalidEnumValue,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModeEnum {
+    ModeSleep,
+    ModeRun,
+    ModeInit,
+    ModeOff,
+    _Other(u8),
+}
+impl From<u8> for ModeEnum {
+    fn from(val: u8) -> Self {
+        match val {
+            3u8 => ModeEnum::ModeSleep,
+            2u8 => ModeEnum::ModeRun,
+            1u8 => ModeEnum::ModeInit,
+            0u8 => ModeEnum::ModeOff,
+            _ => ModeEnum::_Other(val),
+        }
+    }
+}
+impl From<ModeEnum> for u8 {
+    fn from(val: ModeEnum) -> Self {
+        match val {
+            ModeEnum::ModeSleep => 3u8,
+            ModeEnum::ModeRun => 2u8,
+            ModeEnum::ModeInit => 1u8,
+            ModeEnum::ModeOff => 0u8,
+            ModeEnum::_Other(v) => v,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StateAEnum {
+    On,
+    Off,
+    _Other(u8),
+}
+impl From<u8> for StateAEnum {
+    fn from(val: u8) -> Self {
+        match val {
+            1u8 => StateAEnum::On,
+            0u8 => StateAEnum::Off,
+            _ => StateAEnum::_Other(val),
+        }
+    }
+}
+impl From<StateAEnum> for u8 {
+    fn from(val: StateAEnum) -> Self {
+        match val {
+            StateAEnum::On => 1u8,
+            StateAEnum::Off => 0u8,
+            StateAEnum::_Other(v) => v,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MotorolaEnableEnum {
+    Enabled,
+    Disabled,
+    _Other(u8),
+}
+impl From<u8> for MotorolaEnableEnum {
+    fn from(val: u8) -> Self {
+        match val {
+            1u8 => MotorolaEnableEnum::Enabled,
+            0u8 => MotorolaEnableEnum::Disabled,
+            _ => MotorolaEnableEnum::_Other(val),
+        }
+    }
+}
+impl From<MotorolaEnableEnum> for u8 {
+    fn from(val: MotorolaEnableEnum) -> Self {
+        match val {
+            MotorolaEnableEnum::Enabled => 1u8,
+            MotorolaEnableEnum::Disabled => 0u8,
+            MotorolaEnableEnum::_Other(v) => v,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mux1ChoiceEnum {
+    Two,
+    One,
+    Zero,
+    _Other(u8),
+}
+impl From<u8> for Mux1ChoiceEnum {
+    fn from(val: u8) -> Self {
+        match val {
+            2u8 => Mux1ChoiceEnum::Two,
+            1u8 => Mux1ChoiceEnum::One,
+            0u8 => Mux1ChoiceEnum::Zero,
+            _ => Mux1ChoiceEnum::_Other(val),
+        }
+    }
+}
+impl From<Mux1ChoiceEnum> for u8 {
+    fn from(val: Mux1ChoiceEnum) -> Self {
+        match val {
+            Mux1ChoiceEnum::Two => 2u8,
+            Mux1ChoiceEnum::One => 1u8,
+            Mux1ChoiceEnum::Zero => 0u8,
+            Mux1ChoiceEnum::_Other(v) => v,
+        }
+    }
+}
+pub trait GeneratedCanMessage<const LEN: usize>: Sized {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError>;
+    fn encode(&self) -> [u8; LEN];
+}
+#[derive(Debug, Clone)]
+pub enum Msg {
+    PackedStatus(PackedStatusMsg),
+    MotorolaAnalog(MotorolaAnalogMsg),
+    FloatPayload32(FloatPayload32Msg),
+    FloatPayload64(FloatPayload64Msg),
+    MuxedTelemetry(MuxedTelemetryMsg),
+    EmptyZeroDlc(EmptyZeroDlcMsg),
+    ExtendedClassic(ExtendedClassicMsg),
+    ExtendedCanFd(ExtendedCanFdMsg),
+    VariableLength(VariableLengthMsg),
+    J1939Snapshot(J1939SnapshotMsg),
+}
+impl Msg {
+    fn try_from(frame: &impl Frame) -> Result<Self, CanError> {
+        let result = match frame.id() {
+            PackedStatusMsg::ID => {
+                Msg::PackedStatus(PackedStatusMsg::try_from_frame(frame)?)
+            }
+            MotorolaAnalogMsg::ID => {
+                Msg::MotorolaAnalog(MotorolaAnalogMsg::try_from_frame(frame)?)
+            }
+            FloatPayload32Msg::ID => {
+                Msg::FloatPayload32(FloatPayload32Msg::try_from_frame(frame)?)
+            }
+            FloatPayload64Msg::ID => {
+                Msg::FloatPayload64(FloatPayload64Msg::try_from_frame(frame)?)
+            }
+            MuxedTelemetryMsg::ID => {
+                Msg::MuxedTelemetry(MuxedTelemetryMsg::try_from_frame(frame)?)
+            }
+            EmptyZeroDlcMsg::ID => {
+                Msg::EmptyZeroDlc(EmptyZeroDlcMsg::try_from_frame(frame)?)
+            }
+            ExtendedClassicMsg::ID => {
+                Msg::ExtendedClassic(ExtendedClassicMsg::try_from_frame(frame)?)
+            }
+            ExtendedCanFdMsg::ID => {
+                Msg::ExtendedCanFd(ExtendedCanFdMsg::try_from_frame(frame)?)
+            }
+            VariableLengthMsg::ID => {
+                Msg::VariableLength(VariableLengthMsg::try_from_frame(frame)?)
+            }
+            J1939SnapshotMsg::ID => {
+                Msg::J1939Snapshot(J1939SnapshotMsg::try_from_frame(frame)?)
+            }
+            _ => return Err(CanError::UnknownFrameId),
+        };
+        Ok(result)
+    }
+}
+///PackedStatus
+///- ID: Standard 100 (0x64)
+///- Size: 8 bytes
+///- Transmitter: NODE_A
+///
+///Packed little-endian status values
+#[derive(Debug, Clone)]
+pub struct PackedStatusMsg {
+    data: [u8; 8usize],
+}
+impl PackedStatusMsg {
+    pub const ID: Id = Id::Standard(unsafe { StandardId::new_unchecked(100u16) });
+    pub const LEN: usize = 8usize;
+    pub fn new(
+        enabled: bool,
+        mode: ModeEnum,
+        state_a: StateAEnum,
+        signed_temp: i16,
+        scaled_speed: f32,
+        xtype: u8,
+        unspecified_range: u8,
+    ) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_enabled(enabled)?;
+        msg.set_mode(mode)?;
+        msg.set_state_a(state_a)?;
+        msg.set_signed_temp(signed_temp)?;
+        msg.set_scaled_speed(scaled_speed)?;
+        msg.set_xtype(xtype)?;
+        msg.set_unspecified_range(unspecified_range)?;
+        Ok(msg)
+    }
+    ///enabled
+    ///- Min: 0
+    ///- Max: 1
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 0
+    ///- Size: 1 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn enabled(&self) -> bool {
+        let raw_enabled = self.data.view_bits::<Lsb0>()[0usize..1usize].load_le::<u8>();
+        raw_enabled == 1
+    }
+    ///mode
+    ///- Min: 0
+    ///- Max: 7
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 1
+    ///- Size: 3 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn mode(&self) -> ModeEnum {
+        let raw_mode = self.data.view_bits::<Lsb0>()[1usize..4usize].load_le::<u8>();
+        ModeEnum::from(raw_mode as u8)
+    }
+    ///state_a
+    ///- Min: 0
+    ///- Max: 3
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 4
+    ///- Size: 2 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn state_a(&self) -> StateAEnum {
+        let raw_state_a = self.data.view_bits::<Lsb0>()[4usize..6usize].load_le::<u8>();
+        StateAEnum::from(raw_state_a as u8)
+    }
+    ///signed_temp
+    ///- Min: -168
+    ///- Max: 87
+    ///- Unit: degC
+    ///- Receivers: NODE_B
+    ///- Start bit: 8
+    ///- Size: 8 bits
+    ///- Factor: 1
+    ///- Offset: -40
+    ///- Byte order: LittleEndian
+    ///- Type: signed
+    pub fn signed_temp(&self) -> i16 {
+        let raw_signed_temp = self
+            .data
+            .view_bits::<Lsb0>()[8usize..16usize]
+            .load_le::<i8>();
+        (raw_signed_temp as i16).saturating_mul(1i16).saturating_add(-40i16)
+    }
+    ///scaled_speed
+    ///- Min: 0
+    ///- Max: 655.35
+    ///- Unit: kph
+    ///- Receivers: NODE_B
+    ///- Start bit: 16
+    ///- Size: 16 bits
+    ///- Factor: 0.01
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    ///
+    ///Scaled speed signal used by snapshot testing
+    pub fn scaled_speed(&self) -> f32 {
+        let raw_scaled_speed = self
+            .data
+            .view_bits::<Lsb0>()[16usize..32usize]
+            .load_le::<u16>();
+        (raw_scaled_speed as f32) * (0.01f32) + (0f32)
+    }
+    ///type
+    ///- Min: 0
+    ///- Max: 255
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 32
+    ///- Size: 8 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn xtype(&self) -> u8 {
+        let raw_xtype = self.data.view_bits::<Lsb0>()[32usize..40usize].load_le::<u8>();
+        (raw_xtype as u8).saturating_mul(1u8).saturating_add(0u8)
+    }
+    ///unspecified_range
+    ///- Min: 0
+    ///- Max: 0
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 40
+    ///- Size: 8 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn unspecified_range(&self) -> u8 {
+        let raw_unspecified_range = self
+            .data
+            .view_bits::<Lsb0>()[40usize..48usize]
+            .load_le::<u8>();
+        (raw_unspecified_range as u8).saturating_mul(1u8).saturating_add(0u8)
+    }
+    ///Set value of enabled
+    ///- Min: 0
+    ///- Max: 1
+    pub fn set_enabled(&mut self, value: bool) -> Result<(), CanError> {
+        let raw_value = value as u8;
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Lsb0>()[0usize..1usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of mode
+    ///- Min: 0
+    ///- Max: 7
+    pub fn set_mode(&mut self, value: ModeEnum) -> Result<(), CanError> {
+        let raw_value = u8::from(value);
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Lsb0>()[1usize..4usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of state_a
+    ///- Min: 0
+    ///- Max: 3
+    pub fn set_state_a(&mut self, value: StateAEnum) -> Result<(), CanError> {
+        let raw_value = u8::from(value);
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Lsb0>()[4usize..6usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of signed_temp
+    ///- Min: -168
+    ///- Max: 87
+    pub fn set_signed_temp(&mut self, value: i16) -> Result<(), CanError> {
+        if value < -168i16 || value > 87i16 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(-40i16)
+            .and_then(|v| v.checked_div(1i16))
+            .ok_or(CanError::ValueOutOfRange)? as i8;
+        let storage_value = u8::from_ne_bytes(raw_value.to_ne_bytes());
+        self.data.view_bits_mut::<Lsb0>()[8usize..16usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of scaled_speed
+    ///- Min: 0
+    ///- Max: 655.35
+    ///
+    ///Scaled speed signal used by snapshot testing
+    pub fn set_scaled_speed(&mut self, value: f32) -> Result<(), CanError> {
+        if value < 0f32 || value > 655.35f32 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = ((value - (0f32)) / (0.01f32)) as u16;
+        let storage_value = raw_value as u16;
+        self.data.view_bits_mut::<Lsb0>()[16usize..32usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of type
+    ///- Min: 0
+    ///- Max: 255
+    pub fn set_xtype(&mut self, value: u8) -> Result<(), CanError> {
+        let raw_value = value
+            .checked_sub(0u8)
+            .and_then(|v| v.checked_div(1u8))
+            .ok_or(CanError::ValueOutOfRange)? as u8;
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Lsb0>()[32usize..40usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of unspecified_range
+    ///- Min: 0
+    ///- Max: 0
+    pub fn set_unspecified_range(&mut self, value: u8) -> Result<(), CanError> {
+        if value > 0u8 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u8)
+            .and_then(|v| v.checked_div(1u8))
+            .ok_or(CanError::ValueOutOfRange)? as u8;
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Lsb0>()[40usize..48usize].store_le(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for PackedStatusMsg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+///MotorolaAnalog
+///- ID: Standard 101 (0x65)
+///- Size: 8 bytes
+///- Transmitter: NODE_A
+///
+///Motorola signal layout with comments
+#[derive(Debug, Clone)]
+pub struct MotorolaAnalogMsg {
+    data: [u8; 8usize],
+}
+impl MotorolaAnalogMsg {
+    pub const ID: Id = Id::Standard(unsafe { StandardId::new_unchecked(101u16) });
+    pub const LEN: usize = 8usize;
+    pub fn new(
+        motorola_temp: f32,
+        motorola_radius: f32,
+        motorola_enable: MotorolaEnableEnum,
+        motorola_float32: f32,
+    ) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_motorola_temp(motorola_temp)?;
+        msg.set_motorola_radius(motorola_radius)?;
+        msg.set_motorola_enable(motorola_enable)?;
+        msg.set_motorola_float32(motorola_float32)?;
+        Ok(msg)
+    }
+    ///motorola_temp
+    ///- Min: 229.52
+    ///- Max: 270.47
+    ///- Unit: degK
+    ///- Receivers: NODE_B, NODE_C
+    ///- Start bit: 7
+    ///- Size: 12 bits
+    ///- Factor: 0.01
+    ///- Offset: 250
+    ///- Byte order: BigEndian
+    ///- Type: signed
+    ///
+    ///Signed big-endian scaled temperature
+    pub fn motorola_temp(&self) -> f32 {
+        let raw_motorola_temp = self
+            .data
+            .view_bits::<Msb0>()[7usize..19usize]
+            .load_be::<i16>();
+        (raw_motorola_temp as f32) * (0.01f32) + (250f32)
+    }
+    ///motorola_radius
+    ///- Min: 0
+    ///- Max: 5
+    ///- Unit: m
+    ///- Receivers: NODE_B
+    ///- Start bit: 1
+    ///- Size: 6 bits
+    ///- Factor: 0.1
+    ///- Offset: 0
+    ///- Byte order: BigEndian
+    ///- Type: unsigned
+    pub fn motorola_radius(&self) -> f32 {
+        let raw_motorola_radius = self
+            .data
+            .view_bits::<Msb0>()[1usize..7usize]
+            .load_be::<u8>();
+        (raw_motorola_radius as f32) * (0.1f32) + (0f32)
+    }
+    ///motorola_enable
+    ///- Min: 0
+    ///- Max: 1
+    ///- Unit: -
+    ///- Receivers: NODE_B
+    ///- Start bit: 0
+    ///- Size: 1 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: BigEndian
+    ///- Type: unsigned
+    pub fn motorola_enable(&self) -> MotorolaEnableEnum {
+        let raw_motorola_enable = self
+            .data
+            .view_bits::<Msb0>()[0usize..1usize]
+            .load_be::<u8>();
+        MotorolaEnableEnum::from(raw_motorola_enable as u8)
+    }
+    ///motorola_float32
+    ///- Min: 0
+    ///- Max: 5
+    ///- Unit: m
+    ///- Receivers: NODE_C
+    ///- Start bit: 31
+    ///- Size: 32 bits
+    ///- Factor: 0.1
+    ///- Offset: 0
+    ///- Byte order: BigEndian
+    ///- Type: signed
+    pub fn motorola_float32(&self) -> f32 {
+        let raw_motorola_float32 = self
+            .data
+            .view_bits::<Msb0>()[31usize..63usize]
+            .load_be::<i32>();
+        (raw_motorola_float32 as f32) * (0.1f32) + (0f32)
+    }
+    ///Set value of motorola_temp
+    ///- Min: 229.52
+    ///- Max: 270.47
+    ///
+    ///Signed big-endian scaled temperature
+    pub fn set_motorola_temp(&mut self, value: f32) -> Result<(), CanError> {
+        if value < 229.52f32 || value > 270.47f32 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = ((value - (250f32)) / (0.01f32)) as i16;
+        let storage_value = u16::from_ne_bytes(raw_value.to_ne_bytes());
+        self.data.view_bits_mut::<Msb0>()[7usize..19usize].store_be(storage_value);
+        Ok(())
+    }
+    ///Set value of motorola_radius
+    ///- Min: 0
+    ///- Max: 5
+    pub fn set_motorola_radius(&mut self, value: f32) -> Result<(), CanError> {
+        if value < 0f32 || value > 5f32 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = ((value - (0f32)) / (0.1f32)) as u8;
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Msb0>()[1usize..7usize].store_be(storage_value);
+        Ok(())
+    }
+    ///Set value of motorola_enable
+    ///- Min: 0
+    ///- Max: 1
+    pub fn set_motorola_enable(
+        &mut self,
+        value: MotorolaEnableEnum,
+    ) -> Result<(), CanError> {
+        let raw_value = u8::from(value);
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Msb0>()[0usize..1usize].store_be(storage_value);
+        Ok(())
+    }
+    ///Set value of motorola_float32
+    ///- Min: 0
+    ///- Max: 5
+    pub fn set_motorola_float32(&mut self, value: f32) -> Result<(), CanError> {
+        if value < 0f32 || value > 5f32 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = ((value - (0f32)) / (0.1f32)) as i32;
+        let storage_value = u32::from_ne_bytes(raw_value.to_ne_bytes());
+        self.data.view_bits_mut::<Msb0>()[31usize..63usize].store_be(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for MotorolaAnalogMsg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+///FloatPayload32
+///- ID: Standard 102 (0x66)
+///- Size: 8 bytes
+///- Transmitter: NODE_A
+#[derive(Debug, Clone)]
+pub struct FloatPayload32Msg {
+    data: [u8; 8usize],
+}
+impl FloatPayload32Msg {
+    pub const ID: Id = Id::Standard(unsafe { StandardId::new_unchecked(102u16) });
+    pub const LEN: usize = 8usize;
+    pub fn new(float32_a: f32, float32_b: f32) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_float32_a(float32_a)?;
+        msg.set_float32_b(float32_b)?;
+        Ok(msg)
+    }
+    ///float32_a
+    ///- Min: -1000
+    ///- Max: 1000
+    ///- Unit:
+    ///- Receivers: DBG
+    ///- Start bit: 0
+    ///- Size: 32 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: signed
+    pub fn float32_a(&self) -> f32 {
+        let raw_float32_a = self
+            .data
+            .view_bits::<Lsb0>()[0usize..32usize]
+            .load_le::<i32>();
+        (raw_float32_a as f32) * (1f32) + (0f32)
+    }
+    ///float32_b
+    ///- Min: -1000
+    ///- Max: 1000
+    ///- Unit:
+    ///- Receivers: DBG
+    ///- Start bit: 32
+    ///- Size: 32 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: signed
+    pub fn float32_b(&self) -> f32 {
+        let raw_float32_b = self
+            .data
+            .view_bits::<Lsb0>()[32usize..64usize]
+            .load_le::<i32>();
+        (raw_float32_b as f32) * (1f32) + (0f32)
+    }
+    ///Set value of float32_a
+    ///- Min: -1000
+    ///- Max: 1000
+    pub fn set_float32_a(&mut self, value: f32) -> Result<(), CanError> {
+        if value < -1000f32 || value > 1000f32 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = ((value - (0f32)) / (1f32)) as i32;
+        let storage_value = u32::from_ne_bytes(raw_value.to_ne_bytes());
+        self.data.view_bits_mut::<Lsb0>()[0usize..32usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of float32_b
+    ///- Min: -1000
+    ///- Max: 1000
+    pub fn set_float32_b(&mut self, value: f32) -> Result<(), CanError> {
+        if value < -1000f32 || value > 1000f32 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = ((value - (0f32)) / (1f32)) as i32;
+        let storage_value = u32::from_ne_bytes(raw_value.to_ne_bytes());
+        self.data.view_bits_mut::<Lsb0>()[32usize..64usize].store_le(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for FloatPayload32Msg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+///FloatPayload64
+///- ID: Standard 103 (0x67)
+///- Size: 8 bytes
+///- Transmitter: NODE_A
+#[derive(Debug, Clone)]
+pub struct FloatPayload64Msg {
+    data: [u8; 8usize],
+}
+impl FloatPayload64Msg {
+    pub const ID: Id = Id::Standard(unsafe { StandardId::new_unchecked(103u16) });
+    pub const LEN: usize = 8usize;
+    pub fn new(float64_value: f64) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_float64_value(float64_value)?;
+        Ok(msg)
+    }
+    ///float64_value
+    ///- Min: -1000
+    ///- Max: 1000
+    ///- Unit:
+    ///- Receivers: DBG
+    ///- Start bit: 0
+    ///- Size: 64 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: signed
+    pub fn float64_value(&self) -> f64 {
+        let raw_float64_value = self
+            .data
+            .view_bits::<Lsb0>()[0usize..64usize]
+            .load_le::<i64>();
+        (raw_float64_value as f64) * (1f64) + (0f64)
+    }
+    ///Set value of float64_value
+    ///- Min: -1000
+    ///- Max: 1000
+    pub fn set_float64_value(&mut self, value: f64) -> Result<(), CanError> {
+        if value < -1000f64 || value > 1000f64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = ((value - (0f64)) / (1f64)) as i64;
+        let storage_value = u64::from_ne_bytes(raw_value.to_ne_bytes());
+        self.data.view_bits_mut::<Lsb0>()[0usize..64usize].store_le(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for FloatPayload64Msg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+#[derive(Debug, Clone)]
+pub enum MuxedTelemetryMsgMux {
+    V0(MuxedTelemetryMsgMux0),
+    V1(MuxedTelemetryMsgMux1),
+}
+#[derive(Debug, Clone, Default)]
+pub struct MuxedTelemetryMsgMux0 {
+    data: [u8; 8usize],
+}
+impl MuxedTelemetryMsgMux0 {
+    pub fn new(mux0_distance: f32, mux0_state: u8) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; 8usize] };
+        msg.set_mux0_distance(mux0_distance)?;
+        msg.set_mux0_state(mux0_state)?;
+        Ok(msg)
+    }
+    ///mux0_distance
+    ///- Min: 0
+    ///- Max: 6553.5
+    ///- Unit: m
+    ///- Receivers: NODE_B
+    ///- Start bit: 16
+    ///- Size: 16 bits
+    ///- Factor: 0.1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn mux0_distance(&self) -> f32 {
+        let raw_mux0_distance = self
+            .data
+            .view_bits::<Lsb0>()[16usize..32usize]
+            .load_le::<u16>();
+        (raw_mux0_distance as f32) * (0.1f32) + (0f32)
+    }
+    ///mux0_state
+    ///- Min: 0
+    ///- Max: 255
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 32
+    ///- Size: 8 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn mux0_state(&self) -> u8 {
+        let raw_mux0_state = self
+            .data
+            .view_bits::<Lsb0>()[32usize..40usize]
+            .load_le::<u8>();
+        (raw_mux0_state as u8).saturating_mul(1u8).saturating_add(0u8)
+    }
+    ///Set value of mux0_distance
+    ///- Min: 0
+    ///- Max: 6553.5
+    pub fn set_mux0_distance(&mut self, value: f32) -> Result<(), CanError> {
+        if value < 0f32 || value > 6553.5f32 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = ((value - (0f32)) / (0.1f32)) as u16;
+        let storage_value = raw_value as u16;
+        self.data.view_bits_mut::<Lsb0>()[16usize..32usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of mux0_state
+    ///- Min: 0
+    ///- Max: 255
+    pub fn set_mux0_state(&mut self, value: u8) -> Result<(), CanError> {
+        let raw_value = value
+            .checked_sub(0u8)
+            .and_then(|v| v.checked_div(1u8))
+            .ok_or(CanError::ValueOutOfRange)? as u8;
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Lsb0>()[32usize..40usize].store_le(storage_value);
+        Ok(())
+    }
+}
+#[derive(Debug, Clone, Default)]
+pub struct MuxedTelemetryMsgMux1 {
+    data: [u8; 8usize],
+}
+impl MuxedTelemetryMsgMux1 {
+    pub fn new(mux1_signed: i16, mux1_choice: Mux1ChoiceEnum) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; 8usize] };
+        msg.set_mux1_signed(mux1_signed)?;
+        msg.set_mux1_choice(mux1_choice)?;
+        Ok(msg)
+    }
+    ///mux1_signed
+    ///- Min: -32768
+    ///- Max: 32767
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 16
+    ///- Size: 16 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: signed
+    pub fn mux1_signed(&self) -> i16 {
+        let raw_mux1_signed = self
+            .data
+            .view_bits::<Lsb0>()[16usize..32usize]
+            .load_le::<i16>();
+        (raw_mux1_signed as i16).saturating_mul(1i16).saturating_add(0i16)
+    }
+    ///mux1_choice
+    ///- Min: 0
+    ///- Max: 255
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 32
+    ///- Size: 8 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn mux1_choice(&self) -> Mux1ChoiceEnum {
+        let raw_mux1_choice = self
+            .data
+            .view_bits::<Lsb0>()[32usize..40usize]
+            .load_le::<u8>();
+        Mux1ChoiceEnum::from(raw_mux1_choice as u8)
+    }
+    ///Set value of mux1_signed
+    ///- Min: -32768
+    ///- Max: 32767
+    pub fn set_mux1_signed(&mut self, value: i16) -> Result<(), CanError> {
+        let raw_value = value
+            .checked_sub(0i16)
+            .and_then(|v| v.checked_div(1i16))
+            .ok_or(CanError::ValueOutOfRange)? as i16;
+        let storage_value = u16::from_ne_bytes(raw_value.to_ne_bytes());
+        self.data.view_bits_mut::<Lsb0>()[16usize..32usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of mux1_choice
+    ///- Min: 0
+    ///- Max: 255
+    pub fn set_mux1_choice(&mut self, value: Mux1ChoiceEnum) -> Result<(), CanError> {
+        let raw_value = u8::from(value);
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Lsb0>()[32usize..40usize].store_le(storage_value);
+        Ok(())
+    }
+}
+///MuxedTelemetry
+///- ID: Standard 104 (0x68)
+///- Size: 8 bytes
+///- Transmitter: NODE_A
+#[derive(Debug, Clone)]
+pub struct MuxedTelemetryMsg {
+    data: [u8; 8usize],
+}
+impl MuxedTelemetryMsg {
+    pub const ID: Id = Id::Standard(unsafe { StandardId::new_unchecked(104u16) });
+    pub const LEN: usize = 8usize;
+    pub fn new(common_count: u16, mux: MuxedTelemetryMsgMux) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_common_count(common_count)?;
+        match mux {
+            MuxedTelemetryMsgMux::V0(v) => {
+                msg.set_mux0(v)?;
+            }
+            MuxedTelemetryMsgMux::V1(v) => {
+                msg.set_mux1(v)?;
+            }
+        }
+        Ok(msg)
+    }
+    pub fn mux(&self) -> Result<MuxedTelemetryMsgMux, CanError> {
+        let raw_mux = self.data.view_bits::<Lsb0>()[0usize..4usize].load_le::<u8>();
+        match raw_mux {
+            0 => {
+                Ok(
+                    MuxedTelemetryMsgMux::V0(MuxedTelemetryMsgMux0 {
+                        data: self.data,
+                    }),
+                )
+            }
+            1 => {
+                Ok(
+                    MuxedTelemetryMsgMux::V1(MuxedTelemetryMsgMux1 {
+                        data: self.data,
+                    }),
+                )
+            }
+            _ => Err(CanError::UnknownMuxValue),
+        }
+    }
+    pub fn set_mux0(&mut self, value: MuxedTelemetryMsgMux0) -> Result<(), CanError> {
+        self.data
+            .view_bits_mut::<Lsb0>()[16usize..32usize]
+            .copy_from_bitslice(&value.data.view_bits::<Lsb0>()[16usize..32usize]);
+        self.data
+            .view_bits_mut::<Lsb0>()[32usize..40usize]
+            .copy_from_bitslice(&value.data.view_bits::<Lsb0>()[32usize..40usize]);
+        self.data.view_bits_mut::<Lsb0>()[0usize..4usize].store_le(0u64);
+        Ok(())
+    }
+    pub fn set_mux1(&mut self, value: MuxedTelemetryMsgMux1) -> Result<(), CanError> {
+        self.data
+            .view_bits_mut::<Lsb0>()[16usize..32usize]
+            .copy_from_bitslice(&value.data.view_bits::<Lsb0>()[16usize..32usize]);
+        self.data
+            .view_bits_mut::<Lsb0>()[32usize..40usize]
+            .copy_from_bitslice(&value.data.view_bits::<Lsb0>()[32usize..40usize]);
+        self.data.view_bits_mut::<Lsb0>()[0usize..4usize].store_le(1u64);
+        Ok(())
+    }
+    ///common_count
+    ///- Min: 0
+    ///- Max: 4095
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 4
+    ///- Size: 12 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn common_count(&self) -> u16 {
+        let raw_common_count = self
+            .data
+            .view_bits::<Lsb0>()[4usize..16usize]
+            .load_le::<u16>();
+        (raw_common_count as u16).saturating_mul(1u16).saturating_add(0u16)
+    }
+    ///Set value of common_count
+    ///- Min: 0
+    ///- Max: 4095
+    pub fn set_common_count(&mut self, value: u16) -> Result<(), CanError> {
+        if value > 4095u16 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u16)
+            .and_then(|v| v.checked_div(1u16))
+            .ok_or(CanError::ValueOutOfRange)? as u16;
+        let storage_value = raw_value as u16;
+        self.data.view_bits_mut::<Lsb0>()[4usize..16usize].store_le(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for MuxedTelemetryMsg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+///EmptyZeroDlc
+///- ID: Standard 105 (0x69)
+///- Size: 0 bytes
+///- Transmitter: NODE_A
+#[derive(Debug, Clone)]
+pub struct EmptyZeroDlcMsg {
+    data: [u8; 0usize],
+}
+impl EmptyZeroDlcMsg {
+    pub const ID: Id = Id::Standard(unsafe { StandardId::new_unchecked(105u16) });
+    pub const LEN: usize = 0usize;
+    pub fn new() -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        Ok(msg)
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for EmptyZeroDlcMsg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+///ExtendedClassic
+///- ID: Extended 4 (0x4)
+///- Size: 8 bytes
+///- Transmitter: NODE_B
+#[derive(Debug, Clone)]
+pub struct ExtendedClassicMsg {
+    data: [u8; 8usize],
+}
+impl ExtendedClassicMsg {
+    pub const ID: Id = Id::Extended(unsafe { ExtendedId::new_unchecked(4u32) });
+    pub const LEN: usize = 8usize;
+    pub fn new(ext_counter: u8) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_ext_counter(ext_counter)?;
+        Ok(msg)
+    }
+    ///ext_counter
+    ///- Min: 0
+    ///- Max: 255
+    ///- Unit:
+    ///- Receivers: NODE_A
+    ///- Start bit: 0
+    ///- Size: 8 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn ext_counter(&self) -> u8 {
+        let raw_ext_counter = self
+            .data
+            .view_bits::<Lsb0>()[0usize..8usize]
+            .load_le::<u8>();
+        (raw_ext_counter as u8).saturating_mul(1u8).saturating_add(0u8)
+    }
+    ///Set value of ext_counter
+    ///- Min: 0
+    ///- Max: 255
+    pub fn set_ext_counter(&mut self, value: u8) -> Result<(), CanError> {
+        let raw_value = value
+            .checked_sub(0u8)
+            .and_then(|v| v.checked_div(1u8))
+            .ok_or(CanError::ValueOutOfRange)? as u8;
+        let storage_value = raw_value as u8;
+        self.data.view_bits_mut::<Lsb0>()[0usize..8usize].store_le(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for ExtendedClassicMsg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+///ExtendedCanFd
+///- ID: Extended 5 (0x5)
+///- Size: 64 bytes
+///- Transmitter: NODE_B
+#[derive(Debug, Clone)]
+pub struct ExtendedCanFdMsg {
+    data: [u8; 64usize],
+}
+impl ExtendedCanFdMsg {
+    pub const ID: Id = Id::Extended(unsafe { ExtendedId::new_unchecked(5u32) });
+    pub const LEN: usize = 64usize;
+    pub fn new(fd_word0: u64, fd_word1: u64) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_fd_word0(fd_word0)?;
+        msg.set_fd_word1(fd_word1)?;
+        Ok(msg)
+    }
+    ///fd_word0
+    ///- Min: 0
+    ///- Max: 4294967296
+    ///- Unit:
+    ///- Receivers: NODE_A
+    ///- Start bit: 0
+    ///- Size: 64 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn fd_word0(&self) -> u64 {
+        let raw_fd_word0 = self
+            .data
+            .view_bits::<Lsb0>()[0usize..64usize]
+            .load_le::<u64>();
+        (raw_fd_word0 as u64).saturating_mul(1u64).saturating_add(0u64)
+    }
+    ///fd_word1
+    ///- Min: 0
+    ///- Max: 4294967296
+    ///- Unit:
+    ///- Receivers: NODE_A
+    ///- Start bit: 64
+    ///- Size: 64 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn fd_word1(&self) -> u64 {
+        let raw_fd_word1 = self
+            .data
+            .view_bits::<Lsb0>()[64usize..128usize]
+            .load_le::<u64>();
+        (raw_fd_word1 as u64).saturating_mul(1u64).saturating_add(0u64)
+    }
+    ///Set value of fd_word0
+    ///- Min: 0
+    ///- Max: 4294967296
+    pub fn set_fd_word0(&mut self, value: u64) -> Result<(), CanError> {
+        if value > 4294967296u64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u64)
+            .and_then(|v| v.checked_div(1u64))
+            .ok_or(CanError::ValueOutOfRange)? as u64;
+        let storage_value = raw_value as u64;
+        self.data.view_bits_mut::<Lsb0>()[0usize..64usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of fd_word1
+    ///- Min: 0
+    ///- Max: 4294967296
+    pub fn set_fd_word1(&mut self, value: u64) -> Result<(), CanError> {
+        if value > 4294967296u64 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u64)
+            .and_then(|v| v.checked_div(1u64))
+            .ok_or(CanError::ValueOutOfRange)? as u64;
+        let storage_value = raw_value as u64;
+        self.data.view_bits_mut::<Lsb0>()[64usize..128usize].store_le(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for ExtendedCanFdMsg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+///VariableLength
+///- ID: Standard 120 (0x78)
+///- Size: 10 bytes
+///- Transmitter: NODE_C
+#[derive(Debug, Clone)]
+pub struct VariableLengthMsg {
+    data: [u8; 10usize],
+}
+impl VariableLengthMsg {
+    pub const ID: Id = Id::Standard(unsafe { StandardId::new_unchecked(120u16) });
+    pub const LEN: usize = 10usize;
+    pub fn new(
+        var_a: u16,
+        var_b: u16,
+        var_c: u16,
+        var_d: u16,
+        var_e: u16,
+    ) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_var_a(var_a)?;
+        msg.set_var_b(var_b)?;
+        msg.set_var_c(var_c)?;
+        msg.set_var_d(var_d)?;
+        msg.set_var_e(var_e)?;
+        Ok(msg)
+    }
+    ///var_a
+    ///- Min: 0
+    ///- Max: 32767
+    ///- Unit:
+    ///- Receivers: NODE_A
+    ///- Start bit: 0
+    ///- Size: 15 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn var_a(&self) -> u16 {
+        let raw_var_a = self.data.view_bits::<Lsb0>()[0usize..15usize].load_le::<u16>();
+        (raw_var_a as u16).saturating_mul(1u16).saturating_add(0u16)
+    }
+    ///var_b
+    ///- Min: 0
+    ///- Max: 32767
+    ///- Unit:
+    ///- Receivers: NODE_A
+    ///- Start bit: 15
+    ///- Size: 15 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn var_b(&self) -> u16 {
+        let raw_var_b = self.data.view_bits::<Lsb0>()[15usize..30usize].load_le::<u16>();
+        (raw_var_b as u16).saturating_mul(1u16).saturating_add(0u16)
+    }
+    ///var_c
+    ///- Min: 0
+    ///- Max: 32767
+    ///- Unit:
+    ///- Receivers: NODE_A
+    ///- Start bit: 30
+    ///- Size: 15 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn var_c(&self) -> u16 {
+        let raw_var_c = self.data.view_bits::<Lsb0>()[30usize..45usize].load_le::<u16>();
+        (raw_var_c as u16).saturating_mul(1u16).saturating_add(0u16)
+    }
+    ///var_d
+    ///- Min: 0
+    ///- Max: 32767
+    ///- Unit:
+    ///- Receivers: NODE_A
+    ///- Start bit: 45
+    ///- Size: 15 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn var_d(&self) -> u16 {
+        let raw_var_d = self.data.view_bits::<Lsb0>()[45usize..60usize].load_le::<u16>();
+        (raw_var_d as u16).saturating_mul(1u16).saturating_add(0u16)
+    }
+    ///var_e
+    ///- Min: 0
+    ///- Max: 32767
+    ///- Unit:
+    ///- Receivers: NODE_A
+    ///- Start bit: 60
+    ///- Size: 15 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: unsigned
+    pub fn var_e(&self) -> u16 {
+        let raw_var_e = self.data.view_bits::<Lsb0>()[60usize..75usize].load_le::<u16>();
+        (raw_var_e as u16).saturating_mul(1u16).saturating_add(0u16)
+    }
+    ///Set value of var_a
+    ///- Min: 0
+    ///- Max: 32767
+    pub fn set_var_a(&mut self, value: u16) -> Result<(), CanError> {
+        if value > 32767u16 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u16)
+            .and_then(|v| v.checked_div(1u16))
+            .ok_or(CanError::ValueOutOfRange)? as u16;
+        let storage_value = raw_value as u16;
+        self.data.view_bits_mut::<Lsb0>()[0usize..15usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of var_b
+    ///- Min: 0
+    ///- Max: 32767
+    pub fn set_var_b(&mut self, value: u16) -> Result<(), CanError> {
+        if value > 32767u16 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u16)
+            .and_then(|v| v.checked_div(1u16))
+            .ok_or(CanError::ValueOutOfRange)? as u16;
+        let storage_value = raw_value as u16;
+        self.data.view_bits_mut::<Lsb0>()[15usize..30usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of var_c
+    ///- Min: 0
+    ///- Max: 32767
+    pub fn set_var_c(&mut self, value: u16) -> Result<(), CanError> {
+        if value > 32767u16 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u16)
+            .and_then(|v| v.checked_div(1u16))
+            .ok_or(CanError::ValueOutOfRange)? as u16;
+        let storage_value = raw_value as u16;
+        self.data.view_bits_mut::<Lsb0>()[30usize..45usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of var_d
+    ///- Min: 0
+    ///- Max: 32767
+    pub fn set_var_d(&mut self, value: u16) -> Result<(), CanError> {
+        if value > 32767u16 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u16)
+            .and_then(|v| v.checked_div(1u16))
+            .ok_or(CanError::ValueOutOfRange)? as u16;
+        let storage_value = raw_value as u16;
+        self.data.view_bits_mut::<Lsb0>()[45usize..60usize].store_le(storage_value);
+        Ok(())
+    }
+    ///Set value of var_e
+    ///- Min: 0
+    ///- Max: 32767
+    pub fn set_var_e(&mut self, value: u16) -> Result<(), CanError> {
+        if value > 32767u16 {
+            return Err(CanError::ValueOutOfRange);
+        }
+        let raw_value = value
+            .checked_sub(0u16)
+            .and_then(|v| v.checked_div(1u16))
+            .ok_or(CanError::ValueOutOfRange)? as u16;
+        let storage_value = raw_value as u16;
+        self.data.view_bits_mut::<Lsb0>()[60usize..75usize].store_le(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for VariableLengthMsg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}
+///J1939Snapshot
+///- ID: Extended 355729921 (0x15340201)
+///- Size: 8 bytes
+///- Transmitter: NODE_A
+#[derive(Debug, Clone)]
+pub struct J1939SnapshotMsg {
+    data: [u8; 8usize],
+}
+impl J1939SnapshotMsg {
+    pub const ID: Id = Id::Extended(unsafe { ExtendedId::new_unchecked(355729921u32) });
+    pub const LEN: usize = 8usize;
+    pub fn new(j1939_signal: i8) -> Result<Self, CanError> {
+        let mut msg = Self { data: [0u8; Self::LEN] };
+        msg.set_j1939_signal(j1939_signal)?;
+        Ok(msg)
+    }
+    ///j1939_signal
+    ///- Min: -128
+    ///- Max: 127
+    ///- Unit:
+    ///- Receivers: NODE_B
+    ///- Start bit: 0
+    ///- Size: 8 bits
+    ///- Factor: 1
+    ///- Offset: 0
+    ///- Byte order: LittleEndian
+    ///- Type: signed
+    pub fn j1939_signal(&self) -> i8 {
+        let raw_j1939_signal = self
+            .data
+            .view_bits::<Lsb0>()[0usize..8usize]
+            .load_le::<i8>();
+        (raw_j1939_signal as i8).saturating_mul(1i8).saturating_add(0i8)
+    }
+    ///Set value of j1939_signal
+    ///- Min: -128
+    ///- Max: 127
+    pub fn set_j1939_signal(&mut self, value: i8) -> Result<(), CanError> {
+        let raw_value = value
+            .checked_sub(0i8)
+            .and_then(|v| v.checked_div(1i8))
+            .ok_or(CanError::ValueOutOfRange)? as i8;
+        let storage_value = u8::from_ne_bytes(raw_value.to_ne_bytes());
+        self.data.view_bits_mut::<Lsb0>()[0usize..8usize].store_le(storage_value);
+        Ok(())
+    }
+}
+impl GeneratedCanMessage<{ Self::LEN }> for J1939SnapshotMsg {
+    fn try_from_frame(frame: &impl Frame) -> Result<Self, CanError> {
+        if frame.data().len() < Self::LEN {
+            return Err(CanError::InvalidPayloadSize);
+        }
+        if frame.id() != Self::ID {
+            return Err(CanError::InvalidFrameId);
+        }
+        let mut buf = [0u8; Self::LEN];
+        buf.copy_from_slice(&frame.data()[..Self::LEN]);
+        Ok(Self { data: buf })
+    }
+    fn encode(&self) -> [u8; Self::LEN] {
+        self.data
+    }
+}

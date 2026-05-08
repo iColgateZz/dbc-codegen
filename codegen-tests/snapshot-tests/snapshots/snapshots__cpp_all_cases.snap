@@ -1,0 +1,1499 @@
+---
+source: codegen-tests/snapshot-tests/snapshots.rs
+expression: "generate_snapshot_fixture(Language::Cpp)"
+---
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <expected>
+#include <span>
+#include <variant>
+#include <utility>
+#include <cstring>
+#include <limits>
+#include <type_traits>
+
+enum class CanError : uint8_t {
+  UnknownFrameId,
+  UnknownMuxValue,
+  InvalidPayloadSize,
+  InvalidFrameId,
+  ValueOutOfRange,
+  InvalidEnumValue,
+};
+
+struct CanId {
+  enum class Kind : uint8_t {
+    Standard,
+    Extended,
+  };
+  
+  uint32_t value;
+  Kind kind;
+  
+  [[nodiscard]] static constexpr CanId standard(uint32_t value) noexcept { return CanId{value, Kind::Standard}; }
+  [[nodiscard]] static constexpr CanId extended(uint32_t value) noexcept { return CanId{value, Kind::Extended}; }
+  [[nodiscard]] static constexpr CanId from_raw(uint32_t value, bool is_extended) noexcept { return is_extended ? extended(value) : standard(value); }
+  
+  [[nodiscard]] constexpr uint32_t dispatch_key() const noexcept { return value | (kind == Kind::Extended ? 0x80000000u : 0u); }
+  constexpr bool operator==(const CanId&) const noexcept = default;
+};
+
+template <typename Msg>
+concept GeneratedCanMessage = requires(CanId id, std::span<const uint8_t> frame, const Msg& msg) {
+  Msg::ID;
+  Msg::LEN;
+  { Msg::try_from_frame(id, frame) };
+  { msg.encode() };
+};
+
+namespace detail {
+
+template <typename T>
+[[nodiscard]] constexpr T saturating_add(T lhs, T rhs) noexcept {
+  static_assert(std::is_integral_v<T>);
+  T result{};
+  if (!__builtin_add_overflow(lhs, rhs, &result)) {
+    return result;
+  };
+  if constexpr (std::is_unsigned_v<T>) {
+    return std::numeric_limits<T>::max();
+  };
+  return rhs < 0 ? std::numeric_limits<T>::min() : std::numeric_limits<T>::max();
+};
+
+template <typename T>
+[[nodiscard]] constexpr T saturating_mul(T lhs, T rhs) noexcept {
+  static_assert(std::is_integral_v<T>);
+  T result{};
+  if (!__builtin_mul_overflow(lhs, rhs, &result)) {
+    return result;
+  };
+  if constexpr (std::is_unsigned_v<T>) {
+    return std::numeric_limits<T>::max();
+  };
+  return (lhs < 0) == (rhs < 0) ? std::numeric_limits<T>::max() : std::numeric_limits<T>::min();
+};
+
+template <typename T>
+[[nodiscard]] constexpr std::expected<T, CanError>
+checked_sub(T lhs, T rhs) noexcept {
+  static_assert(std::is_integral_v<T>);
+  T result{};
+  if (__builtin_sub_overflow(lhs, rhs, &result)) {
+    return std::unexpected(CanError::ValueOutOfRange);
+  };
+  return result;
+};
+
+template <typename T>
+[[nodiscard]] constexpr std::expected<T, CanError>
+checked_div(T lhs, T rhs) noexcept {
+  static_assert(std::is_integral_v<T>);
+  if (rhs == 0) {
+    return std::unexpected(CanError::ValueOutOfRange);
+  };
+  if constexpr (std::is_signed_v<T>) {
+    if (lhs == std::numeric_limits<T>::min() && rhs == static_cast<T>(-1)) {
+      return std::unexpected(CanError::ValueOutOfRange);
+    };
+  };
+  return lhs / rhs;
+};
+
+template <typename T>
+[[nodiscard]] constexpr T extract_le(const uint8_t* data, std::size_t start, std::size_t end) noexcept {
+  using U = std::make_unsigned_t<T>;
+  U result = 0;
+  const std::size_t len = end - start;
+  for (std::size_t i = 0; i < len; ++i) {
+    const std::size_t bit_idx = start + i;
+    result |= static_cast<U>((data[bit_idx / 8] >> (bit_idx % 8)) & 0x1u) << i;
+  };
+  if constexpr (std::is_signed_v<T>) {
+    if (len == 0) return T(0);
+    if (len < sizeof(U) * 8) {
+      const U sign_bit = static_cast<U>(U(1) << (len - 1));
+      if (result & sign_bit) {
+        result |= static_cast<U>(~U(0) << len);
+      };
+    };
+  };
+  return static_cast<T>(result);
+};
+
+template <typename T>
+[[nodiscard]] constexpr T extract_be(const uint8_t* data, std::size_t start, std::size_t end) noexcept {
+  using U = std::make_unsigned_t<T>;
+  U result = 0;
+  const std::size_t len = end - start;
+  for (std::size_t i = 0; i < len; ++i) {
+    const std::size_t bit_idx = start + i;
+    result = (result << 1) | static_cast<U>((data[bit_idx / 8] >> (7 - bit_idx % 8)) & 0x1u);
+  };
+  if constexpr (std::is_signed_v<T>) {
+    if (len == 0) return T(0);
+    if (len < sizeof(U) * 8) {
+      const U sign_bit = static_cast<U>(U(1) << (len - 1));
+      if (result & sign_bit) {
+        result |= static_cast<U>(~U(0) << len);
+      };
+    };
+  };
+  return static_cast<T>(result);
+};
+
+template <typename T>
+constexpr void insert_le(uint8_t* data, std::size_t start, std::size_t end, T value) noexcept {
+  using U = std::make_unsigned_t<T>;
+  U v = static_cast<U>(value);
+  const std::size_t len = end - start;
+  for (std::size_t i = 0; i < len; ++i) {
+    const std::size_t bit_idx = start + i;
+    const uint8_t bit = static_cast<uint8_t>((v >> i) & 0x1u);
+    data[bit_idx / 8] &= ~static_cast<uint8_t>(1u << (bit_idx % 8));
+    data[bit_idx / 8] |= static_cast<uint8_t>(bit << (bit_idx % 8));
+  };
+};
+
+template <typename T>
+constexpr void insert_be(uint8_t* data, std::size_t start, std::size_t end, T value) noexcept {
+  using U = std::make_unsigned_t<T>;
+  U v = static_cast<U>(value);
+  const std::size_t len = end - start;
+  for (std::size_t i = 0; i < len; ++i) {
+    const std::size_t bit_idx = start + i;
+    const uint8_t bit = static_cast<uint8_t>((v >> (len - 1 - i)) & 0x1u);
+    data[bit_idx / 8] &= ~static_cast<uint8_t>(1u << (7 - bit_idx % 8));
+    data[bit_idx / 8] |= static_cast<uint8_t>(bit << (7 - bit_idx % 8));
+  };
+};
+
+constexpr void copy_le(uint8_t* dst, const uint8_t* src, std::size_t start, std::size_t end) noexcept {
+  for (std::size_t bit_idx = start; bit_idx < end; ++bit_idx) {
+    const std::size_t byte_idx = bit_idx / 8;
+    const uint8_t mask = static_cast<uint8_t>(1u << (bit_idx % 8));
+    dst[byte_idx] &= static_cast<uint8_t>(~mask);
+    dst[byte_idx] |= static_cast<uint8_t>(src[byte_idx] & mask);
+  };
+};
+
+constexpr void copy_be(uint8_t* dst, const uint8_t* src, std::size_t start, std::size_t end) noexcept {
+  for (std::size_t bit_idx = start; bit_idx < end; ++bit_idx) {
+    const std::size_t byte_idx = bit_idx / 8;
+    const uint8_t mask = static_cast<uint8_t>(1u << (7 - bit_idx % 8));
+    dst[byte_idx] &= static_cast<uint8_t>(~mask);
+    dst[byte_idx] |= static_cast<uint8_t>(src[byte_idx] & mask);
+  };
+};
+
+} // namespace detail
+
+enum class ModeEnum : uint8_t {
+  ModeSleep = 3,
+  ModeRun = 2,
+  ModeInit = 1,
+  ModeOff = 0,
+};
+
+[[nodiscard]] constexpr ModeEnum
+mode_enum_from_raw(uint8_t v) noexcept {
+  return static_cast<ModeEnum>(v);
+};
+
+enum class StateAEnum : uint8_t {
+  On = 1,
+  Off = 0,
+};
+
+[[nodiscard]] constexpr StateAEnum
+state_a_enum_from_raw(uint8_t v) noexcept {
+  return static_cast<StateAEnum>(v);
+};
+
+enum class MotorolaEnableEnum : uint8_t {
+  Enabled = 1,
+  Disabled = 0,
+};
+
+[[nodiscard]] constexpr MotorolaEnableEnum
+motorola_enable_enum_from_raw(uint8_t v) noexcept {
+  return static_cast<MotorolaEnableEnum>(v);
+};
+
+enum class Mux1ChoiceEnum : uint8_t {
+  Two = 2,
+  One = 1,
+  Zero = 0,
+};
+
+[[nodiscard]] constexpr Mux1ChoiceEnum
+mux1_choice_enum_from_raw(uint8_t v) noexcept {
+  return static_cast<Mux1ChoiceEnum>(v);
+};
+
+/**
+ * PackedStatus
+ * - ID: Standard 100 (0x64)
+ * - Size: 8 bytes
+ * - Transmitter: NODE_A
+ * 
+ * Packed little-endian status values
+ */
+class PackedStatusMsg {
+  public:
+  static constexpr CanId ID = CanId::standard(100);
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<PackedStatusMsg, CanError> create(
+            bool enabled,
+            ModeEnum mode,
+            StateAEnum state_a,
+            int16_t signed_temp,
+            float scaled_speed,
+            uint8_t type,
+            uint8_t unspecified_range
+        ) noexcept {
+    PackedStatusMsg msg{};
+    if (auto r = msg.set_enabled(enabled); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_mode(mode); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_state_a(state_a); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_signed_temp(signed_temp); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_scaled_speed(scaled_speed); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_type(type); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_unspecified_range(unspecified_range); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<PackedStatusMsg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    PackedStatusMsg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * enabled
+   * - Min: 0
+   * - Max: 1
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 0
+   * - Size: 1 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] bool enabled() const noexcept {
+    const uint8_t raw_enabled = detail::extract_le<uint8_t>(data_.data(), 0, 1);
+    return raw_enabled != 0;
+  };
+  
+  /**
+   * mode
+   * - Min: 0
+   * - Max: 7
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 1
+   * - Size: 3 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] ModeEnum mode() const noexcept {
+    const uint8_t raw_mode = detail::extract_le<uint8_t>(data_.data(), 1, 4);
+    return mode_enum_from_raw(raw_mode);
+  };
+  
+  /**
+   * state_a
+   * - Min: 0
+   * - Max: 3
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 4
+   * - Size: 2 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] StateAEnum state_a() const noexcept {
+    const uint8_t raw_state_a = detail::extract_le<uint8_t>(data_.data(), 4, 6);
+    return state_a_enum_from_raw(raw_state_a);
+  };
+  
+  /**
+   * signed_temp
+   * - Min: -168
+   * - Max: 87
+   * - Unit: degC
+   * - Receivers: NODE_B
+   * - Start bit: 8
+   * - Size: 8 bits
+   * - Factor: 1
+   * - Offset: -40
+   * - Byte order: LittleEndian
+   * - Type: signed
+   */
+  [[nodiscard]] int16_t signed_temp() const noexcept {
+    const int8_t raw_signed_temp = detail::extract_le<int8_t>(data_.data(), 8, 16);
+    return detail::saturating_add<int16_t>(detail::saturating_mul<int16_t>(static_cast<int16_t>(raw_signed_temp), static_cast<int16_t>(1)), static_cast<int16_t>(-40));
+  };
+  
+  /**
+   * scaled_speed
+   * - Min: 0
+   * - Max: 655.35
+   * - Unit: kph
+   * - Receivers: NODE_B
+   * - Start bit: 16
+   * - Size: 16 bits
+   * - Factor: 0.01
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   * 
+   * Scaled speed signal used by snapshot testing
+   */
+  [[nodiscard]] float scaled_speed() const noexcept {
+    const uint16_t raw_scaled_speed = detail::extract_le<uint16_t>(data_.data(), 16, 32);
+    return static_cast<float>(raw_scaled_speed) * 0.01f + 0.0f;
+  };
+  
+  /**
+   * type
+   * - Min: 0
+   * - Max: 255
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 32
+   * - Size: 8 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint8_t type() const noexcept {
+    const uint8_t raw_type = detail::extract_le<uint8_t>(data_.data(), 32, 40);
+    return detail::saturating_add<uint8_t>(detail::saturating_mul<uint8_t>(static_cast<uint8_t>(raw_type), static_cast<uint8_t>(1)), static_cast<uint8_t>(0));
+  };
+  
+  /**
+   * unspecified_range
+   * - Min: 0
+   * - Max: 0
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 40
+   * - Size: 8 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint8_t unspecified_range() const noexcept {
+    const uint8_t raw_unspecified_range = detail::extract_le<uint8_t>(data_.data(), 40, 48);
+    return detail::saturating_add<uint8_t>(detail::saturating_mul<uint8_t>(static_cast<uint8_t>(raw_unspecified_range), static_cast<uint8_t>(1)), static_cast<uint8_t>(0));
+  };
+  
+  std::expected<void, CanError> set_enabled(bool enabled) noexcept {
+    detail::insert_le<uint8_t>(data_.data(), 0, 1, static_cast<uint8_t>(enabled));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_mode(ModeEnum mode) noexcept {
+    detail::insert_le<uint8_t>(data_.data(), 1, 4, static_cast<uint8_t>(mode));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_state_a(StateAEnum state_a) noexcept {
+    detail::insert_le<uint8_t>(data_.data(), 4, 6, static_cast<uint8_t>(state_a));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_signed_temp(int16_t signed_temp) noexcept {
+    if (signed_temp < -168 || signed_temp > 87) return std::unexpected(CanError::ValueOutOfRange);
+    const auto signed_temp_shifted = detail::checked_sub<int16_t>(signed_temp, static_cast<int16_t>(-40));
+    if (!signed_temp_shifted) return std::unexpected(signed_temp_shifted.error());
+    const auto signed_temp_raw = detail::checked_div<int16_t>(*signed_temp_shifted, static_cast<int16_t>(1));
+    if (!signed_temp_raw) return std::unexpected(signed_temp_raw.error());
+    detail::insert_le<int8_t>(data_.data(), 8, 16, static_cast<int8_t>(*signed_temp_raw));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_scaled_speed(float scaled_speed) noexcept {
+    if (scaled_speed < 0.0f || scaled_speed > 655.35f) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 16, 32, static_cast<uint16_t>((scaled_speed - 0.0f) / 0.01f));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_type(uint8_t type) noexcept {
+    if (type < 0 || type > 255) return std::unexpected(CanError::ValueOutOfRange);
+    const auto type_shifted = detail::checked_sub<uint8_t>(type, static_cast<uint8_t>(0));
+    if (!type_shifted) return std::unexpected(type_shifted.error());
+    const auto type_raw = detail::checked_div<uint8_t>(*type_shifted, static_cast<uint8_t>(1));
+    if (!type_raw) return std::unexpected(type_raw.error());
+    detail::insert_le<uint8_t>(data_.data(), 32, 40, static_cast<uint8_t>(*type_raw));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_unspecified_range(uint8_t unspecified_range) noexcept {
+    if (unspecified_range < 0 || unspecified_range > 0) return std::unexpected(CanError::ValueOutOfRange);
+    const auto unspecified_range_shifted = detail::checked_sub<uint8_t>(unspecified_range, static_cast<uint8_t>(0));
+    if (!unspecified_range_shifted) return std::unexpected(unspecified_range_shifted.error());
+    const auto unspecified_range_raw = detail::checked_div<uint8_t>(*unspecified_range_shifted, static_cast<uint8_t>(1));
+    if (!unspecified_range_raw) return std::unexpected(unspecified_range_raw.error());
+    detail::insert_le<uint8_t>(data_.data(), 40, 48, static_cast<uint8_t>(*unspecified_range_raw));
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<PackedStatusMsg>);
+
+/**
+ * MotorolaAnalog
+ * - ID: Standard 101 (0x65)
+ * - Size: 8 bytes
+ * - Transmitter: NODE_A
+ * 
+ * Motorola signal layout with comments
+ */
+class MotorolaAnalogMsg {
+  public:
+  static constexpr CanId ID = CanId::standard(101);
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<MotorolaAnalogMsg, CanError> create(
+            float motorola_temp,
+            float motorola_radius,
+            MotorolaEnableEnum motorola_enable,
+            float motorola_float32
+        ) noexcept {
+    MotorolaAnalogMsg msg{};
+    if (auto r = msg.set_motorola_temp(motorola_temp); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_motorola_radius(motorola_radius); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_motorola_enable(motorola_enable); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_motorola_float32(motorola_float32); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<MotorolaAnalogMsg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    MotorolaAnalogMsg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * motorola_temp
+   * - Min: 229.52
+   * - Max: 270.47
+   * - Unit: degK
+   * - Receivers: NODE_B, NODE_C
+   * - Start bit: 7
+   * - Size: 12 bits
+   * - Factor: 0.01
+   * - Offset: 250
+   * - Byte order: BigEndian
+   * - Type: signed
+   * 
+   * Signed big-endian scaled temperature
+   */
+  [[nodiscard]] float motorola_temp() const noexcept {
+    const int16_t raw_motorola_temp = detail::extract_be<int16_t>(data_.data(), 7, 19);
+    return static_cast<float>(raw_motorola_temp) * 0.01f + 250.0f;
+  };
+  
+  /**
+   * motorola_radius
+   * - Min: 0
+   * - Max: 5
+   * - Unit: m
+   * - Receivers: NODE_B
+   * - Start bit: 1
+   * - Size: 6 bits
+   * - Factor: 0.1
+   * - Offset: 0
+   * - Byte order: BigEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] float motorola_radius() const noexcept {
+    const uint8_t raw_motorola_radius = detail::extract_be<uint8_t>(data_.data(), 1, 7);
+    return static_cast<float>(raw_motorola_radius) * 0.1f + 0.0f;
+  };
+  
+  /**
+   * motorola_enable
+   * - Min: 0
+   * - Max: 1
+   * - Unit: -
+   * - Receivers: NODE_B
+   * - Start bit: 0
+   * - Size: 1 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: BigEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] MotorolaEnableEnum motorola_enable() const noexcept {
+    const uint8_t raw_motorola_enable = detail::extract_be<uint8_t>(data_.data(), 0, 1);
+    return motorola_enable_enum_from_raw(raw_motorola_enable);
+  };
+  
+  /**
+   * motorola_float32
+   * - Min: 0
+   * - Max: 5
+   * - Unit: m
+   * - Receivers: NODE_C
+   * - Start bit: 31
+   * - Size: 32 bits
+   * - Factor: 0.1
+   * - Offset: 0
+   * - Byte order: BigEndian
+   * - Type: signed
+   */
+  [[nodiscard]] float motorola_float32() const noexcept {
+    const uint32_t motorola_float32_bits = detail::extract_be<uint32_t>(data_.data(), 31, 63);
+    float motorola_float32_raw; std::memcpy(&motorola_float32_raw, &motorola_float32_bits, sizeof(float));
+    return motorola_float32_raw * 0.1f + 0.0f;
+  };
+  
+  std::expected<void, CanError> set_motorola_temp(float motorola_temp) noexcept {
+    if (motorola_temp < 229.52f || motorola_temp > 270.47f) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_be<int16_t>(data_.data(), 7, 19, static_cast<int16_t>((motorola_temp - 250.0f) / 0.01f));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_motorola_radius(float motorola_radius) noexcept {
+    if (motorola_radius < 0.0f || motorola_radius > 5.0f) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_be<uint8_t>(data_.data(), 1, 7, static_cast<uint8_t>((motorola_radius - 0.0f) / 0.1f));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_motorola_enable(MotorolaEnableEnum motorola_enable) noexcept {
+    detail::insert_be<uint8_t>(data_.data(), 0, 1, static_cast<uint8_t>(motorola_enable));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_motorola_float32(float motorola_float32) noexcept {
+    if (motorola_float32 < 0.0f || motorola_float32 > 5.0f) return std::unexpected(CanError::ValueOutOfRange);
+    const float motorola_float32_raw = (motorola_float32 - 0.0f) / 0.1f;
+    uint32_t motorola_float32_bits; std::memcpy(&motorola_float32_bits, &motorola_float32_raw, sizeof(uint32_t));
+    detail::insert_be<uint32_t>(data_.data(), 31, 63, motorola_float32_bits);
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<MotorolaAnalogMsg>);
+
+/**
+ * FloatPayload32
+ * - ID: Standard 102 (0x66)
+ * - Size: 8 bytes
+ * - Transmitter: NODE_A
+ */
+class FloatPayload32Msg {
+  public:
+  static constexpr CanId ID = CanId::standard(102);
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<FloatPayload32Msg, CanError> create(
+            float float32_a,
+            float float32_b
+        ) noexcept {
+    FloatPayload32Msg msg{};
+    if (auto r = msg.set_float32_a(float32_a); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_float32_b(float32_b); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<FloatPayload32Msg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    FloatPayload32Msg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * float32_a
+   * - Min: -1000
+   * - Max: 1000
+   * - Unit: 
+   * - Receivers: DBG
+   * - Start bit: 0
+   * - Size: 32 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: signed
+   */
+  [[nodiscard]] float float32_a() const noexcept {
+    const uint32_t float32_a_bits = detail::extract_le<uint32_t>(data_.data(), 0, 32);
+    float float32_a_raw; std::memcpy(&float32_a_raw, &float32_a_bits, sizeof(float));
+    return float32_a_raw * 1.0f + 0.0f;
+  };
+  
+  /**
+   * float32_b
+   * - Min: -1000
+   * - Max: 1000
+   * - Unit: 
+   * - Receivers: DBG
+   * - Start bit: 32
+   * - Size: 32 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: signed
+   */
+  [[nodiscard]] float float32_b() const noexcept {
+    const uint32_t float32_b_bits = detail::extract_le<uint32_t>(data_.data(), 32, 64);
+    float float32_b_raw; std::memcpy(&float32_b_raw, &float32_b_bits, sizeof(float));
+    return float32_b_raw * 1.0f + 0.0f;
+  };
+  
+  std::expected<void, CanError> set_float32_a(float float32_a) noexcept {
+    if (float32_a < -1000.0f || float32_a > 1000.0f) return std::unexpected(CanError::ValueOutOfRange);
+    const float float32_a_raw = (float32_a - 0.0f) / 1.0f;
+    uint32_t float32_a_bits; std::memcpy(&float32_a_bits, &float32_a_raw, sizeof(uint32_t));
+    detail::insert_le<uint32_t>(data_.data(), 0, 32, float32_a_bits);
+    return {};
+  };
+  
+  std::expected<void, CanError> set_float32_b(float float32_b) noexcept {
+    if (float32_b < -1000.0f || float32_b > 1000.0f) return std::unexpected(CanError::ValueOutOfRange);
+    const float float32_b_raw = (float32_b - 0.0f) / 1.0f;
+    uint32_t float32_b_bits; std::memcpy(&float32_b_bits, &float32_b_raw, sizeof(uint32_t));
+    detail::insert_le<uint32_t>(data_.data(), 32, 64, float32_b_bits);
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<FloatPayload32Msg>);
+
+/**
+ * FloatPayload64
+ * - ID: Standard 103 (0x67)
+ * - Size: 8 bytes
+ * - Transmitter: NODE_A
+ */
+class FloatPayload64Msg {
+  public:
+  static constexpr CanId ID = CanId::standard(103);
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<FloatPayload64Msg, CanError> create(
+            double float64_value
+        ) noexcept {
+    FloatPayload64Msg msg{};
+    if (auto r = msg.set_float64_value(float64_value); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<FloatPayload64Msg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    FloatPayload64Msg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * float64_value
+   * - Min: -1000
+   * - Max: 1000
+   * - Unit: 
+   * - Receivers: DBG
+   * - Start bit: 0
+   * - Size: 64 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: signed
+   */
+  [[nodiscard]] double float64_value() const noexcept {
+    const uint64_t float64_value_bits = detail::extract_le<uint64_t>(data_.data(), 0, 64);
+    double float64_value_raw; std::memcpy(&float64_value_raw, &float64_value_bits, sizeof(double));
+    return float64_value_raw * 1.0 + 0.0;
+  };
+  
+  std::expected<void, CanError> set_float64_value(double float64_value) noexcept {
+    if (float64_value < -1000.0 || float64_value > 1000.0) return std::unexpected(CanError::ValueOutOfRange);
+    const double float64_value_raw = (float64_value - 0.0) / 1.0;
+    uint64_t float64_value_bits; std::memcpy(&float64_value_bits, &float64_value_raw, sizeof(uint64_t));
+    detail::insert_le<uint64_t>(data_.data(), 0, 64, float64_value_bits);
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<FloatPayload64Msg>);
+
+class MuxedTelemetryMsgMux0 {
+  public:
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<MuxedTelemetryMsgMux0, CanError> create(
+            float mux0_distance,
+            uint8_t mux0_state
+        ) noexcept {
+    MuxedTelemetryMsgMux0 msg{};
+    if (auto r = msg.set_mux0_distance(mux0_distance); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_mux0_state(mux0_state); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  /**
+   * mux0_distance
+   * - Min: 0
+   * - Max: 6553.5
+   * - Unit: m
+   * - Receivers: NODE_B
+   * - Start bit: 16
+   * - Size: 16 bits
+   * - Factor: 0.1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] float mux0_distance() const noexcept {
+    const uint16_t raw_mux0_distance = detail::extract_le<uint16_t>(data_.data(), 16, 32);
+    return static_cast<float>(raw_mux0_distance) * 0.1f + 0.0f;
+  };
+  
+  /**
+   * mux0_state
+   * - Min: 0
+   * - Max: 255
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 32
+   * - Size: 8 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint8_t mux0_state() const noexcept {
+    const uint8_t raw_mux0_state = detail::extract_le<uint8_t>(data_.data(), 32, 40);
+    return detail::saturating_add<uint8_t>(detail::saturating_mul<uint8_t>(static_cast<uint8_t>(raw_mux0_state), static_cast<uint8_t>(1)), static_cast<uint8_t>(0));
+  };
+  
+  std::expected<void, CanError> set_mux0_distance(float mux0_distance) noexcept {
+    if (mux0_distance < 0.0f || mux0_distance > 6553.5f) return std::unexpected(CanError::ValueOutOfRange);
+    detail::insert_le<uint16_t>(data_.data(), 16, 32, static_cast<uint16_t>((mux0_distance - 0.0f) / 0.1f));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_mux0_state(uint8_t mux0_state) noexcept {
+    if (mux0_state < 0 || mux0_state > 255) return std::unexpected(CanError::ValueOutOfRange);
+    const auto mux0_state_shifted = detail::checked_sub<uint8_t>(mux0_state, static_cast<uint8_t>(0));
+    if (!mux0_state_shifted) return std::unexpected(mux0_state_shifted.error());
+    const auto mux0_state_raw = detail::checked_div<uint8_t>(*mux0_state_shifted, static_cast<uint8_t>(1));
+    if (!mux0_state_raw) return std::unexpected(mux0_state_raw.error());
+    detail::insert_le<uint8_t>(data_.data(), 32, 40, static_cast<uint8_t>(*mux0_state_raw));
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  friend class MuxedTelemetryMsg;
+  std::array<uint8_t, LEN> data_{};
+};
+
+class MuxedTelemetryMsgMux1 {
+  public:
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<MuxedTelemetryMsgMux1, CanError> create(
+            int16_t mux1_signed,
+            Mux1ChoiceEnum mux1_choice
+        ) noexcept {
+    MuxedTelemetryMsgMux1 msg{};
+    if (auto r = msg.set_mux1_signed(mux1_signed); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_mux1_choice(mux1_choice); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  /**
+   * mux1_signed
+   * - Min: -32768
+   * - Max: 32767
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 16
+   * - Size: 16 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: signed
+   */
+  [[nodiscard]] int16_t mux1_signed() const noexcept {
+    const int16_t raw_mux1_signed = detail::extract_le<int16_t>(data_.data(), 16, 32);
+    return detail::saturating_add<int16_t>(detail::saturating_mul<int16_t>(static_cast<int16_t>(raw_mux1_signed), static_cast<int16_t>(1)), static_cast<int16_t>(0));
+  };
+  
+  /**
+   * mux1_choice
+   * - Min: 0
+   * - Max: 255
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 32
+   * - Size: 8 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] Mux1ChoiceEnum mux1_choice() const noexcept {
+    const uint8_t raw_mux1_choice = detail::extract_le<uint8_t>(data_.data(), 32, 40);
+    return mux1_choice_enum_from_raw(raw_mux1_choice);
+  };
+  
+  std::expected<void, CanError> set_mux1_signed(int16_t mux1_signed) noexcept {
+    if (mux1_signed < -32768 || mux1_signed > 32767) return std::unexpected(CanError::ValueOutOfRange);
+    const auto mux1_signed_shifted = detail::checked_sub<int16_t>(mux1_signed, static_cast<int16_t>(0));
+    if (!mux1_signed_shifted) return std::unexpected(mux1_signed_shifted.error());
+    const auto mux1_signed_raw = detail::checked_div<int16_t>(*mux1_signed_shifted, static_cast<int16_t>(1));
+    if (!mux1_signed_raw) return std::unexpected(mux1_signed_raw.error());
+    detail::insert_le<int16_t>(data_.data(), 16, 32, static_cast<int16_t>(*mux1_signed_raw));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_mux1_choice(Mux1ChoiceEnum mux1_choice) noexcept {
+    detail::insert_le<uint8_t>(data_.data(), 32, 40, static_cast<uint8_t>(mux1_choice));
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  friend class MuxedTelemetryMsg;
+  std::array<uint8_t, LEN> data_{};
+};
+
+using MuxedTelemetryMsgMux = std::variant<MuxedTelemetryMsgMux0, MuxedTelemetryMsgMux1>;
+
+/**
+ * MuxedTelemetry
+ * - ID: Standard 104 (0x68)
+ * - Size: 8 bytes
+ * - Transmitter: NODE_A
+ */
+class MuxedTelemetryMsg {
+  public:
+  static constexpr CanId ID = CanId::standard(104);
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<MuxedTelemetryMsg, CanError> create(uint16_t common_count, MuxedTelemetryMsgMux mux) noexcept {
+    MuxedTelemetryMsg msg{};
+    if (auto r = msg.set_common_count(common_count); !r) return std::unexpected(r.error());
+    std::visit([&msg](const auto& v) {
+      using T = std::decay_t<decltype(v)>;
+      if constexpr (std::is_same_v<T, MuxedTelemetryMsgMux0>) {
+        msg.set_mux_0(v);
+      };
+      if constexpr (std::is_same_v<T, MuxedTelemetryMsgMux1>) {
+        msg.set_mux_1(v);
+      };
+    }, mux);
+    
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<MuxedTelemetryMsg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    MuxedTelemetryMsg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * common_count
+   * - Min: 0
+   * - Max: 4095
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 4
+   * - Size: 12 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint16_t common_count() const noexcept {
+    const uint16_t raw_common_count = detail::extract_le<uint16_t>(data_.data(), 4, 16);
+    return detail::saturating_add<uint16_t>(detail::saturating_mul<uint16_t>(static_cast<uint16_t>(raw_common_count), static_cast<uint16_t>(1)), static_cast<uint16_t>(0));
+  };
+  
+  std::expected<void, CanError> set_common_count(uint16_t common_count) noexcept {
+    if (common_count < 0 || common_count > 4095) return std::unexpected(CanError::ValueOutOfRange);
+    const auto common_count_shifted = detail::checked_sub<uint16_t>(common_count, static_cast<uint16_t>(0));
+    if (!common_count_shifted) return std::unexpected(common_count_shifted.error());
+    const auto common_count_raw = detail::checked_div<uint16_t>(*common_count_shifted, static_cast<uint16_t>(1));
+    if (!common_count_raw) return std::unexpected(common_count_raw.error());
+    detail::insert_le<uint16_t>(data_.data(), 4, 16, static_cast<uint16_t>(*common_count_raw));
+    return {};
+  };
+  
+  [[nodiscard]] std::expected<MuxedTelemetryMsgMux, CanError> mux() const noexcept {
+    const uint8_t mux_raw = detail::extract_le<uint8_t>(data_.data(), 0, 4);
+    switch (mux_raw) {
+      case 0: {
+        MuxedTelemetryMsgMux0 inner{};
+        std::memcpy(inner.data_.data(), data_.data(), LEN);
+        return inner;
+      };
+      case 1: {
+        MuxedTelemetryMsgMux1 inner{};
+        std::memcpy(inner.data_.data(), data_.data(), LEN);
+        return inner;
+      };
+      default: return std::unexpected(CanError::UnknownMuxValue);
+    };
+  };
+  
+  void set_mux_0(const MuxedTelemetryMsgMux0& value) noexcept {
+    detail::copy_le(data_.data(), value.data_.data(), 16, 32);
+    detail::copy_le(data_.data(), value.data_.data(), 32, 40);
+    detail::insert_le<uint8_t>(data_.data(), 0, 4, static_cast<uint8_t>(0));
+  };
+  void set_mux_1(const MuxedTelemetryMsgMux1& value) noexcept {
+    detail::copy_le(data_.data(), value.data_.data(), 16, 32);
+    detail::copy_le(data_.data(), value.data_.data(), 32, 40);
+    detail::insert_le<uint8_t>(data_.data(), 0, 4, static_cast<uint8_t>(1));
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<MuxedTelemetryMsg>);
+
+/**
+ * EmptyZeroDlc
+ * - ID: Standard 105 (0x69)
+ * - Size: 0 bytes
+ * - Transmitter: NODE_A
+ */
+class EmptyZeroDlcMsg {
+  public:
+  static constexpr CanId ID = CanId::standard(105);
+  static constexpr std::size_t LEN{0};
+  
+  [[nodiscard]] static std::expected<EmptyZeroDlcMsg, CanError> create() noexcept {
+    EmptyZeroDlcMsg msg{};
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<EmptyZeroDlcMsg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    EmptyZeroDlcMsg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<EmptyZeroDlcMsg>);
+
+/**
+ * ExtendedClassic
+ * - ID: Extended 4 (0x4)
+ * - Size: 8 bytes
+ * - Transmitter: NODE_B
+ */
+class ExtendedClassicMsg {
+  public:
+  static constexpr CanId ID = CanId::extended(4);
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<ExtendedClassicMsg, CanError> create(
+            uint8_t ext_counter
+        ) noexcept {
+    ExtendedClassicMsg msg{};
+    if (auto r = msg.set_ext_counter(ext_counter); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<ExtendedClassicMsg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    ExtendedClassicMsg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * ext_counter
+   * - Min: 0
+   * - Max: 255
+   * - Unit: 
+   * - Receivers: NODE_A
+   * - Start bit: 0
+   * - Size: 8 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint8_t ext_counter() const noexcept {
+    const uint8_t raw_ext_counter = detail::extract_le<uint8_t>(data_.data(), 0, 8);
+    return detail::saturating_add<uint8_t>(detail::saturating_mul<uint8_t>(static_cast<uint8_t>(raw_ext_counter), static_cast<uint8_t>(1)), static_cast<uint8_t>(0));
+  };
+  
+  std::expected<void, CanError> set_ext_counter(uint8_t ext_counter) noexcept {
+    if (ext_counter < 0 || ext_counter > 255) return std::unexpected(CanError::ValueOutOfRange);
+    const auto ext_counter_shifted = detail::checked_sub<uint8_t>(ext_counter, static_cast<uint8_t>(0));
+    if (!ext_counter_shifted) return std::unexpected(ext_counter_shifted.error());
+    const auto ext_counter_raw = detail::checked_div<uint8_t>(*ext_counter_shifted, static_cast<uint8_t>(1));
+    if (!ext_counter_raw) return std::unexpected(ext_counter_raw.error());
+    detail::insert_le<uint8_t>(data_.data(), 0, 8, static_cast<uint8_t>(*ext_counter_raw));
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<ExtendedClassicMsg>);
+
+/**
+ * ExtendedCanFd
+ * - ID: Extended 5 (0x5)
+ * - Size: 64 bytes
+ * - Transmitter: NODE_B
+ */
+class ExtendedCanFdMsg {
+  public:
+  static constexpr CanId ID = CanId::extended(5);
+  static constexpr std::size_t LEN{64};
+  
+  [[nodiscard]] static std::expected<ExtendedCanFdMsg, CanError> create(
+            uint64_t fd_word0,
+            uint64_t fd_word1
+        ) noexcept {
+    ExtendedCanFdMsg msg{};
+    if (auto r = msg.set_fd_word0(fd_word0); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_fd_word1(fd_word1); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<ExtendedCanFdMsg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    ExtendedCanFdMsg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * fd_word0
+   * - Min: 0
+   * - Max: 4294967296
+   * - Unit: 
+   * - Receivers: NODE_A
+   * - Start bit: 0
+   * - Size: 64 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint64_t fd_word0() const noexcept {
+    const uint64_t raw_fd_word0 = detail::extract_le<uint64_t>(data_.data(), 0, 64);
+    return detail::saturating_add<uint64_t>(detail::saturating_mul<uint64_t>(static_cast<uint64_t>(raw_fd_word0), static_cast<uint64_t>(1)), static_cast<uint64_t>(0));
+  };
+  
+  /**
+   * fd_word1
+   * - Min: 0
+   * - Max: 4294967296
+   * - Unit: 
+   * - Receivers: NODE_A
+   * - Start bit: 64
+   * - Size: 64 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint64_t fd_word1() const noexcept {
+    const uint64_t raw_fd_word1 = detail::extract_le<uint64_t>(data_.data(), 64, 128);
+    return detail::saturating_add<uint64_t>(detail::saturating_mul<uint64_t>(static_cast<uint64_t>(raw_fd_word1), static_cast<uint64_t>(1)), static_cast<uint64_t>(0));
+  };
+  
+  std::expected<void, CanError> set_fd_word0(uint64_t fd_word0) noexcept {
+    if (fd_word0 < 0 || fd_word0 > 4294967296) return std::unexpected(CanError::ValueOutOfRange);
+    const auto fd_word0_shifted = detail::checked_sub<uint64_t>(fd_word0, static_cast<uint64_t>(0));
+    if (!fd_word0_shifted) return std::unexpected(fd_word0_shifted.error());
+    const auto fd_word0_raw = detail::checked_div<uint64_t>(*fd_word0_shifted, static_cast<uint64_t>(1));
+    if (!fd_word0_raw) return std::unexpected(fd_word0_raw.error());
+    detail::insert_le<uint64_t>(data_.data(), 0, 64, static_cast<uint64_t>(*fd_word0_raw));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_fd_word1(uint64_t fd_word1) noexcept {
+    if (fd_word1 < 0 || fd_word1 > 4294967296) return std::unexpected(CanError::ValueOutOfRange);
+    const auto fd_word1_shifted = detail::checked_sub<uint64_t>(fd_word1, static_cast<uint64_t>(0));
+    if (!fd_word1_shifted) return std::unexpected(fd_word1_shifted.error());
+    const auto fd_word1_raw = detail::checked_div<uint64_t>(*fd_word1_shifted, static_cast<uint64_t>(1));
+    if (!fd_word1_raw) return std::unexpected(fd_word1_raw.error());
+    detail::insert_le<uint64_t>(data_.data(), 64, 128, static_cast<uint64_t>(*fd_word1_raw));
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<ExtendedCanFdMsg>);
+
+/**
+ * VariableLength
+ * - ID: Standard 120 (0x78)
+ * - Size: 10 bytes
+ * - Transmitter: NODE_C
+ */
+class VariableLengthMsg {
+  public:
+  static constexpr CanId ID = CanId::standard(120);
+  static constexpr std::size_t LEN{10};
+  
+  [[nodiscard]] static std::expected<VariableLengthMsg, CanError> create(
+            uint16_t var_a,
+            uint16_t var_b,
+            uint16_t var_c,
+            uint16_t var_d,
+            uint16_t var_e
+        ) noexcept {
+    VariableLengthMsg msg{};
+    if (auto r = msg.set_var_a(var_a); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_var_b(var_b); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_var_c(var_c); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_var_d(var_d); !r) return std::unexpected(r.error());
+    if (auto r = msg.set_var_e(var_e); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<VariableLengthMsg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    VariableLengthMsg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * var_a
+   * - Min: 0
+   * - Max: 32767
+   * - Unit: 
+   * - Receivers: NODE_A
+   * - Start bit: 0
+   * - Size: 15 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint16_t var_a() const noexcept {
+    const uint16_t raw_var_a = detail::extract_le<uint16_t>(data_.data(), 0, 15);
+    return detail::saturating_add<uint16_t>(detail::saturating_mul<uint16_t>(static_cast<uint16_t>(raw_var_a), static_cast<uint16_t>(1)), static_cast<uint16_t>(0));
+  };
+  
+  /**
+   * var_b
+   * - Min: 0
+   * - Max: 32767
+   * - Unit: 
+   * - Receivers: NODE_A
+   * - Start bit: 15
+   * - Size: 15 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint16_t var_b() const noexcept {
+    const uint16_t raw_var_b = detail::extract_le<uint16_t>(data_.data(), 15, 30);
+    return detail::saturating_add<uint16_t>(detail::saturating_mul<uint16_t>(static_cast<uint16_t>(raw_var_b), static_cast<uint16_t>(1)), static_cast<uint16_t>(0));
+  };
+  
+  /**
+   * var_c
+   * - Min: 0
+   * - Max: 32767
+   * - Unit: 
+   * - Receivers: NODE_A
+   * - Start bit: 30
+   * - Size: 15 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint16_t var_c() const noexcept {
+    const uint16_t raw_var_c = detail::extract_le<uint16_t>(data_.data(), 30, 45);
+    return detail::saturating_add<uint16_t>(detail::saturating_mul<uint16_t>(static_cast<uint16_t>(raw_var_c), static_cast<uint16_t>(1)), static_cast<uint16_t>(0));
+  };
+  
+  /**
+   * var_d
+   * - Min: 0
+   * - Max: 32767
+   * - Unit: 
+   * - Receivers: NODE_A
+   * - Start bit: 45
+   * - Size: 15 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint16_t var_d() const noexcept {
+    const uint16_t raw_var_d = detail::extract_le<uint16_t>(data_.data(), 45, 60);
+    return detail::saturating_add<uint16_t>(detail::saturating_mul<uint16_t>(static_cast<uint16_t>(raw_var_d), static_cast<uint16_t>(1)), static_cast<uint16_t>(0));
+  };
+  
+  /**
+   * var_e
+   * - Min: 0
+   * - Max: 32767
+   * - Unit: 
+   * - Receivers: NODE_A
+   * - Start bit: 60
+   * - Size: 15 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: unsigned
+   */
+  [[nodiscard]] uint16_t var_e() const noexcept {
+    const uint16_t raw_var_e = detail::extract_le<uint16_t>(data_.data(), 60, 75);
+    return detail::saturating_add<uint16_t>(detail::saturating_mul<uint16_t>(static_cast<uint16_t>(raw_var_e), static_cast<uint16_t>(1)), static_cast<uint16_t>(0));
+  };
+  
+  std::expected<void, CanError> set_var_a(uint16_t var_a) noexcept {
+    if (var_a < 0 || var_a > 32767) return std::unexpected(CanError::ValueOutOfRange);
+    const auto var_a_shifted = detail::checked_sub<uint16_t>(var_a, static_cast<uint16_t>(0));
+    if (!var_a_shifted) return std::unexpected(var_a_shifted.error());
+    const auto var_a_raw = detail::checked_div<uint16_t>(*var_a_shifted, static_cast<uint16_t>(1));
+    if (!var_a_raw) return std::unexpected(var_a_raw.error());
+    detail::insert_le<uint16_t>(data_.data(), 0, 15, static_cast<uint16_t>(*var_a_raw));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_var_b(uint16_t var_b) noexcept {
+    if (var_b < 0 || var_b > 32767) return std::unexpected(CanError::ValueOutOfRange);
+    const auto var_b_shifted = detail::checked_sub<uint16_t>(var_b, static_cast<uint16_t>(0));
+    if (!var_b_shifted) return std::unexpected(var_b_shifted.error());
+    const auto var_b_raw = detail::checked_div<uint16_t>(*var_b_shifted, static_cast<uint16_t>(1));
+    if (!var_b_raw) return std::unexpected(var_b_raw.error());
+    detail::insert_le<uint16_t>(data_.data(), 15, 30, static_cast<uint16_t>(*var_b_raw));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_var_c(uint16_t var_c) noexcept {
+    if (var_c < 0 || var_c > 32767) return std::unexpected(CanError::ValueOutOfRange);
+    const auto var_c_shifted = detail::checked_sub<uint16_t>(var_c, static_cast<uint16_t>(0));
+    if (!var_c_shifted) return std::unexpected(var_c_shifted.error());
+    const auto var_c_raw = detail::checked_div<uint16_t>(*var_c_shifted, static_cast<uint16_t>(1));
+    if (!var_c_raw) return std::unexpected(var_c_raw.error());
+    detail::insert_le<uint16_t>(data_.data(), 30, 45, static_cast<uint16_t>(*var_c_raw));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_var_d(uint16_t var_d) noexcept {
+    if (var_d < 0 || var_d > 32767) return std::unexpected(CanError::ValueOutOfRange);
+    const auto var_d_shifted = detail::checked_sub<uint16_t>(var_d, static_cast<uint16_t>(0));
+    if (!var_d_shifted) return std::unexpected(var_d_shifted.error());
+    const auto var_d_raw = detail::checked_div<uint16_t>(*var_d_shifted, static_cast<uint16_t>(1));
+    if (!var_d_raw) return std::unexpected(var_d_raw.error());
+    detail::insert_le<uint16_t>(data_.data(), 45, 60, static_cast<uint16_t>(*var_d_raw));
+    return {};
+  };
+  
+  std::expected<void, CanError> set_var_e(uint16_t var_e) noexcept {
+    if (var_e < 0 || var_e > 32767) return std::unexpected(CanError::ValueOutOfRange);
+    const auto var_e_shifted = detail::checked_sub<uint16_t>(var_e, static_cast<uint16_t>(0));
+    if (!var_e_shifted) return std::unexpected(var_e_shifted.error());
+    const auto var_e_raw = detail::checked_div<uint16_t>(*var_e_shifted, static_cast<uint16_t>(1));
+    if (!var_e_raw) return std::unexpected(var_e_raw.error());
+    detail::insert_le<uint16_t>(data_.data(), 60, 75, static_cast<uint16_t>(*var_e_raw));
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<VariableLengthMsg>);
+
+/**
+ * J1939Snapshot
+ * - ID: Extended 355729921 (0x15340201)
+ * - Size: 8 bytes
+ * - Transmitter: NODE_A
+ */
+class J1939SnapshotMsg {
+  public:
+  static constexpr CanId ID = CanId::extended(355729921);
+  static constexpr std::size_t LEN{8};
+  
+  [[nodiscard]] static std::expected<J1939SnapshotMsg, CanError> create(
+            int8_t j1939_signal
+        ) noexcept {
+    J1939SnapshotMsg msg{};
+    if (auto r = msg.set_j1939_signal(j1939_signal); !r) return std::unexpected(r.error());
+    return msg;
+  };
+  
+  [[nodiscard]] static std::expected<J1939SnapshotMsg, CanError> try_from_frame(CanId id, std::span<const uint8_t> frame) noexcept {
+    if (frame.size() < LEN) return std::unexpected(CanError::InvalidPayloadSize);
+    if (id != ID) return std::unexpected(CanError::InvalidFrameId);
+    J1939SnapshotMsg msg{};
+    std::memcpy(msg.data_.data(), frame.data(), LEN);
+    return msg;
+  };
+  
+  /**
+   * j1939_signal
+   * - Min: -128
+   * - Max: 127
+   * - Unit: 
+   * - Receivers: NODE_B
+   * - Start bit: 0
+   * - Size: 8 bits
+   * - Factor: 1
+   * - Offset: 0
+   * - Byte order: LittleEndian
+   * - Type: signed
+   */
+  [[nodiscard]] int8_t j1939_signal() const noexcept {
+    const int8_t raw_j1939_signal = detail::extract_le<int8_t>(data_.data(), 0, 8);
+    return detail::saturating_add<int8_t>(detail::saturating_mul<int8_t>(static_cast<int8_t>(raw_j1939_signal), static_cast<int8_t>(1)), static_cast<int8_t>(0));
+  };
+  
+  std::expected<void, CanError> set_j1939_signal(int8_t j1939_signal) noexcept {
+    if (j1939_signal < -128 || j1939_signal > 127) return std::unexpected(CanError::ValueOutOfRange);
+    const auto j1939_signal_shifted = detail::checked_sub<int8_t>(j1939_signal, static_cast<int8_t>(0));
+    if (!j1939_signal_shifted) return std::unexpected(j1939_signal_shifted.error());
+    const auto j1939_signal_raw = detail::checked_div<int8_t>(*j1939_signal_shifted, static_cast<int8_t>(1));
+    if (!j1939_signal_raw) return std::unexpected(j1939_signal_raw.error());
+    detail::insert_le<int8_t>(data_.data(), 0, 8, static_cast<int8_t>(*j1939_signal_raw));
+    return {};
+  };
+  
+  [[nodiscard]] std::array<uint8_t, LEN> encode() const noexcept { return data_; }
+  
+  private:
+  std::array<uint8_t, LEN> data_{};
+};
+static_assert(GeneratedCanMessage<J1939SnapshotMsg>);
+
+using CanMsg = std::variant<PackedStatusMsg, MotorolaAnalogMsg, FloatPayload32Msg, FloatPayload64Msg, MuxedTelemetryMsg, EmptyZeroDlcMsg, ExtendedClassicMsg, ExtendedCanFdMsg, VariableLengthMsg, J1939SnapshotMsg>;
+
+[[nodiscard]]
+inline std::expected<CanMsg, CanError>
+parse_can(CanId id, std::span<const uint8_t> frame) noexcept {
+  switch (id.dispatch_key()) {
+    case PackedStatusMsg::ID.dispatch_key():
+     {
+      auto r = PackedStatusMsg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case MotorolaAnalogMsg::ID.dispatch_key():
+     {
+      auto r = MotorolaAnalogMsg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case FloatPayload32Msg::ID.dispatch_key():
+     {
+      auto r = FloatPayload32Msg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case FloatPayload64Msg::ID.dispatch_key():
+     {
+      auto r = FloatPayload64Msg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case MuxedTelemetryMsg::ID.dispatch_key():
+     {
+      auto r = MuxedTelemetryMsg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case EmptyZeroDlcMsg::ID.dispatch_key():
+     {
+      auto r = EmptyZeroDlcMsg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case ExtendedClassicMsg::ID.dispatch_key():
+     {
+      auto r = ExtendedClassicMsg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case ExtendedCanFdMsg::ID.dispatch_key():
+     {
+      auto r = ExtendedCanFdMsg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case VariableLengthMsg::ID.dispatch_key():
+     {
+      auto r = VariableLengthMsg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    case J1939SnapshotMsg::ID.dispatch_key():
+     {
+      auto r = J1939SnapshotMsg::try_from_frame(id, frame);
+      if (!r) return std::unexpected(r.error());
+      return CanMsg{std::move(*r)};
+    };
+    default: return std::unexpected(CanError::UnknownFrameId);
+  };
+};
