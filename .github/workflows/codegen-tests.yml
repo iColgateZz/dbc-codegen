@@ -33,3 +33,37 @@ jobs:
 
       - name: Run snapshot tests
         run: cargo test -p codegen-tests --test snapshots
+
+  ubuntu-24-04-gcc-cpp-generation-tests:
+    name: Ubuntu 24.04 default GCC C++ generation tests
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run C++ generation tests in Ubuntu 24.04
+        run: |
+          docker run --rm \
+            --ulimit core=0 \
+            --volume "$PWD:/repo" \
+            --workdir /repo \
+            --env CARGO_TARGET_DIR=/tmp/dbc-codegen-target \
+            ubuntu:24.04 \
+            bash -euxo pipefail -c '
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                build-essential \
+                ca-certificates \
+                curl
+
+              curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/rustup-init.sh
+              sh /tmp/rustup-init.sh -y --profile minimal --default-toolchain stable
+              . "$HOME/.cargo/env"
+
+              g++ --version
+              gcc_major="$(g++ -dumpfullversion -dumpversion | cut -d. -f1)"
+              test "$gcc_major" -le 14
+
+              CXX=g++ cargo test -p codegen-tests test_all_dbc_files_cpp
+            '
