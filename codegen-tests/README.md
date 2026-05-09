@@ -1,5 +1,21 @@
 # codegen-tests
 
+## Generation tests
+
+Run the DBC fixture generation tests:
+
+```sh
+cargo test -p codegen-tests --lib
+```
+
+Files under `test-files/currently-work/` are expected to generate, compile, and pass the generated Rust tests. Files under the other `test-files/` folders are expected to fail somewhere in that pipeline.
+
+By default the output is compact. To show the underlying `data` crate output and expected failure details:
+
+```sh
+CODEGEN_TEST_DEBUG=1 cargo test -p codegen-tests --lib
+```
+
 ## Snapshot tests
 
 Run only the Rust and C++ codegen snapshot tests:
