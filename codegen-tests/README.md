@@ -10,7 +10,7 @@ cargo test -p codegen-tests --lib
 
 The Rust test generates `../data/generated.rs`, checks the `data` crate, and runs the generated Rust tests.
 
-The C++ test generates `../data/generated.hpp`, compiles a small C++23 runner that includes it, and runs the generated C++ tests. It uses `clang++` by default, or the compiler configured with `CXX`.
+The C++ test generates `../data/generated.hpp`, compiles a small C++23 runner that includes it, and runs the generated C++ tests. It uses the platform `c++` compiler by default, or the compiler configured with `CXX`.
 
 Files under `test-files/currently-work/` are expected to generate, compile, and pass their generated tests. Files under the other `test-files/` folders are still tested, but are expected to fail somewhere in the generation/compile/test pipeline.
 
