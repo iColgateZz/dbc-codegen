@@ -74,8 +74,8 @@ impl PhysicalType {
             PhysicalType::Bool => 0.0,
             PhysicalType::Float32 => f32::MIN as f64,
             PhysicalType::Float64 => f64::MIN,
-            PhysicalType::Integer(repr) => repr.min_value_i64() as f64,
-            PhysicalType::Enum { repr, .. } => repr.min_value_i64() as f64,
+            PhysicalType::Integer(repr) => repr.min_value_f64(),
+            PhysicalType::Enum { repr, .. } => repr.min_value_f64(),
         }
     }
 
@@ -84,8 +84,17 @@ impl PhysicalType {
             PhysicalType::Bool => 1.0,
             PhysicalType::Float32 => f32::MAX as f64,
             PhysicalType::Float64 => f64::MAX,
-            PhysicalType::Integer(repr) => repr.max_value_i64() as f64,
-            PhysicalType::Enum { repr, .. } => repr.max_value_i64() as f64,
+            PhysicalType::Integer(repr) => repr.max_value_f64(),
+            PhysicalType::Enum { repr, .. } => repr.max_value_f64(),
+        }
+    }
+
+    pub fn integer_range_f64(&self) -> Option<(f64, f64)> {
+        match self {
+            PhysicalType::Integer(repr) | PhysicalType::Enum { repr, .. } => {
+                Some((repr.min_value_f64(), repr.max_value_f64()))
+            }
+            _ => None,
         }
     }
 }
@@ -186,6 +195,32 @@ impl IntReprType {
             Self::I16 => i16::MAX as i64,
             Self::I32 => i32::MAX as i64,
             Self::I64 | Self::I128 => i64::MAX,
+        }
+    }
+
+    pub fn min_value_f64(self) -> f64 {
+        match self {
+            Self::U8 | Self::U16 | Self::U32 | Self::U64 | Self::U128 => 0.0,
+            Self::I8 => i8::MIN as f64,
+            Self::I16 => i16::MIN as f64,
+            Self::I32 => i32::MIN as f64,
+            Self::I64 => i64::MIN as f64,
+            Self::I128 => i128::MIN as f64,
+        }
+    }
+
+    pub fn max_value_f64(self) -> f64 {
+        match self {
+            Self::U8 => u8::MAX as f64,
+            Self::U16 => u16::MAX as f64,
+            Self::U32 => u32::MAX as f64,
+            Self::U64 => u64::MAX as f64,
+            Self::U128 => u128::MAX as f64,
+            Self::I8 => i8::MAX as f64,
+            Self::I16 => i16::MAX as f64,
+            Self::I32 => i32::MAX as f64,
+            Self::I64 => i64::MAX as f64,
+            Self::I128 => i128::MAX as f64,
         }
     }
 
