@@ -616,6 +616,22 @@ impl CppGen {
 
         line!(out, "template <typename T>");
         line!(out, "[[nodiscard]] constexpr std::expected<T, CanError>");
+        start_block!(out, "checked_rem(T lhs, T rhs) noexcept");
+        line!(out, "static_assert(std::is_integral_v<T>);");
+        start_block!(out, "if (rhs == 0)");
+        end_block!(out, "return std::unexpected(CanError::ValueOutOfRange);");
+        start_block!(out, "if constexpr (std::is_signed_v<T>)");
+        start_block!(
+            out,
+            "if (lhs == std::numeric_limits<T>::min() && rhs == static_cast<T>(-1))"
+        );
+        end_block!(out, "return std::unexpected(CanError::ValueOutOfRange);");
+        end_block!(out, "");
+        end_block!(out, "return lhs % rhs;");
+        empty!(out);
+
+        line!(out, "template <typename T>");
+        line!(out, "[[nodiscard]] constexpr std::expected<T, CanError>");
         start_block!(out, "checked_div(T lhs, T rhs) noexcept");
         line!(out, "static_assert(std::is_integral_v<T>);");
         start_block!(out, "if (rhs == 0)");
@@ -912,25 +928,53 @@ impl CppGen {
         let phys_type = signal.physical_type.as_cpp_type();
         let is_phys_float = phys_type == "float" || phys_type == "double";
 
-        let min_str = if is_phys_float {
-            Self::format_cpp_float(min, phys_type)
+        let conditions = if is_phys_float {
+            vec![
+                format!(
+                    "{} < {}",
+                    field_name,
+                    Self::format_cpp_float(min, phys_type)
+                ),
+                format!(
+                    "{} > {}",
+                    field_name,
+                    Self::format_cpp_float(max, phys_type)
+                ),
+            ]
         } else {
-            format!("{}", min as i64)
-        };
-        let max_str = if is_phys_float {
-            Self::format_cpp_float(max, phys_type)
-        } else {
-            format!("{}", max as i64)
+            let Some((type_min, type_max)) = signal.physical_type.integer_range_f64() else {
+                return;
+            };
+
+            let mut conditions = Vec::new();
+            if min > type_min {
+                conditions.push(format!(
+                    "{} < {}",
+                    field_name,
+                    Self::format_cpp_integer_bound(min)
+                ));
+            }
+            if max < type_max {
+                conditions.push(format!(
+                    "{} > {}",
+                    field_name,
+                    Self::format_cpp_integer_bound(max)
+                ));
+            }
+            conditions
         };
 
-        line!(
-            out,
-            "if ({} < {} || {} > {}) return std::unexpected(CanError::ValueOutOfRange);",
-            field_name,
-            min_str,
-            field_name,
-            max_str
-        );
+        if !conditions.is_empty() {
+            line!(
+                out,
+                "if ({}) return std::unexpected(CanError::ValueOutOfRange);",
+                conditions.join(" || ")
+            );
+        }
+    }
+
+    fn format_cpp_integer_bound(value: f64) -> String {
+        format!("{:.0}", value.trunc())
     }
 
     fn emit_signal_setters(
@@ -1020,6 +1064,7 @@ impl CppGen {
                 );
             } else {
                 let raw_type = signal.raw_type.as_cpp_type();
+                let factor = layout.factor as i64;
                 line!(
                     out,
                     "const auto {}_shifted = detail::checked_sub<{}>({}, static_cast<{}>({}));",
@@ -1035,6 +1080,29 @@ impl CppGen {
                     field_name,
                     field_name
                 );
+                if factor.abs() != 1 {
+                    line!(
+                        out,
+                        "const auto {}_remainder = detail::checked_rem<{}>(*{}_shifted, static_cast<{}>({}));",
+                        field_name,
+                        phys_type,
+                        field_name,
+                        phys_type,
+                        factor
+                    );
+                    line!(
+                        out,
+                        "if (!{}_remainder) return std::unexpected({}_remainder.error());",
+                        field_name,
+                        field_name
+                    );
+                    line!(
+                        out,
+                        "if (*{}_remainder != static_cast<{}>(0)) return std::unexpected(CanError::ValueOutOfRange);",
+                        field_name,
+                        phys_type
+                    );
+                }
                 line!(
                     out,
                     "const auto {}_raw = detail::checked_div<{}>(*{}_shifted, static_cast<{}>({}));",
@@ -1042,7 +1110,7 @@ impl CppGen {
                     phys_type,
                     field_name,
                     phys_type,
-                    layout.factor as i64
+                    factor
                 );
                 line!(
                     out,
@@ -2187,6 +2255,12 @@ impl CppGen {
         let layout = &file.signal_layouts[signal.layout.0];
         let phys_type = signal.physical_type.as_cpp_type();
 
+        if let Some(value) =
+            Self::declared_physical_integer_test_value_expr(signal, file, config, ordinal)
+        {
+            return value;
+        }
+
         if Self::is_raw_float(&signal.raw_type) {
             let value = Self::raw_float_test_value(layout, config, ordinal);
             return Self::format_cpp_float(value, phys_type);
@@ -2213,6 +2287,51 @@ impl CppGen {
                 value
             )
         }
+    }
+
+    fn declared_physical_integer_test_value_expr(
+        signal: &Signal,
+        file: &DbcFile,
+        config: &CodegenConfig,
+        ordinal: usize,
+    ) -> Option<String> {
+        if signal.signal_value_enum_idx.is_some()
+            || Self::is_bool_signal(signal, file)
+            || Self::is_raw_float(&signal.raw_type)
+            || Self::is_phys_float(signal.physical_type.as_cpp_type())
+            || !Self::test_range_check_active(signal, file, config)
+        {
+            return None;
+        }
+
+        let layout = &file.signal_layouts[signal.layout.0];
+        if !layout.min.is_finite() || !layout.max.is_finite() {
+            return None;
+        }
+
+        let span = layout.max - layout.min;
+        if !(1.0..=256.0).contains(&span) {
+            return None;
+        }
+
+        let candidates = [
+            layout.min + 1.0,
+            layout.max - 1.0,
+            (layout.min + layout.max) / 2.0,
+            layout.min,
+            layout.max,
+        ];
+        let value = candidates
+            .into_iter()
+            .filter(|value| value.is_finite() && value.fract() == 0.0)
+            .filter(|value| *value >= layout.min && *value <= layout.max)
+            .nth(ordinal % candidates.len())?;
+
+        Some(format!(
+            "static_cast<{}>({})",
+            Self::signal_cpp_param_type(signal, file),
+            value as i128
+        ))
     }
 
     fn out_of_range_test_value_expr(
@@ -2560,11 +2679,15 @@ impl CppGen {
     }
 
     fn parse_can(out: &mut Generator, messages: &[Message], config: &CodegenConfig) {
-        let variant_types = messages
-            .iter()
-            .map(|m| m.name.upper_camel())
-            .collect::<Vec<_>>()
-            .join(", ");
+        let variant_types = if messages.is_empty() {
+            "std::monostate".to_string()
+        } else {
+            messages
+                .iter()
+                .map(|m| m.name.upper_camel())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
         cpp_code_injections(out, config, CppCodeInjectionPoint::MessageVariant);
         line!(out, "using CanMsg = std::variant<{}>;", variant_types);
         empty!(out);
