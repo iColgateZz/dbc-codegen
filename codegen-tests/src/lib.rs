@@ -4,7 +4,7 @@ mod tests {
     use std::env;
     use std::fs;
     use std::path::{Path, PathBuf};
-    use std::process::{Command, Stdio};
+    use std::process::Command;
 
     use anyhow::{Context, Result};
     use dbc_codegen2::utils::Language;
@@ -90,14 +90,18 @@ mod tests {
     }
 
     fn run_quiet(command: &mut Command, label: &str) -> Result<()> {
-        let status = command
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
+        let output = command
+            .output()
             .with_context(|| format!("failed to run {label}"))?;
 
-        if !status.success() {
-            anyhow::bail!("{label} failed");
+        if !output.status.success() {
+            anyhow::bail!(
+                "{} failed with status {}\nstdout:\n{}\nstderr:\n{}",
+                label,
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         Ok(())
@@ -130,7 +134,7 @@ mod tests {
         generate(file, GENERATED_CPP_FILE, Language::Cpp)
             .with_context(|| format!("Codegen failed for {:?}", file))?;
 
-        let compiler = env::var("CXX").unwrap_or_else(|_| "clang++".to_string());
+        let compiler = env::var("CXX").unwrap_or_else(|_| "c++".to_string());
         let include_dir = Path::new(GENERATED_CPP_FILE).parent().unwrap();
         let mut compile = Command::new(&compiler);
         compile
