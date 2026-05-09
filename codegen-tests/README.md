@@ -2,19 +2,17 @@
 
 ## Generation tests
 
-Run the DBC fixture generation tests:
+Run the DBC fixture generation tests for Rust and C++:
 
 ```sh
 cargo test -p codegen-tests --lib
 ```
 
-Files under `test-files/currently-work/` are expected to generate, compile, and pass the generated Rust tests. Files under the other `test-files/` folders are expected to fail somewhere in that pipeline.
+The Rust test generates `../data/generated.rs`, checks the `data` crate, and runs the generated Rust tests.
 
-By default the output is compact. To show the underlying `data` crate output and expected failure details:
+The C++ test generates `../data/generated.hpp`, compiles a small C++23 runner that includes it, and runs the generated C++ tests. It uses `clang++` by default, or the compiler configured with `CXX`.
 
-```sh
-CODEGEN_TEST_DEBUG=1 cargo test -p codegen-tests --lib
-```
+Files under `test-files/currently-work/` are expected to generate, compile, and pass their generated tests. Files under the other `test-files/` folders are still tested, but are expected to fail somewhere in the generation/compile/test pipeline.
 
 ## Snapshot tests
 
