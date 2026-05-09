@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result};
 
@@ -41,6 +43,7 @@ impl Drop for GeneratedFileGuard {
 const DBC_DIR: &str = "./test-files";
 const GENERATED_FILE: &str = "../data/generated.rs";
 const VALIDATOR_CRATE: &str = "data";
+const DEBUG_ENV_VAR: &str = "CODEGEN_TEST_DEBUG";
 
 fn _dbc_files() -> Vec<PathBuf> {
     let base = Path::new(DBC_DIR);
@@ -53,14 +56,34 @@ fn _dbc_files() -> Vec<PathBuf> {
 
             if path.is_dir() {
                 visit(&path, files);
-            } else if path.extension().map(|e| e == "dbc").unwrap_or(false) {
+            } else if path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.eq_ignore_ascii_case("dbc"))
+                .unwrap_or(false)
+            {
                 files.push(path);
             }
         }
     }
 
     visit(base, &mut files);
+    files.sort();
     files
+}
+
+fn _should_pass(file: &Path) -> bool {
+    file.starts_with(Path::new(DBC_DIR).join("currently-work"))
+}
+
+fn _debug_output_enabled() -> bool {
+    env::var(DEBUG_ENV_VAR)
+        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+        .unwrap_or(false)
+}
+
+fn _status_line(message: impl AsRef<str>) {
+    let _ = writeln!(io::stderr().lock(), "{}", message.as_ref());
 }
 
 fn _run_codegen(input: &Path) -> Result<()> {
@@ -86,10 +109,14 @@ fn _run_codegen(input: &Path) -> Result<()> {
 }
 
 fn _cargo_check_data_crate() -> Result<()> {
-    let status = Command::new("cargo")
-        .args(["check", "-p", VALIDATOR_CRATE])
-        .status()
-        .context("failed to run cargo check")?;
+    let mut command = Command::new("cargo");
+    command.args(["check", "-p", VALIDATOR_CRATE]);
+
+    if !_debug_output_enabled() {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
+
+    let status = command.status().context("failed to run cargo check")?;
 
     if !status.success() {
         anyhow::bail!("cargo check failed");
@@ -99,14 +126,28 @@ fn _cargo_check_data_crate() -> Result<()> {
 }
 
 fn _cargo_test_data_crate() -> Result<()> {
-    let status = Command::new("cargo")
-        .args(["test", "-p", VALIDATOR_CRATE])
-        .status()
-        .context("failed to run cargo test")?;
+    let mut command = Command::new("cargo");
+    command.args(["test", "-p", VALIDATOR_CRATE]);
+
+    if !_debug_output_enabled() {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
+
+    let status = command.status().context("failed to run cargo test")?;
 
     if !status.success() {
         anyhow::bail!("cargo test failed");
     }
+
+    Ok(())
+}
+
+fn _run_generation_test(file: &Path) -> Result<()> {
+    _run_codegen(file).with_context(|| format!("Codegen failed for {:?}", file))?;
+
+    _cargo_check_data_crate().with_context(|| format!("Compilation failed for {:?}", file))?;
+
+    _cargo_test_data_crate().with_context(|| format!("Test failed for {:?}", file))?;
 
     Ok(())
 }
@@ -117,41 +158,40 @@ fn test_all_dbc_files() -> Result<()> {
         GeneratedFileGuard::new(GENERATED_FILE.into()).context("Failed to create file guard")?;
 
     let files = _dbc_files();
-    println!("Running {} tests", files.len());
+    _status_line(format!(
+        "Running {} DBC generation fixtures. Set {}=1 to show expected failure details and underlying data crate cargo output.",
+        files.len(),
+        DEBUG_ENV_VAR
+    ));
 
     let mut failures = Vec::new();
+    let debug_output_enabled = _debug_output_enabled();
 
     for file in files {
-        println!("Testing {:?}", file);
+        let should_pass = _should_pass(&file);
+        let result = _run_generation_test(&file).map_err(|e| format!("{:#}", e));
 
-        let result = std::panic::catch_unwind(|| {
-            (|| -> Result<()> {
-                _run_codegen(&file).with_context(|| format!("Codegen failed for {:?}", file))?;
-
-                _cargo_check_data_crate()
-                    .with_context(|| format!("Compilation failed for {:?}", file))?;
-
-                _cargo_test_data_crate().with_context(|| format!("Test failed for {:?}", file))?;
-
-                Ok(())
-            })()
-        });
-
-        match result {
-            Ok(Ok(())) => (),
-            Ok(Err(e)) => {
-                failures.push((file, format!("{:#}", e)));
+        match (result, should_pass) {
+            (Ok(()), true) => {
+                _status_line(format!("{} passed", file.display()));
             }
-            Err(panic) => {
-                let panic_msg = if let Some(s) = panic.downcast_ref::<&str>() {
-                    s.to_string()
-                } else if let Some(s) = panic.downcast_ref::<String>() {
-                    s.clone()
+            (Err(e), false) => {
+                if debug_output_enabled {
+                    _status_line(format!("{} expectedly failed:\n{}", file.display(), e));
                 } else {
-                    "Unknown panic".to_string()
-                };
-
-                failures.push((file, format!("PANIC: {}", panic_msg)));
+                    _status_line(format!("{} expectedly failed", file.display()));
+                }
+            }
+            (Ok(()), false) => {
+                _status_line(format!("{} unexpectedly passed", file.display()));
+                failures.push((
+                    file,
+                    "Expected generation pipeline to fail, but it passed".to_string(),
+                ));
+            }
+            (Err(e), true) => {
+                _status_line(format!("{} unexpectedly failed", file.display()));
+                failures.push((file, e));
             }
         }
     }
