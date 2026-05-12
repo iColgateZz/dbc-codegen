@@ -121,6 +121,7 @@ impl DriverHeartbeatMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn driver_heartbeat_cmd(&self) -> DriverHeartbeatCmdEnum {
         let raw_driver_heartbeat_cmd = self
             .data
@@ -131,6 +132,7 @@ impl DriverHeartbeatMsg {
     ///Set value of DRIVER_HEARTBEAT_cmd
     ///- Min: 0
     ///- Max: 255
+    #[inline(always)]
     pub fn set_driver_heartbeat_cmd(
         &mut self,
         value: DriverHeartbeatCmdEnum,
@@ -192,6 +194,7 @@ impl IoDebugMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn io_debug_test_unsigned(&self) -> u8 {
         let raw_io_debug_test_unsigned = self
             .data
@@ -210,6 +213,7 @@ impl IoDebugMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn io_debug_test_enum(&self) -> IoDebugTestEnumEnum {
         let raw_io_debug_test_enum = self
             .data
@@ -228,6 +232,7 @@ impl IoDebugMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: signed
+    #[inline(always)]
     pub fn io_debug_test_signed(&self) -> i8 {
         let raw_io_debug_test_signed = self
             .data
@@ -246,6 +251,7 @@ impl IoDebugMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn io_debug_test_float(&self) -> f32 {
         let raw_io_debug_test_float = self
             .data
@@ -256,6 +262,7 @@ impl IoDebugMsg {
     ///Set value of IO_DEBUG_test_unsigned
     ///- Min: 0
     ///- Max: 255
+    #[inline(always)]
     pub fn set_io_debug_test_unsigned(&mut self, value: u8) -> Result<(), CanError> {
         let raw_value = value
             .checked_sub(0u8)
@@ -268,6 +275,7 @@ impl IoDebugMsg {
     ///Set value of IO_DEBUG_test_enum
     ///- Min: 0
     ///- Max: 255
+    #[inline(always)]
     pub fn set_io_debug_test_enum(
         &mut self,
         value: IoDebugTestEnumEnum,
@@ -280,6 +288,7 @@ impl IoDebugMsg {
     ///Set value of IO_DEBUG_test_signed
     ///- Min: -128
     ///- Max: 127
+    #[inline(always)]
     pub fn set_io_debug_test_signed(&mut self, value: i8) -> Result<(), CanError> {
         let raw_value = value
             .checked_sub(0i8)
@@ -292,6 +301,7 @@ impl IoDebugMsg {
     ///Set value of IO_DEBUG_test_float
     ///- Min: 0
     ///- Max: 127.5
+    #[inline(always)]
     pub fn set_io_debug_test_float(&mut self, value: f32) -> Result<(), CanError> {
         if value < 0f32 || value > 127.5f32 {
             return Err(CanError::ValueOutOfRange);
@@ -346,6 +356,7 @@ impl MotorCmdMsg {
     ///- Offset: -5
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn motor_cmd_steer(&self) -> i8 {
         let raw_motor_cmd_steer = self
             .data
@@ -364,6 +375,7 @@ impl MotorCmdMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn motor_cmd_drive(&self) -> u8 {
         let raw_motor_cmd_drive = self
             .data
@@ -374,6 +386,7 @@ impl MotorCmdMsg {
     ///Set value of MOTOR_CMD_steer
     ///- Min: -5
     ///- Max: 5
+    #[inline(always)]
     pub fn set_motor_cmd_steer(&mut self, value: i8) -> Result<(), CanError> {
         if value < -5i8 || value > 5i8 {
             return Err(CanError::ValueOutOfRange);
@@ -389,6 +402,7 @@ impl MotorCmdMsg {
     ///Set value of MOTOR_CMD_drive
     ///- Min: 0
     ///- Max: 9
+    #[inline(always)]
     pub fn set_motor_cmd_drive(&mut self, value: u8) -> Result<(), CanError> {
         if value > 9u8 {
             return Err(CanError::ValueOutOfRange);
@@ -449,6 +463,7 @@ impl MotorStatusMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn motor_status_wheel_error(&self) -> bool {
         let raw_motor_status_wheel_error = self
             .data
@@ -467,6 +482,7 @@ impl MotorStatusMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn motor_status_speed_kph(&self) -> f32 {
         let raw_motor_status_speed_kph = self
             .data
@@ -477,6 +493,7 @@ impl MotorStatusMsg {
     ///Set value of MOTOR_STATUS_wheel_error
     ///- Min: 0
     ///- Max: 1
+    #[inline(always)]
     pub fn set_motor_status_wheel_error(&mut self, value: bool) -> Result<(), CanError> {
         let raw_value = value as u8;
         let storage_value = raw_value as u8;
@@ -486,6 +503,7 @@ impl MotorStatusMsg {
     ///Set value of MOTOR_STATUS_speed_kph
     ///- Min: 0
     ///- Max: 65
+    #[inline(always)]
     pub fn set_motor_status_speed_kph(&mut self, value: f32) -> Result<(), CanError> {
         if value < 0f32 || value > 65f32 {
             return Err(CanError::ValueOutOfRange);
@@ -546,6 +564,7 @@ impl SensorSonarsMsgMux0 {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_left(&self) -> f32 {
         let raw_sensor_sonars_left = self
             .data
@@ -564,6 +583,7 @@ impl SensorSonarsMsgMux0 {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_middle(&self) -> f32 {
         let raw_sensor_sonars_middle = self
             .data
@@ -582,6 +602,7 @@ impl SensorSonarsMsgMux0 {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_right(&self) -> f32 {
         let raw_sensor_sonars_right = self
             .data
@@ -600,6 +621,7 @@ impl SensorSonarsMsgMux0 {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_rear(&self) -> f32 {
         let raw_sensor_sonars_rear = self
             .data
@@ -610,6 +632,7 @@ impl SensorSonarsMsgMux0 {
     ///Set value of SENSOR_SONARS_left
     ///- Min: 0
     ///- Max: 409.5
+    #[inline(always)]
     pub fn set_sensor_sonars_left(&mut self, value: f32) -> Result<(), CanError> {
         if value < 0f32 || value > 409.5f32 {
             return Err(CanError::ValueOutOfRange);
@@ -622,6 +645,7 @@ impl SensorSonarsMsgMux0 {
     ///Set value of SENSOR_SONARS_middle
     ///- Min: 0
     ///- Max: 409.5
+    #[inline(always)]
     pub fn set_sensor_sonars_middle(&mut self, value: f32) -> Result<(), CanError> {
         if value < 0f32 || value > 409.5f32 {
             return Err(CanError::ValueOutOfRange);
@@ -634,6 +658,7 @@ impl SensorSonarsMsgMux0 {
     ///Set value of SENSOR_SONARS_right
     ///- Min: 0
     ///- Max: 409.5
+    #[inline(always)]
     pub fn set_sensor_sonars_right(&mut self, value: f32) -> Result<(), CanError> {
         if value < 0f32 || value > 409.5f32 {
             return Err(CanError::ValueOutOfRange);
@@ -646,6 +671,7 @@ impl SensorSonarsMsgMux0 {
     ///Set value of SENSOR_SONARS_rear
     ///- Min: 0
     ///- Max: 409.5
+    #[inline(always)]
     pub fn set_sensor_sonars_rear(&mut self, value: f32) -> Result<(), CanError> {
         if value < 0f32 || value > 409.5f32 {
             return Err(CanError::ValueOutOfRange);
@@ -685,6 +711,7 @@ impl SensorSonarsMsgMux1 {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_no_filt_left(&self) -> f32 {
         let raw_sensor_sonars_no_filt_left = self
             .data
@@ -703,6 +730,7 @@ impl SensorSonarsMsgMux1 {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_no_filt_middle(&self) -> f32 {
         let raw_sensor_sonars_no_filt_middle = self
             .data
@@ -721,6 +749,7 @@ impl SensorSonarsMsgMux1 {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_no_filt_right(&self) -> f32 {
         let raw_sensor_sonars_no_filt_right = self
             .data
@@ -739,6 +768,7 @@ impl SensorSonarsMsgMux1 {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_no_filt_rear(&self) -> f32 {
         let raw_sensor_sonars_no_filt_rear = self
             .data
@@ -749,6 +779,7 @@ impl SensorSonarsMsgMux1 {
     ///Set value of SENSOR_SONARS_no_filt_left
     ///- Min: 0
     ///- Max: 409.5
+    #[inline(always)]
     pub fn set_sensor_sonars_no_filt_left(
         &mut self,
         value: f32,
@@ -764,6 +795,7 @@ impl SensorSonarsMsgMux1 {
     ///Set value of SENSOR_SONARS_no_filt_middle
     ///- Min: 0
     ///- Max: 409.5
+    #[inline(always)]
     pub fn set_sensor_sonars_no_filt_middle(
         &mut self,
         value: f32,
@@ -779,6 +811,7 @@ impl SensorSonarsMsgMux1 {
     ///Set value of SENSOR_SONARS_no_filt_right
     ///- Min: 0
     ///- Max: 409.5
+    #[inline(always)]
     pub fn set_sensor_sonars_no_filt_right(
         &mut self,
         value: f32,
@@ -794,6 +827,7 @@ impl SensorSonarsMsgMux1 {
     ///Set value of SENSOR_SONARS_no_filt_rear
     ///- Min: 0
     ///- Max: 409.5
+    #[inline(always)]
     pub fn set_sensor_sonars_no_filt_rear(
         &mut self,
         value: f32,
@@ -834,6 +868,7 @@ impl SensorSonarsMsg {
         }
         Ok(msg)
     }
+    #[inline(always)]
     pub fn mux(&self) -> Result<SensorSonarsMsgMux, CanError> {
         let raw_sensor_sonars_mux = self
             .data
@@ -857,6 +892,7 @@ impl SensorSonarsMsg {
             _ => Err(CanError::UnknownMuxValue),
         }
     }
+    #[inline(always)]
     pub fn set_mux0(&mut self, value: SensorSonarsMsgMux0) -> Result<(), CanError> {
         self.data
             .view_bits_mut::<Lsb0>()[16usize..28usize]
@@ -873,6 +909,7 @@ impl SensorSonarsMsg {
         self.data.view_bits_mut::<Lsb0>()[0usize..4usize].store_le(0u64);
         Ok(())
     }
+    #[inline(always)]
     pub fn set_mux1(&mut self, value: SensorSonarsMsgMux1) -> Result<(), CanError> {
         self.data
             .view_bits_mut::<Lsb0>()[16usize..28usize]
@@ -900,6 +937,7 @@ impl SensorSonarsMsg {
     ///- Offset: 0
     ///- Byte order: LittleEndian
     ///- Type: unsigned
+    #[inline(always)]
     pub fn sensor_sonars_err_count(&self) -> u16 {
         let raw_sensor_sonars_err_count = self
             .data
@@ -910,6 +948,7 @@ impl SensorSonarsMsg {
     ///Set value of SENSOR_SONARS_err_count
     ///- Min: 0
     ///- Max: 4095
+    #[inline(always)]
     pub fn set_sensor_sonars_err_count(&mut self, value: u16) -> Result<(), CanError> {
         if value > 4095u16 {
             return Err(CanError::ValueOutOfRange);
@@ -937,752 +976,5 @@ impl GeneratedCanMessage<{ Self::LEN }> for SensorSonarsMsg {
     }
     fn encode(&self) -> [u8; Self::LEN] {
         self.data
-    }
-}
-#[cfg(test)]
-mod generated_tests {
-    use super::*;
-    use arbitrary::Unstructured;
-    const SEEDS: &[&[u8]] = &[
-        &[0u8; 128],
-        &[1u8; 128],
-        &[2u8; 128],
-        &[3u8; 128],
-        &[5u8; 128],
-        &[8u8; 128],
-        &[13u8; 128],
-        &[21u8; 128],
-        &[34u8; 128],
-        &[55u8; 128],
-        &[89u8; 128],
-        &[134u8; 128],
-        &[223u8; 128],
-        &[255u8; 128],
-    ];
-    #[test]
-    fn test_driver_heartbeat_msg() {
-        for seed in SEEDS {
-            let mut u = Unstructured::new(seed);
-            let driver_heartbeat_cmd_value = {
-                const VARIANTS: &[DriverHeartbeatCmdEnum] = &[
-                    DriverHeartbeatCmdEnum::Reboot,
-                    DriverHeartbeatCmdEnum::Sync,
-                    DriverHeartbeatCmdEnum::Noop,
-                ];
-                let idx = u
-                    .int_in_range(0usize..=2usize)
-                    .expect("failed to generate enum variant index");
-                VARIANTS[idx]
-            };
-            let mut msg = DriverHeartbeatMsg::new(driver_heartbeat_cmd_value)
-                .expect("constructor should accept generated test values");
-            assert_eq!(
-                msg.driver_heartbeat_cmd(), driver_heartbeat_cmd_value,
-                "getter `{}` returned unexpected value",
-                stringify!(driver_heartbeat_cmd),
-            );
-            let driver_heartbeat_cmd_next_value = {
-                const VARIANTS: &[DriverHeartbeatCmdEnum] = &[
-                    DriverHeartbeatCmdEnum::Reboot,
-                    DriverHeartbeatCmdEnum::Sync,
-                    DriverHeartbeatCmdEnum::Noop,
-                ];
-                let idx = u
-                    .int_in_range(0usize..=2usize)
-                    .expect("failed to generate enum variant index");
-                VARIANTS[idx]
-            };
-            msg.set_driver_heartbeat_cmd(driver_heartbeat_cmd_next_value)
-                .expect("setter should accept generated test value");
-            assert_eq!(
-                msg.driver_heartbeat_cmd(), driver_heartbeat_cmd_next_value,
-                "getter `{}` returned unexpected value",
-                stringify!(driver_heartbeat_cmd),
-            );
-        }
-    }
-    #[test]
-    fn test_io_debug_msg() {
-        for seed in SEEDS {
-            let mut u = Unstructured::new(seed);
-            let io_debug_test_unsigned_value: u8 = {
-                let raw = u
-                    .int_in_range(0u8..=255u8)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            let io_debug_test_enum_value = {
-                const VARIANTS: &[IoDebugTestEnumEnum] = &[
-                    IoDebugTestEnumEnum::Two,
-                    IoDebugTestEnumEnum::One,
-                ];
-                let idx = u
-                    .int_in_range(0usize..=1usize)
-                    .expect("failed to generate enum variant index");
-                VARIANTS[idx]
-            };
-            let io_debug_test_signed_value: i8 = {
-                let raw = u
-                    .int_in_range(-128i8..=127i8)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            let io_debug_test_float_value: f32 = {
-                let mut x: f32 = u
-                    .arbitrary()
-                    .expect("failed to generate physical float value");
-                x = x.min(127.5f32);
-                x.max(0f32)
-            };
-            let mut msg = IoDebugMsg::new(
-                    io_debug_test_unsigned_value,
-                    io_debug_test_enum_value,
-                    io_debug_test_signed_value,
-                    io_debug_test_float_value,
-                )
-                .expect("constructor should accept generated test values");
-            assert_eq!(
-                msg.io_debug_test_unsigned(), io_debug_test_unsigned_value,
-                "getter `{}` returned unexpected value",
-                stringify!(io_debug_test_unsigned),
-            );
-            assert_eq!(
-                msg.io_debug_test_enum(), io_debug_test_enum_value,
-                "getter `{}` returned unexpected value", stringify!(io_debug_test_enum),
-            );
-            assert_eq!(
-                msg.io_debug_test_signed(), io_debug_test_signed_value,
-                "getter `{}` returned unexpected value",
-                stringify!(io_debug_test_signed),
-            );
-            let actual = msg.io_debug_test_float();
-            let expected = io_debug_test_float_value;
-            let tolerance = (expected.abs() * 0.0001).max(0.0001);
-            assert!(
-                (actual - expected).abs() <= tolerance,
-                "getter `{}` returned {:?}, expected {:?}",
-                stringify!(io_debug_test_float), actual, expected,
-            );
-            let io_debug_test_unsigned_next_value: u8 = {
-                let raw = u
-                    .int_in_range(0u8..=255u8)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            let io_debug_test_enum_next_value = {
-                const VARIANTS: &[IoDebugTestEnumEnum] = &[
-                    IoDebugTestEnumEnum::Two,
-                    IoDebugTestEnumEnum::One,
-                ];
-                let idx = u
-                    .int_in_range(0usize..=1usize)
-                    .expect("failed to generate enum variant index");
-                VARIANTS[idx]
-            };
-            let io_debug_test_signed_next_value: i8 = {
-                let raw = u
-                    .int_in_range(-128i8..=127i8)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            let io_debug_test_float_next_value: f32 = {
-                let mut x: f32 = u
-                    .arbitrary()
-                    .expect("failed to generate physical float value");
-                x = x.min(127.5f32);
-                x.max(0f32)
-            };
-            msg.set_io_debug_test_unsigned(io_debug_test_unsigned_next_value)
-                .expect("setter should accept generated test value");
-            msg.set_io_debug_test_enum(io_debug_test_enum_next_value)
-                .expect("setter should accept generated test value");
-            msg.set_io_debug_test_signed(io_debug_test_signed_next_value)
-                .expect("setter should accept generated test value");
-            msg.set_io_debug_test_float(io_debug_test_float_next_value)
-                .expect("setter should accept generated test value");
-            assert_eq!(
-                msg.io_debug_test_unsigned(), io_debug_test_unsigned_next_value,
-                "getter `{}` returned unexpected value",
-                stringify!(io_debug_test_unsigned),
-            );
-            assert_eq!(
-                msg.io_debug_test_enum(), io_debug_test_enum_next_value,
-                "getter `{}` returned unexpected value", stringify!(io_debug_test_enum),
-            );
-            assert_eq!(
-                msg.io_debug_test_signed(), io_debug_test_signed_next_value,
-                "getter `{}` returned unexpected value",
-                stringify!(io_debug_test_signed),
-            );
-            let actual = msg.io_debug_test_float();
-            let expected = io_debug_test_float_next_value;
-            let tolerance = (expected.abs() * 0.0001).max(0.0001);
-            assert!(
-                (actual - expected).abs() <= tolerance,
-                "getter `{}` returned {:?}, expected {:?}",
-                stringify!(io_debug_test_float), actual, expected,
-            );
-        }
-    }
-    #[test]
-    fn test_motor_cmd_msg() {
-        for seed in SEEDS {
-            let mut u = Unstructured::new(seed);
-            let motor_cmd_steer_value: i8 = {
-                let raw = u
-                    .int_in_range(-5i8..=5i8)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            let motor_cmd_drive_value: u8 = {
-                let raw = u
-                    .int_in_range(0u8..=9u8)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            let mut msg = MotorCmdMsg::new(motor_cmd_steer_value, motor_cmd_drive_value)
-                .expect("constructor should accept generated test values");
-            assert_eq!(
-                msg.motor_cmd_steer(), motor_cmd_steer_value,
-                "getter `{}` returned unexpected value", stringify!(motor_cmd_steer),
-            );
-            assert_eq!(
-                msg.motor_cmd_drive(), motor_cmd_drive_value,
-                "getter `{}` returned unexpected value", stringify!(motor_cmd_drive),
-            );
-            let motor_cmd_steer_next_value: i8 = {
-                let raw = u
-                    .int_in_range(-5i8..=5i8)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            let motor_cmd_drive_next_value: u8 = {
-                let raw = u
-                    .int_in_range(0u8..=9u8)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            msg.set_motor_cmd_steer(motor_cmd_steer_next_value)
-                .expect("setter should accept generated test value");
-            msg.set_motor_cmd_drive(motor_cmd_drive_next_value)
-                .expect("setter should accept generated test value");
-            assert_eq!(
-                msg.motor_cmd_steer(), motor_cmd_steer_next_value,
-                "getter `{}` returned unexpected value", stringify!(motor_cmd_steer),
-            );
-            assert_eq!(
-                msg.motor_cmd_drive(), motor_cmd_drive_next_value,
-                "getter `{}` returned unexpected value", stringify!(motor_cmd_drive),
-            );
-        }
-    }
-    #[test]
-    fn test_motor_status_msg() {
-        for seed in SEEDS {
-            let mut u = Unstructured::new(seed);
-            let motor_status_wheel_error_value: bool = u
-                .arbitrary()
-                .expect("failed to generate bool");
-            let motor_status_speed_kph_value: f32 = {
-                let mut x: f32 = u
-                    .arbitrary()
-                    .expect("failed to generate physical float value");
-                x = x.min(65f32);
-                x.max(0f32)
-            };
-            let mut msg = MotorStatusMsg::new(
-                    motor_status_wheel_error_value,
-                    motor_status_speed_kph_value,
-                )
-                .expect("constructor should accept generated test values");
-            assert_eq!(
-                msg.motor_status_wheel_error(), motor_status_wheel_error_value,
-                "getter `{}` returned unexpected value",
-                stringify!(motor_status_wheel_error),
-            );
-            let actual = msg.motor_status_speed_kph();
-            let expected = motor_status_speed_kph_value;
-            let tolerance = (expected.abs() * 0.0001).max(0.0001);
-            assert!(
-                (actual - expected).abs() <= tolerance,
-                "getter `{}` returned {:?}, expected {:?}",
-                stringify!(motor_status_speed_kph), actual, expected,
-            );
-            let motor_status_wheel_error_next_value: bool = u
-                .arbitrary()
-                .expect("failed to generate bool");
-            let motor_status_speed_kph_next_value: f32 = {
-                let mut x: f32 = u
-                    .arbitrary()
-                    .expect("failed to generate physical float value");
-                x = x.min(65f32);
-                x.max(0f32)
-            };
-            msg.set_motor_status_wheel_error(motor_status_wheel_error_next_value)
-                .expect("setter should accept generated test value");
-            msg.set_motor_status_speed_kph(motor_status_speed_kph_next_value)
-                .expect("setter should accept generated test value");
-            assert_eq!(
-                msg.motor_status_wheel_error(), motor_status_wheel_error_next_value,
-                "getter `{}` returned unexpected value",
-                stringify!(motor_status_wheel_error),
-            );
-            let actual = msg.motor_status_speed_kph();
-            let expected = motor_status_speed_kph_next_value;
-            let tolerance = (expected.abs() * 0.0001).max(0.0001);
-            assert!(
-                (actual - expected).abs() <= tolerance,
-                "getter `{}` returned {:?}, expected {:?}",
-                stringify!(motor_status_speed_kph), actual, expected,
-            );
-        }
-    }
-    #[test]
-    fn test_sensor_sonars_msg() {
-        for seed in SEEDS {
-            let mut u = Unstructured::new(seed);
-            let sensor_sonars_err_count_value: u16 = {
-                let raw = u
-                    .int_in_range(0u16..=4095u16)
-                    .expect("failed to generate physical interger value");
-                raw
-            };
-            {
-                let sensor_sonars_left_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_middle_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_right_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_rear_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let mux_msg = SensorSonarsMsgMux0::new(
-                        sensor_sonars_left_value,
-                        sensor_sonars_middle_value,
-                        sensor_sonars_right_value,
-                        sensor_sonars_rear_value,
-                    )
-                    .expect(
-                        "mux variant constructor should accept generated test values",
-                    );
-                let mut msg = SensorSonarsMsg::new(
-                        sensor_sonars_err_count_value,
-                        SensorSonarsMsgMux::V0(mux_msg),
-                    )
-                    .expect("constructor should accept generated test values");
-                assert_eq!(
-                    msg.sensor_sonars_err_count(), sensor_sonars_err_count_value,
-                    "getter `{}` returned unexpected value",
-                    stringify!(sensor_sonars_err_count),
-                );
-                let mut mux_msg = match msg
-                    .mux()
-                    .expect("mux getter should decode generated mux value")
-                {
-                    SensorSonarsMsgMux::V0(v) => v,
-                    _ => panic!("mux getter returned wrong variant"),
-                };
-                let actual = mux_msg.sensor_sonars_left();
-                let expected = sensor_sonars_left_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_left), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_middle();
-                let expected = sensor_sonars_middle_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_middle), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_right();
-                let expected = sensor_sonars_right_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_right), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_rear();
-                let expected = sensor_sonars_rear_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_rear), actual, expected,
-                );
-                let sensor_sonars_err_count_next_value: u16 = {
-                    let raw = u
-                        .int_in_range(0u16..=4095u16)
-                        .expect("failed to generate physical interger value");
-                    raw
-                };
-                msg.set_sensor_sonars_err_count(sensor_sonars_err_count_next_value)
-                    .expect("plain setter should accept generated test value");
-                assert_eq!(
-                    msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value,
-                    "getter `{}` returned unexpected value",
-                    stringify!(sensor_sonars_err_count),
-                );
-                let sensor_sonars_left_next_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_middle_next_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_right_next_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_rear_next_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                mux_msg
-                    .set_sensor_sonars_left(sensor_sonars_left_next_value)
-                    .expect("mux variant setter should accept generated test value");
-                mux_msg
-                    .set_sensor_sonars_middle(sensor_sonars_middle_next_value)
-                    .expect("mux variant setter should accept generated test value");
-                mux_msg
-                    .set_sensor_sonars_right(sensor_sonars_right_next_value)
-                    .expect("mux variant setter should accept generated test value");
-                mux_msg
-                    .set_sensor_sonars_rear(sensor_sonars_rear_next_value)
-                    .expect("mux variant setter should accept generated test value");
-                let actual = mux_msg.sensor_sonars_left();
-                let expected = sensor_sonars_left_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_left), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_middle();
-                let expected = sensor_sonars_middle_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_middle), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_right();
-                let expected = sensor_sonars_right_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_right), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_rear();
-                let expected = sensor_sonars_rear_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_rear), actual, expected,
-                );
-                msg.set_mux0(mux_msg)
-                    .expect("mux setter should accept generated mux variant");
-                let mux_msg = match msg
-                    .mux()
-                    .expect("mux getter should decode updated mux value")
-                {
-                    SensorSonarsMsgMux::V0(v) => v,
-                    _ => panic!("mux getter returned wrong variant after update"),
-                };
-                let actual = mux_msg.sensor_sonars_left();
-                let expected = sensor_sonars_left_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_left), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_middle();
-                let expected = sensor_sonars_middle_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_middle), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_right();
-                let expected = sensor_sonars_right_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_right), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_rear();
-                let expected = sensor_sonars_rear_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_rear), actual, expected,
-                );
-            }
-            {
-                let sensor_sonars_no_filt_left_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_no_filt_middle_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_no_filt_right_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_no_filt_rear_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let mux_msg = SensorSonarsMsgMux1::new(
-                        sensor_sonars_no_filt_left_value,
-                        sensor_sonars_no_filt_middle_value,
-                        sensor_sonars_no_filt_right_value,
-                        sensor_sonars_no_filt_rear_value,
-                    )
-                    .expect(
-                        "mux variant constructor should accept generated test values",
-                    );
-                let mut msg = SensorSonarsMsg::new(
-                        sensor_sonars_err_count_value,
-                        SensorSonarsMsgMux::V1(mux_msg),
-                    )
-                    .expect("constructor should accept generated test values");
-                assert_eq!(
-                    msg.sensor_sonars_err_count(), sensor_sonars_err_count_value,
-                    "getter `{}` returned unexpected value",
-                    stringify!(sensor_sonars_err_count),
-                );
-                let mut mux_msg = match msg
-                    .mux()
-                    .expect("mux getter should decode generated mux value")
-                {
-                    SensorSonarsMsgMux::V1(v) => v,
-                    _ => panic!("mux getter returned wrong variant"),
-                };
-                let actual = mux_msg.sensor_sonars_no_filt_left();
-                let expected = sensor_sonars_no_filt_left_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_left), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_middle();
-                let expected = sensor_sonars_no_filt_middle_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_middle), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_right();
-                let expected = sensor_sonars_no_filt_right_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_right), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_rear();
-                let expected = sensor_sonars_no_filt_rear_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_rear), actual, expected,
-                );
-                let sensor_sonars_err_count_next_value: u16 = {
-                    let raw = u
-                        .int_in_range(0u16..=4095u16)
-                        .expect("failed to generate physical interger value");
-                    raw
-                };
-                msg.set_sensor_sonars_err_count(sensor_sonars_err_count_next_value)
-                    .expect("plain setter should accept generated test value");
-                assert_eq!(
-                    msg.sensor_sonars_err_count(), sensor_sonars_err_count_next_value,
-                    "getter `{}` returned unexpected value",
-                    stringify!(sensor_sonars_err_count),
-                );
-                let sensor_sonars_no_filt_left_next_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_no_filt_middle_next_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_no_filt_right_next_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                let sensor_sonars_no_filt_rear_next_value: f32 = {
-                    let mut x: f32 = u
-                        .arbitrary()
-                        .expect("failed to generate physical float value");
-                    x = x.min(409.5f32);
-                    x.max(0f32)
-                };
-                mux_msg
-                    .set_sensor_sonars_no_filt_left(
-                        sensor_sonars_no_filt_left_next_value,
-                    )
-                    .expect("mux variant setter should accept generated test value");
-                mux_msg
-                    .set_sensor_sonars_no_filt_middle(
-                        sensor_sonars_no_filt_middle_next_value,
-                    )
-                    .expect("mux variant setter should accept generated test value");
-                mux_msg
-                    .set_sensor_sonars_no_filt_right(
-                        sensor_sonars_no_filt_right_next_value,
-                    )
-                    .expect("mux variant setter should accept generated test value");
-                mux_msg
-                    .set_sensor_sonars_no_filt_rear(
-                        sensor_sonars_no_filt_rear_next_value,
-                    )
-                    .expect("mux variant setter should accept generated test value");
-                let actual = mux_msg.sensor_sonars_no_filt_left();
-                let expected = sensor_sonars_no_filt_left_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_left), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_middle();
-                let expected = sensor_sonars_no_filt_middle_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_middle), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_right();
-                let expected = sensor_sonars_no_filt_right_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_right), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_rear();
-                let expected = sensor_sonars_no_filt_rear_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_rear), actual, expected,
-                );
-                msg.set_mux1(mux_msg)
-                    .expect("mux setter should accept generated mux variant");
-                let mux_msg = match msg
-                    .mux()
-                    .expect("mux getter should decode updated mux value")
-                {
-                    SensorSonarsMsgMux::V1(v) => v,
-                    _ => panic!("mux getter returned wrong variant after update"),
-                };
-                let actual = mux_msg.sensor_sonars_no_filt_left();
-                let expected = sensor_sonars_no_filt_left_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_left), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_middle();
-                let expected = sensor_sonars_no_filt_middle_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_middle), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_right();
-                let expected = sensor_sonars_no_filt_right_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_right), actual, expected,
-                );
-                let actual = mux_msg.sensor_sonars_no_filt_rear();
-                let expected = sensor_sonars_no_filt_rear_next_value;
-                let tolerance = (expected.abs() * 0.0001).max(0.0001);
-                assert!(
-                    (actual - expected).abs() <= tolerance,
-                    "getter `{}` returned {:?}, expected {:?}",
-                    stringify!(sensor_sonars_no_filt_rear), actual, expected,
-                );
-            }
-        }
     }
 }

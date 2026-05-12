@@ -1,80 +1,66 @@
+use std::time::Instant;
+
 use data::*;
 
 fn main() -> Result<(), CanError> {
-    // let msg = MotorCmd::new(3, 3)?;
-    // let mux = SensorSonarsMsgMux0::new(0.0, 1.0, 2.0, 2.5)?;
-    // let mut msg = SensorSonarsMsg::new(
-    //     54u16,
-    //     SensorSonarsMsgMux::V0(mux),
-    // )?;
+    let num_tests = 1000;
 
-    // println!("{}", msg.sensor_sonars_err_count());
-    // let mux = msg.mux()?;
+    // let mut msg = SensorSonars::new(0, 15)?;
+    let mut msg = SensorSonarsMsg::new(15, SensorSonarsMsgMux::V0(
+        SensorSonarsMsgMux0::new(0.9, 0.9, 0.9, 0.9)?
+    ))?;
 
-    // match &mux {
-    //     SensorSonarsMsgMux::V0(v) => {
-    //         println!("{}", v.sensor_sonars_left());
-    //         println!("{}", v.sensor_sonars_middle());
-    //         println!("{}", v.sensor_sonars_right());
-    //         println!("{}", v.sensor_sonars_rear());
-    //     },
-    //     _ => (),
-    // }
+    let start = Instant::now();
 
-    // let mux = SensorSonarsMsgMux1::new(2.5, 2.0, 1.0, 1.0)?;
-    // msg.set_mux1(mux)?;
+    for _ in 0..num_tests {
+        let _ = msg.set_sensor_sonars_err_count(10);
+    }
 
-    // println!();
-    // println!("{}", msg.sensor_sonars_err_count());
+    let elapsed = start.elapsed();
+    let avg = elapsed.as_nanos() as f64 / num_tests as f64;
 
-    // match &msg.mux()? {
-    //     SensorSonarsMsgMux::V1(v) => {
-    //         println!("{}", v.sensor_sonars_no_filt_left());
-    //         println!("{}", v.sensor_sonars_no_filt_middle());
-    //         println!("{}", v.sensor_sonars_no_filt_right());
-    //         println!("{}", v.sensor_sonars_no_filt_rear());
-    //     },
-    //     _ => (),
-    // }
+    println!("Average setter time: {avg:.2} ns");
 
-    // println!("{}", msg.motor_cmd_steer());
+    let start = Instant::now();
 
-    // let mut msg = SensorSonars::new(0, 54)?;
-    // let mut mux = SensorSonarsSensorSonarsMuxM0::new();
-    // mux.set_sensor_sonars_left(0.0)?;
-    // mux.set_sensor_sonars_middle(1.0)?;
-    // mux.set_sensor_sonars_right(2.0)?;
-    // mux.set_sensor_sonars_rear(2.5)?;
-    // msg.set_m0(mux)?;
+    for _ in 0..num_tests {
+        msg.sensor_sonars_err_count();
+    }
 
-    // match msg.sensor_sonars_mux()? {
-    //     SensorSonarsSensorSonarsMuxIndex::M0(v) => {
-    //         println!("{}", v.sensor_sonars_left());
-    //         println!("{}", v.sensor_sonars_middle());
-    //         println!("{}", v.sensor_sonars_right());
-    //         println!("{}", v.sensor_sonars_rear());
-    //     },
-    //     _ =>(),
-    // }
+    let elapsed = start.elapsed();
+    let avg = elapsed.as_nanos() as f64 / num_tests as f64;
 
-    // println!();
+    println!("Average getter time: {avg:.2} ns");
 
-    // let mut mux = SensorSonarsSensorSonarsMuxM1::new();
-    // mux.set_sensor_sonars_no_filt_left(2.5)?;
-    // mux.set_sensor_sonars_no_filt_middle(2.0)?;
-    // mux.set_sensor_sonars_no_filt_rear(1.0)?;
-    // mux.set_sensor_sonars_no_filt_right(1.0)?;
-    // msg.set_m1(mux)?;
+    let mut for_avg = Vec::new();
+    for _ in 0..num_tests {
+        // let sub_msg = SensorSonarsSensorSonarsMuxM1::new();
+        let sub_msg = SensorSonarsMsgMux1::new(0.9, 0.9, 0.9, 0.9)?;
 
-    // match msg.sensor_sonars_mux()? {
-    //     SensorSonarsSensorSonarsMuxIndex::M1(v) => {
-    //         println!("{}", v.sensor_sonars_no_filt_left());
-    //         println!("{}", v.sensor_sonars_no_filt_middle());
-    //         println!("{}", v.sensor_sonars_no_filt_right());
-    //         println!("{}", v.sensor_sonars_no_filt_rear());
-    //     },
-    //     _ =>(),
-    // }
+        let start = Instant::now();
+        // let _ = msg.set_m1(sub_msg);
+        let _ = msg.set_mux1(sub_msg);
+    
+        let elapsed = start.elapsed().as_nanos() as f64;
+        for_avg.push(elapsed);
+    }
+
+    let avg = for_avg.iter().sum::<f64>() / num_tests as f64;
+    println!("Average mux setter time: {avg:.2} ns");
+
+    let mut for_avg = Vec::new();
+    for _ in 0..num_tests {
+        let start = Instant::now();
+    
+        // let _= msg.sensor_sonars_mux();
+        let _ = msg.mux();
+    
+        let elapsed = start.elapsed().as_nanos() as f64;
+        for_avg.push(elapsed);
+    }
+
+    let avg = for_avg.iter().sum::<f64>() / num_tests as f64;
+    println!("Average mux getter time: {avg:.2} ns");
 
     Ok(())
 }
