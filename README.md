@@ -171,7 +171,7 @@ fn main() -> anyhow::Result<()> {
 
 ### Rust code injection
 
-Rust code injection lets library users insert extra Rust tokens before selected generated items. This is useful for adding derives or conditional derives to generated types.
+Rust code injection lets library users insert extra Rust tokens before selected generated items. This is useful for adding derives to generated types.
 
 Available injection points are:
 
@@ -183,6 +183,8 @@ Available injection points are:
 | `RustCodeInjectionPoint::MuxEnum` | every generated mux enum |
 | `RustCodeInjectionPoint::MuxVariantStruct` | every generated mux variant struct |
 | `RustCodeInjectionPoint::ErrorEnum` | the generated `CanError` enum |
+| `RustCodeInjectionPoint::Getter` | signal getters |
+| `RustCodeInjectionPoint::Setter` | signal setters |
 
 Example:
 
