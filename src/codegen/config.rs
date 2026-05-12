@@ -10,6 +10,8 @@ pub enum RustCodeInjectionPoint {
     MuxEnum,
     MuxVariantStruct,
     ErrorEnum,
+    Getter,
+    Setter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

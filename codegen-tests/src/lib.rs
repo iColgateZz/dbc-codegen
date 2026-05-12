@@ -69,7 +69,7 @@ mod tests {
     }
 
     fn generate(input: &Path, output: &str, lang: Language) -> Result<()> {
-        let config = CodegenConfig {
+        let mut config = CodegenConfig {
             inputs: vec![
                 input
                     .to_str()
@@ -85,6 +85,16 @@ mod tests {
             cpp_code_injections: HashMap::new(),
             generate_tests: true,
         };
+
+        config.add_rust_code_injection(
+                dbc_codegen2::RustCodeInjectionPoint::Getter,
+                "#[inline(always)]",
+        );
+
+        config.add_rust_code_injection(
+            dbc_codegen2::RustCodeInjectionPoint::Setter,
+            "#[inline(always)]",
+        );
 
         CodegenPipeline::run(config).context("codegen failed")
     }

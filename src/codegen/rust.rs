@@ -241,8 +241,8 @@ impl MessageDef<'_> {
 
         let constructor_params = Self::gen_constructor_params(&signals);
         let constructor_body = Self::gen_constructor_body(&signals);
-        let getters = Self::gen_getters(&signals);
-        let setters = Self::gen_setters(&signals);
+        let getters = Self::gen_getters(&signals, self.config);
+        let setters = Self::gen_setters(&signals, self.config);
 
         let doc = message_doc(&msg);
         let injected =
@@ -350,8 +350,8 @@ impl MessageDef<'_> {
         let variant_structs = muxed.iter().map(|(idx, sigs)| {
             let struct_name = format_ident!("{}Mux{}", name, idx);
 
-            let getters = Self::gen_getters(sigs);
-            let setters = Self::gen_setters(sigs);
+            let getters = Self::gen_getters(sigs, self.config);
+            let setters = Self::gen_setters(sigs, self.config);
             let constructor_params = Self::gen_constructor_params(sigs);
             let constructor_body = Self::gen_constructor_body(sigs);
 
@@ -402,7 +402,11 @@ impl MessageDef<'_> {
             }
         });
 
+        let mux_getter_injected =
+            rust_code_injection_tokens(self.config, RustCodeInjectionPoint::Getter);
+
         let mux_getter = quote! {
+            #mux_getter_injected
             pub fn mux(&self) -> Result<#mux_enum, CanError> {
                 #mux_read
 
@@ -431,7 +435,11 @@ impl MessageDef<'_> {
                 }
             });
 
+            let mux_setters_injected =
+                rust_code_injection_tokens(self.config, RustCodeInjectionPoint::Setter);
+
             quote! {
+                #mux_setters_injected
                 pub fn #fn_name(&mut self, value: #struct_name) -> Result<(), CanError> {
                     #( #copy_muxed_bits )*
 
@@ -455,8 +463,8 @@ impl MessageDef<'_> {
                 }
             }
         });
-        let plain_getters = Self::gen_getters(&plain);
-        let plain_setters = Self::gen_setters(&plain);
+        let plain_getters = Self::gen_getters(&plain, self.config);
+        let plain_setters = Self::gen_setters(&plain, self.config);
 
         let mux_enum_injected =
             rust_code_injection_tokens(self.config, RustCodeInjectionPoint::MuxEnum);
@@ -524,7 +532,10 @@ impl MessageDef<'_> {
         })
     }
 
-    fn gen_getters(signals: &[&SignalCtx]) -> impl Iterator<Item = TokenStream> {
+    fn gen_getters(
+        signals: &[&SignalCtx],
+        config: &CodegenConfig,
+    ) -> impl Iterator<Item = TokenStream> {
         signals.iter().map(|s| {
             let field = s.field_ident();
             let ty = s.rust_type();
@@ -533,9 +544,13 @@ impl MessageDef<'_> {
             let read = s.decode_read();
             let expr = s.decode_expr();
 
+            let getter_injected =
+                rust_code_injection_tokens(config, RustCodeInjectionPoint::Getter);
+
             if s.is_enum() && s.config.no_enum_other {
                 quote! {
                     #doc
+                    #getter_injected
                     pub fn #field(&self) -> Result<#ty, CanError> {
                         #read
 
@@ -545,6 +560,7 @@ impl MessageDef<'_> {
             } else {
                 quote! {
                     #doc
+                    #getter_injected
                     pub fn #field(&self) -> #ty {
                         #read
 
@@ -555,16 +571,22 @@ impl MessageDef<'_> {
         })
     }
 
-    fn gen_setters(signals: &[&SignalCtx]) -> impl Iterator<Item = TokenStream> {
+    fn gen_setters(
+        signals: &[&SignalCtx],
+        config: &CodegenConfig,
+    ) -> impl Iterator<Item = TokenStream> {
         signals.iter().map(|s| {
             let setter = s.setter_ident();
             let ty = s.rust_type();
             let check = s.range_check();
             let write = s.encode_write();
             let doc = setter_doc(s);
+            let setter_injected =
+                rust_code_injection_tokens(config, RustCodeInjectionPoint::Setter);
 
             quote! {
                 #doc
+                #setter_injected
                 pub fn #setter(&mut self, value: #ty) -> Result<(), CanError> {
                     #check
 

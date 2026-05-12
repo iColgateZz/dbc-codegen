@@ -95,7 +95,7 @@ fn main() {
             zero_zero_range_allows_all,
             generate_tests,
         } => {
-            let config = CodegenConfig {
+            let mut config = CodegenConfig {
                 inputs,
                 output,
                 lang,
@@ -106,6 +106,15 @@ fn main() {
                 cpp_code_injections: HashMap::new(),
                 generate_tests,
             };
+
+            config.add_rust_code_injection(
+                dbc_codegen2::RustCodeInjectionPoint::Getter,
+                "#[inline(always)]",
+            );
+            config.add_rust_code_injection(
+                dbc_codegen2::RustCodeInjectionPoint::Setter,
+                "#[inline(always)]",
+            );
 
             if let Err(err) = CodegenPipeline::run(config) {
                 eprintln!("{:#}", err);
